@@ -1,0 +1,69 @@
+// Prisma schema for ExtraTracker - minimal accurate models for expenses and payments
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Models
+
+model User {
+  id             String    @id @default(uuid()) @db.Uuid
+  email          String    @unique
+  name           String?
+  image          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  expenses       Expense[]
+  notificationPreferences NotificationPreference?
+}
+
+model Expense {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @db.Uuid
+  title         String
+  amount        Decimal   @db.Decimal(12, 2)
+  currency      String    @default("USD")
+  description   String?
+  category      String?
+  isRecurring   Boolean   @default(false)
+  recurrenceRule String?  // e.g., "RRULE:FREQ=MONTHLY;INTERVAL=1"
+  startDate     DateTime?
+  nextDueDate   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments      Payment[]
+}
+
+model Payment {
+  id           String    @id @default(uuid()) @db.Uuid
+  expenseId    String    @db.Uuid
+  dueDate      DateTime
+  amount       Decimal   @db.Decimal(12, 2)
+  paid         Boolean   @default(false)
+  paidAt       DateTime?
+  snoozedUntil DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  expense      Expense   @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+model NotificationPreference {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid @unique
+  emailEnabled  Boolean  @default(true)
+  smsEnabled    Boolean  @default(false)
+  pushEnabled   Boolean  @default(false)
+  // days before due to notify
+  notifyBeforeDays Int   @default(3)
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
