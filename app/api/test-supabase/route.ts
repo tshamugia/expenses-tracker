@@ -16,7 +16,7 @@ export async function GET() {
     return NextResponse.json({ 
       success: true, 
       message: 'Supabase connected successfully!',
-      project: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      project: process.env.SUPABASE_URL,
       authenticated: !!session
     });
   } catch (error) {
