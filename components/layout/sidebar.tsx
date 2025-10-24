@@ -50,7 +50,7 @@ const navigation = [
   },
   {
     name: 'Settings',
-    href: '/dashboard/settings',
+    href: '/settings',
     icon: Settings,
   },
 ]
