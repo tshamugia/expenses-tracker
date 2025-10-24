@@ -11,7 +11,7 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db/prisma'
-import bcrypt from 'bcryptjs'
+import { getAuthUserId } from '@/lib/auth/get-session'
 import type {
   UserProfile,
   UpdateProfileInput,
@@ -21,15 +21,10 @@ import type {
 } from '@/types/user-types'
 
 /**
- * Helper function to get the current demo user
- * Until auth is implemented, we use the demo@local user
+ * Helper function to get the current authenticated user ID
  */
-async function getCurrentUserId(): Promise<string | null> {
-  const user = await prisma.user.findUnique({
-    where: { email: 'demo@local' },
-    select: { id: true },
-  })
-  return user?.id || null
+async function getCurrentUserId(): Promise<string> {
+  return await getAuthUserId()
 }
 
 /**
@@ -38,12 +33,6 @@ async function getCurrentUserId(): Promise<string | null> {
 export async function getUserProfile(): Promise<ActionResult<UserProfile>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -52,9 +41,12 @@ export async function getUserProfile(): Promise<ActionResult<UserProfile>> {
         email: true,
         name: true,
         image: true,
-        provider: true,
-        password: true,
         createdAt: true,
+        accounts: {
+          select: {
+            provider: true,
+          },
+        },
       },
     })
 
@@ -72,8 +64,8 @@ export async function getUserProfile(): Promise<ActionResult<UserProfile>> {
         email: user.email,
         name: user.name,
         image: user.image,
-        provider: user.provider,
-        hasPassword: !!user.password,
+        provider: user.accounts[0]?.provider || null,
+        hasPassword: false, // Auth.js handles this now
         createdAt: user.createdAt,
       },
     }
@@ -94,12 +86,6 @@ export async function updateUserProfile(
 ): Promise<ActionResult<UserProfile>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     // Validate input
     if (input.email) {
@@ -140,9 +126,12 @@ export async function updateUserProfile(
         email: true,
         name: true,
         image: true,
-        provider: true,
-        password: true,
         createdAt: true,
+        accounts: {
+          select: {
+            provider: true,
+          },
+        },
       },
     })
 
@@ -155,8 +144,8 @@ export async function updateUserProfile(
         email: updatedUser.email,
         name: updatedUser.name,
         image: updatedUser.image,
-        provider: updatedUser.provider,
-        hasPassword: !!updatedUser.password,
+        provider: updatedUser.accounts[0]?.provider || null,
+        hasPassword: false, // Auth.js handles this now
         createdAt: updatedUser.createdAt,
       },
     }
@@ -171,98 +160,15 @@ export async function updateUserProfile(
 
 /**
  * Set or change password
+ * Note: Password management is now handled by Auth.js
+ * This function is kept for backward compatibility but should not be used
  */
 export async function setPassword(
   input: SetPasswordInput
 ): Promise<ActionResult<{ message: string }>> {
-  try {
-    const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
-
-    // Validate passwords match
-    if (input.newPassword !== input.confirmPassword) {
-      return {
-        success: false,
-        error: 'Passwords do not match',
-      }
-    }
-
-    // Validate password strength (minimum 8 characters)
-    if (input.newPassword.length < 8) {
-      return {
-        success: false,
-        error: 'Password must be at least 8 characters long',
-      }
-    }
-
-    // Get current user
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { password: true },
-    })
-
-    if (!user) {
-      return {
-        success: false,
-        error: 'User not found',
-      }
-    }
-
-    // If user already has password, verify current password
-    if (user.password) {
-      if (!input.currentPassword) {
-        return {
-          success: false,
-          error: 'Current password is required',
-        }
-      }
-
-      const isCurrentPasswordValid = await bcrypt.compare(
-        input.currentPassword,
-        user.password
-      )
-
-      if (!isCurrentPasswordValid) {
-        return {
-          success: false,
-          error: 'Current password is incorrect',
-        }
-      }
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(input.newPassword, 10)
-
-    // Update password
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        password: hashedPassword,
-        provider: user.password ? undefined : 'email', // Set provider to 'email' if first time setting password
-      },
-    })
-
-    revalidatePath('/profile')
-
-    return {
-      success: true,
-      data: {
-        message: user.password
-          ? 'Password changed successfully'
-          : 'Password set successfully. You can now login with email and password.',
-      },
-    }
-  } catch (error) {
-    console.error('Error in setPassword:', error)
-    return {
-      success: false,
-      error: 'Failed to set password',
-    }
+  return {
+    success: false,
+    error: 'Password management is now handled by Auth.js OAuth providers',
   }
 }
 
@@ -272,12 +178,6 @@ export async function setPassword(
 export async function getUserStats(): Promise<ActionResult<UserStats>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     // Get total expenses count and sum
     const expensesData = await prisma.expense.aggregate({
@@ -316,12 +216,6 @@ export async function getUserStats(): Promise<ActionResult<UserStats>> {
 export async function deleteUserAvatar(): Promise<ActionResult<UserProfile>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -331,9 +225,12 @@ export async function deleteUserAvatar(): Promise<ActionResult<UserProfile>> {
         email: true,
         name: true,
         image: true,
-        provider: true,
-        password: true,
         createdAt: true,
+        accounts: {
+          select: {
+            provider: true,
+          },
+        },
       },
     })
 
@@ -346,8 +243,8 @@ export async function deleteUserAvatar(): Promise<ActionResult<UserProfile>> {
         email: updatedUser.email,
         name: updatedUser.name,
         image: updatedUser.image,
-        provider: updatedUser.provider,
-        hasPassword: !!updatedUser.password,
+        provider: updatedUser.accounts[0]?.provider || null,
+        hasPassword: false, // Auth.js handles this now
         createdAt: updatedUser.createdAt,
       },
     }

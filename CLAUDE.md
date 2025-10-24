@@ -200,10 +200,50 @@ Pages and layouts are Server Components by default. Add `'use client'` only when
 - Zustand stores
 - Framer Motion animations
 
+### Authentication
+
+The app uses Auth.js 5 (NextAuth) with Google OAuth:
+
+```typescript
+// Get session in Server Components
+import { auth } from '@/auth'
+
+export default async function Page() {
+  const session = await auth()
+  if (!session) redirect('/login')
+
+  return <div>Welcome {session.user?.name}</div>
+}
+```
+
+```typescript
+// Get session in Client Components
+'use client'
+import { useSession } from 'next-auth/react'
+
+export function Component() {
+  const { data: session, status } = useSession()
+  if (status === 'loading') return <Spinner />
+  if (status === 'unauthenticated') redirect('/login')
+
+  return <div>Welcome {session?.user?.name}</div>
+}
+```
+
+```typescript
+// Sign out
+import { signOut } from 'next-auth/react'
+
+await signOut({ callbackUrl: '/' })
+```
+
+Protected routes are automatically handled by [middleware.ts](middleware.ts). Routes under `/dashboard`, `/expenses`, `/categories`, `/payments`, `/profile`, and `/notifications` require authentication.
+
 ## Tech Stack
 
 - **Framework**: Next.js 16 (App Router)
 - **Database**: Supabase PostgreSQL + Prisma ORM
+- **Authentication**: Auth.js 5 (NextAuth) with Google OAuth
 - **UI**: Tailwind CSS + Shadcn/UI + Framer Motion
 - **State Management**: Zustand (client-side)
 - **Notifications**: Sonner (toast notifications)
@@ -215,14 +255,33 @@ Pages and layouts are Server Components by default. Add `'use client'` only when
 Required in `.env.local`:
 
 ```
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
 DIRECT_URL=
+
+# Auth.js
+AUTH_SECRET=                    # Generate with: openssl rand -base64 32
+NEXTAUTH_URL=http://localhost:3000
+
+# Google OAuth
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
 See `.env.example` for the full template.
+
+### Setting up Google OAuth
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing one
+3. Enable Google+ API
+4. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client ID"
+5. Configure OAuth consent screen
+6. Add authorized redirect URI: `http://localhost:3000/api/auth/callback/google`
+7. Copy Client ID and Client Secret to `.env.local`
 
 ## Path Aliases
 
@@ -246,9 +305,11 @@ import type { ExpenseListItem } from '@/types/expense-types'
 - ✅ Zustand store for optimistic updates
 - ✅ Framer Motion animations
 - ✅ Landing page
+- ✅ Authentication with Auth.js 5 and Google OAuth
+- ✅ Login page with beautiful UI/UX
+- ✅ Route protection middleware
 
 ### Planned (Future Phases)
-- Authentication with NextAuth.js
 - Payment reminder notifications
 - Recurring payment scheduling
 - Category management and filtering

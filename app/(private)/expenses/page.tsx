@@ -1,11 +1,11 @@
 import { getExpenses } from '@/lib/actions/expense-actions'
 import { ExpensesClient } from './expenses-client'
-import { DEMO_USER_ID } from '@/lib/constants/app-config'
+import { getAuthUserId } from '@/lib/auth/get-session'
 
 // Server Component - fetches data from Prisma via business logic layer
 export default async function ExpensesPage() {
-  // TODO: Get user ID from authentication
-  const userId = DEMO_USER_ID // Replace with actual user ID from auth
+  // Get authenticated user ID
+  const userId = await getAuthUserId()
 
   // Fetch expenses on the server (Prisma)
   const result = await getExpenses(userId)

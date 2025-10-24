@@ -1,10 +1,13 @@
 import { getUserPaymentCardsWithStats } from '@/lib/actions/payment-card-actions'
 import { PaymentsClient } from './payments-client'
-import { DEMO_USER_ID } from '@/lib/constants/app-config'
+import { getAuthUserId } from '@/lib/auth/get-session'
 
 export default async function PaymentsPage() {
-  // Call Server Action (Business Logic Layer)
-  const cards = await getUserPaymentCardsWithStats(DEMO_USER_ID)
+  // Get authenticated user ID
+  const userId = await getAuthUserId()
 
-  return <PaymentsClient cards={cards} userId={DEMO_USER_ID} />
+  // Call Server Action (Business Logic Layer)
+  const cards = await getUserPaymentCardsWithStats(userId)
+
+  return <PaymentsClient cards={cards} userId={userId} />
 }

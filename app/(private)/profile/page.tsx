@@ -12,6 +12,8 @@ export const metadata = {
   description: 'Manage your profile settings and preferences',
 }
 
+export const dynamic = 'force-dynamic'
+
 async function ProfileContent() {
   const [profileResult, statsResult] = await Promise.all([
     getUserProfile(),

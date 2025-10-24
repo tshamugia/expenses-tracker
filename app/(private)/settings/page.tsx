@@ -12,6 +12,8 @@ export const metadata = {
   description: 'Manage your application settings and preferences',
 }
 
+export const dynamic = 'force-dynamic'
+
 async function SettingsContent() {
   const [settingsResult, plansResult] = await Promise.all([
     getUserSettings(),

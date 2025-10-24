@@ -1,10 +1,13 @@
 import { getDashboardData } from '@/lib/actions/expense-actions'
 import { DashboardClient } from './dashboard-client'
-import { DEMO_USER_ID } from '@/lib/constants/app-config'
+import { getAuthUserId } from '@/lib/auth/get-session'
 
 export default async function DashboardPage() {
-  // Call Server Action (Business Logic Layer)
-  const dashboardData = await getDashboardData(DEMO_USER_ID)
+  // Get authenticated user ID
+  const userId = await getAuthUserId()
 
-  return <DashboardClient dashboardData={dashboardData} userId={DEMO_USER_ID} />
+  // Call Server Action (Business Logic Layer)
+  const dashboardData = await getDashboardData(userId)
+
+  return <DashboardClient dashboardData={dashboardData} userId={userId} />
 }

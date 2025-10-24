@@ -11,6 +11,8 @@ export const metadata = {
   description: 'View and manage your notifications',
 }
 
+export const dynamic = 'force-dynamic'
+
 async function NotificationsContent() {
   const [notificationsResult, statsResult] = await Promise.all([
     getUserNotifications(),

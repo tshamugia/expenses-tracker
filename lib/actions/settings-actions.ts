@@ -11,6 +11,7 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db/prisma'
+import { getAuthUserId } from '@/lib/auth/get-session'
 import type {
   UserSettings,
   UpdateSettingsInput,
@@ -19,15 +20,10 @@ import type {
 } from '@/types/settings-types'
 
 /**
- * Helper function to get the current demo user ID
- * Until auth is implemented, we use the demo@local user
+ * Helper function to get the current authenticated user ID
  */
-async function getCurrentUserId(): Promise<string | null> {
-  const user = await prisma.user.findUnique({
-    where: { email: 'demo@local' },
-    select: { id: true },
-  })
-  return user?.id || null
+async function getCurrentUserId(): Promise<string> {
+  return await getAuthUserId()
 }
 
 /**
@@ -37,12 +33,6 @@ async function getCurrentUserId(): Promise<string | null> {
 export async function getUserSettings(): Promise<ActionResult<UserSettings>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     // Try to find existing settings
     let settings = await prisma.notificationPreference.findUnique({
@@ -96,12 +86,6 @@ export async function updateUserSettings(
 ): Promise<ActionResult<UserSettings>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     // Ensure settings exist first
     const existingSettings = await prisma.notificationPreference.findUnique({
@@ -237,12 +221,6 @@ export async function upgradeSubscription(
 ): Promise<ActionResult<{ message: string }>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     // In a real app, this would:
     // 1. Integrate with a payment processor (Stripe, PayPal, etc.)

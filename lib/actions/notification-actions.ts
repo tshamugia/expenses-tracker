@@ -10,6 +10,7 @@
 
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db/prisma'
+import { getAuthUserId } from '@/lib/auth/get-session'
 import type {
   Notification,
   CreateNotificationInput,
@@ -18,15 +19,10 @@ import type {
 } from '@/types/notification-types'
 
 /**
- * Helper function to get the current demo user ID
- * Until auth is implemented, we use the demo@local user
+ * Helper function to get the current authenticated user ID
  */
-async function getCurrentUserId(): Promise<string | null> {
-  const user = await prisma.user.findUnique({
-    where: { email: 'demo@local' },
-    select: { id: true },
-  })
-  return user?.id || null
+async function getCurrentUserId(): Promise<string> {
+  return await getAuthUserId()
 }
 
 /**
@@ -37,12 +33,6 @@ export async function getUserNotifications(
 ): Promise<ActionResult<Notification[]>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
@@ -71,12 +61,6 @@ export async function getNotificationStats(): Promise<
 > {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const [total, unread] = await Promise.all([
       prisma.notification.count({
@@ -108,12 +92,6 @@ export async function markNotificationAsRead(
 ): Promise<ActionResult<Notification>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const notification = await prisma.notification.update({
       where: {
@@ -148,12 +126,6 @@ export async function markAllNotificationsAsRead(): Promise<
 > {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const result = await prisma.notification.updateMany({
       where: {
@@ -188,12 +160,6 @@ export async function deleteNotification(
 ): Promise<ActionResult<{ message: string }>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     await prisma.notification.delete({
       where: {
@@ -225,12 +191,6 @@ export async function deleteAllReadNotifications(): Promise<
 > {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const result = await prisma.notification.deleteMany({
       where: {
@@ -262,12 +222,6 @@ export async function createNotification(
 ): Promise<ActionResult<Notification>> {
   try {
     const userId = await getCurrentUserId()
-    if (!userId) {
-      return {
-        success: false,
-        error: 'Demo user not found. Please run: npm run prisma:seed',
-      }
-    }
 
     const notification = await prisma.notification.create({
       data: {
