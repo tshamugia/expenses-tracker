@@ -259,6 +259,7 @@ export interface CreateExpenseInput {
   currency?: string
   description?: string
   category?: string
+  paymentCardId?: string
   isRecurring?: boolean
   recurrenceRule?: string
   startDate?: Date
@@ -271,6 +272,7 @@ export interface UpdateExpenseInput {
   currency?: string
   description?: string
   category?: string
+  paymentCardId?: string
   isRecurring?: boolean
   recurrenceRule?: string
   startDate?: Date
@@ -296,6 +298,7 @@ export async function createExpense(
         currency: input.currency || 'USD',
         description: input.description,
         category: input.category,
+        paymentCardId: input.paymentCardId || null,
         isRecurring: input.isRecurring || false,
         recurrenceRule: input.recurrenceRule,
         startDate: input.startDate,
@@ -366,6 +369,7 @@ export async function updateExpense(
         currency: input.currency,
         description: input.description,
         category: input.category,
+        paymentCardId: input.paymentCardId || null,
         isRecurring: input.isRecurring,
         recurrenceRule: input.recurrenceRule,
         startDate: input.startDate,

@@ -11,14 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { X, Plus, FolderPlus } from 'lucide-react'
+import { X, Plus, FolderPlus, CreditCard } from 'lucide-react'
 import {
   modalBackdrop,
   formFieldEntry,
 } from '@/lib/animations/variants'
 import type { ExpenseListItem } from '@/types/expense-types'
 import type { SerializedCategory } from '@/types/category-types'
+import type { SerializedPaymentCard } from '@/types/payment-card-types'
 import { getUserCategories, createCategory } from '@/lib/actions/category-actions'
+import { getUserPaymentCards } from '@/lib/actions/payment-card-actions'
 import { CategoryForm, type CategoryFormData } from '@/components/categories/category-form'
 import { toast } from 'sonner'
 
@@ -37,6 +39,7 @@ export interface ExpenseFormData {
   category: string
   date: string
   notes?: string
+  paymentCardId?: string
 }
 
 export function ExpenseForm({
@@ -53,19 +56,23 @@ export function ExpenseForm({
     category: '',
     date: new Date().toISOString().split('T')[0],
     notes: '',
+    paymentCardId: 'none',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [categories, setCategories] = useState<SerializedCategory[]>([])
+  const [paymentCards, setPaymentCards] = useState<SerializedPaymentCard[]>([])
   const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false)
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
   const [isFetchingCategories, setIsFetchingCategories] = useState(false)
+  const [isFetchingCards, setIsFetchingCards] = useState(false)
 
-  // Fetch categories when modal opens
+  // Fetch categories and payment cards when modal opens
   useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchData = async () => {
       if (isOpen && userId) {
+        // Fetch categories
         setIsFetchingCategories(true)
         try {
           const fetchedCategories = await getUserCategories(userId)
@@ -76,10 +83,22 @@ export function ExpenseForm({
         } finally {
           setIsFetchingCategories(false)
         }
+
+        // Fetch payment cards
+        setIsFetchingCards(true)
+        try {
+          const fetchedCards = await getUserPaymentCards(userId)
+          setPaymentCards(fetchedCards)
+        } catch (error) {
+          console.error('Error fetching payment cards:', error)
+          toast.error('Failed to load payment cards')
+        } finally {
+          setIsFetchingCards(false)
+        }
       }
     }
 
-    fetchCategories()
+    fetchData()
   }, [isOpen, userId])
 
   // Update form data when initialData changes (for editing)
@@ -103,6 +122,7 @@ export function ExpenseForm({
         category: '',
         date: new Date().toISOString().split('T')[0],
         notes: '',
+        paymentCardId: 'none',
       })
     }
     // Reset errors and touched when modal opens
@@ -156,6 +176,7 @@ export function ExpenseForm({
       category: '',
       date: new Date().toISOString().split('T')[0],
       notes: '',
+      paymentCardId: 'none',
     })
     setErrors({})
     setTouched({})
@@ -444,6 +465,70 @@ export function ExpenseForm({
                         {errors.category}
                       </motion.p>
                     )}
+                  </motion.div>
+
+                  {/* Payment Card */}
+                  <motion.div
+                    variants={formFieldEntry}
+                    initial="initial"
+                    animate="animate"
+                    transition={{ delay: 0.225 }}
+                    className="group"
+                  >
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                      Payment Card <span className="text-slate-400">(Optional)</span>
+                    </label>
+                    <Select
+                      value={formData.paymentCardId}
+                      onValueChange={(value) => handleFieldChange('paymentCardId', value)}
+                      disabled={isFetchingCards}
+                    >
+                      <SelectTrigger
+                        className="rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 focus:border-blue-500 focus:ring-blue-500 transition-all duration-200"
+                      >
+                        <SelectValue
+                          placeholder={
+                            isFetchingCards
+                              ? "Loading cards..."
+                              : paymentCards.length === 0
+                              ? "No cards - add one in Payments"
+                              : "Select a card (optional)"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {paymentCards.length === 0 ? (
+                          <div className="px-2 py-6 text-center text-sm text-slate-500">
+                            <p>No payment cards yet</p>
+                            <p className="mt-1 text-xs">Add cards in the Payments page</p>
+                          </div>
+                        ) : (
+                          <>
+                            <SelectItem value="none">
+                              <div className="flex items-center gap-2 text-slate-500">
+                                <CreditCard className="h-4 w-4" />
+                                No card
+                              </div>
+                            </SelectItem>
+                            {paymentCards.map((card) => (
+                              <SelectItem key={card.id} value={card.id}>
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="h-3 w-3 rounded-full"
+                                    style={{ backgroundColor: card.color }}
+                                  />
+                                  <span className="font-medium">{card.cardBrand}</span>
+                                  <span className="text-slate-500">••{card.lastFourDigits}</span>
+                                  {card.nickname && (
+                                    <span className="text-xs text-slate-400">({card.nickname})</span>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
                   </motion.div>
 
                   {/* Date */}

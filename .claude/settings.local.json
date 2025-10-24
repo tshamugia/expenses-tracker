@@ -7,7 +7,12 @@
       "Bash(npx prisma db push:*)",
       "Bash(npx shadcn@latest add:*)",
       "mcp__supabase__list_tables",
-      "mcp__supabase__apply_migration"
+      "mcp__supabase__apply_migration",
+      "Bash(npm run prisma:generate:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd.exe //c \"taskkill //F //IM node.exe //T\")",
+      "Bash(cat:*)",
+      "Bash(npm run prisma:push:*)"
     ],
     "deny": [],
     "ask": []

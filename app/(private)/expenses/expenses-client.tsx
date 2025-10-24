@@ -103,6 +103,7 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
           amount: data.amount,
           category: data.category,
           description: data.notes,
+          paymentCardId: data.paymentCardId === 'none' ? undefined : data.paymentCardId,
           nextDueDate: new Date(data.date),
         })
 
@@ -155,6 +156,7 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
           amount: data.amount,
           category: data.category,
           description: data.notes,
+          paymentCardId: data.paymentCardId === 'none' ? undefined : data.paymentCardId,
           nextDueDate: new Date(data.date),
         })
 
