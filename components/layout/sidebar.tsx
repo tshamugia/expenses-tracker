@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { 
-  LayoutDashboard, 
-  Receipt, 
-  CreditCard, 
+import {
+  LayoutDashboard,
+  Receipt,
+  CreditCard,
   Settings,
+  FolderKanban,
   X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,8 +29,13 @@ const navigation = [
   },
   {
     name: 'Expenses',
-    href: '/dashboard/expenses',
+    href: '/expenses',
     icon: Receipt,
+  },
+  {
+    name: 'Categories',
+    href: '/categories',
+    icon: FolderKanban,
   },
   {
     name: 'Payments',

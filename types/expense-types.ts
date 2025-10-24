@@ -5,6 +5,19 @@ export type ExpenseWithPayments = Expense & {
   payments: Payment[]
 }
 
+// Serialized versions for Client Components (Decimal → number)
+export type SerializedPayment = Omit<Payment, 'amount'> & {
+  amount: number
+}
+
+export type SerializedExpense = Omit<Expense, 'amount'> & {
+  amount: number
+}
+
+export type SerializedExpenseWithPayments = SerializedExpense & {
+  payments: SerializedPayment[]
+}
+
 export type ExpenseWithUser = Expense & {
   user: User
 }
@@ -32,11 +45,20 @@ export interface DashboardStats {
   paid: number
   pending: number
   overdue: number
+  count: number
+}
+
+export interface CategoryData {
+  category: string
+  amount: number
+  count: number
 }
 
 export interface DashboardData {
   expenses: ExpenseListItem[]
   stats: DashboardStats
+  upcomingExpenses: ExpenseListItem[]
+  categoryData: CategoryData[]
 }
 
 // Filters for querying expenses

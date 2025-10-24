@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(timeout 30 npx prisma:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "mcp__supabase__list_tables",
+      "mcp__supabase__apply_migration"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "next-devtools"
+  ]
+}

@@ -1,8 +1,9 @@
-import { 
-  DollarSign, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle 
+import {
+  DollarSign,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Hash
 } from 'lucide-react'
 import { StatCard } from './stat-card'
 import type { DashboardStats } from '@/types/expense-types'
@@ -14,17 +15,29 @@ interface ExpenseStatsProps {
 }
 
 export function ExpenseStats({ data, currency = 'USD' }: ExpenseStatsProps) {
-  const { total, paid, pending, overdue } = data
+  const { total, paid, pending, overdue, count } = data
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      {/* Total Count Card - New */}
       <StatCard
-        title="Total Expenses"
+        title="Total Count"
+        value={count.toString()}
+        icon={Hash}
+        description="Number of expenses"
+        colorClass="text-primary"
+      />
+
+      {/* Total Amount Card */}
+      <StatCard
+        title="Total Amount"
         value={formatCurrency(total, currency)}
         icon={DollarSign}
         description="All time"
-        colorClass="text-primary"
+        colorClass="text-blue-600"
       />
+
+      {/* Paid Card */}
       <StatCard
         title="Paid"
         value={formatCurrency(paid, currency)}
@@ -32,6 +45,8 @@ export function ExpenseStats({ data, currency = 'USD' }: ExpenseStatsProps) {
         description="Completed payments"
         colorClass="text-green-600"
       />
+
+      {/* Pending Card */}
       <StatCard
         title="Pending"
         value={formatCurrency(pending, currency)}
@@ -39,6 +54,8 @@ export function ExpenseStats({ data, currency = 'USD' }: ExpenseStatsProps) {
         description="Awaiting payment"
         colorClass="text-yellow-600"
       />
+
+      {/* Overdue Card */}
       <StatCard
         title="Overdue"
         value={formatCurrency(overdue, currency)}

@@ -24,22 +24,22 @@ import type {
   ExpenseListItem,
   ExpenseFilters,
   ExpenseWithPayments,
+  SerializedExpenseWithPayments,
+  CategoryData,
 } from '@/types/expense-types'
 
 /**
  * Get dashboard data for a user
- * Business logic: Calculate stats, add status flags, limit to 10 recent
+ * Business logic: Calculate stats, add status flags, get upcoming expenses, and category breakdown
  */
 export const getDashboardData = cache(
   async (userId: string): Promise<DashboardData> => {
     try {
-      // Call data access layer - Prisma returns Date objects directly
-      const expenses = await findExpensesByUserId(userId, {
-        limit: 10,
-      })
+      // Call data access layer - get all expenses for full analytics
+      const allExpenses = await findExpensesByUserId(userId)
 
       // Business logic: Transform to view models with computed fields
-      const expenseItems: ExpenseListItem[] = expenses.map((expense) => {
+      const expenseItems: ExpenseListItem[] = allExpenses.map((expense) => {
         const latestPayment = expense.payments[0]
         const isPaid = latestPayment?.paid ?? false
         const nextDueDate = expense.nextDueDate
@@ -58,11 +58,12 @@ export const getDashboardData = cache(
         }
       })
 
-      // Business logic: Calculate aggregated stats
+      // Business logic: Calculate aggregated stats with count
       const stats = expenseItems.reduce(
         (acc, expense) => {
           const amount = expense.amount
           acc.total += amount
+          acc.count += 1
 
           if (expense.isPaid) {
             acc.paid += amount
@@ -74,19 +75,62 @@ export const getDashboardData = cache(
 
           return acc
         },
-        { total: 0, paid: 0, pending: 0, overdue: 0 }
+        { total: 0, paid: 0, pending: 0, overdue: 0, count: 0 }
       )
 
+      // Business logic: Filter upcoming expenses (not paid, not overdue, has due date within next 30 days)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const thirtyDaysFromNow = new Date(today)
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30)
+
+      const upcomingExpenses = expenseItems
+        .filter((expense) => {
+          if (expense.isPaid || expense.isOverdue || !expense.nextDueDate) return false
+          const dueDate = new Date(expense.nextDueDate)
+          return dueDate >= today && dueDate <= thirtyDaysFromNow
+        })
+        .sort((a, b) => {
+          const dateA = a.nextDueDate ? new Date(a.nextDueDate).getTime() : 0
+          const dateB = b.nextDueDate ? new Date(b.nextDueDate).getTime() : 0
+          return dateA - dateB
+        })
+        .slice(0, 5) // Limit to 5 upcoming expenses
+
+      // Business logic: Calculate category breakdown
+      const categoryMap = new Map<string, { amount: number; count: number }>()
+
+      expenseItems.forEach((expense) => {
+        const category = expense.category || 'Uncategorized'
+        const existing = categoryMap.get(category) || { amount: 0, count: 0 }
+        categoryMap.set(category, {
+          amount: existing.amount + expense.amount,
+          count: existing.count + 1,
+        })
+      })
+
+      const categoryData: CategoryData[] = Array.from(categoryMap.entries())
+        .map(([category, data]) => ({
+          category,
+          amount: data.amount,
+          count: data.count,
+        }))
+        .sort((a, b) => b.amount - a.amount)
+
       return {
-        expenses: expenseItems,
+        expenses: expenseItems.slice(0, 10), // Recent 10 for display
         stats,
+        upcomingExpenses,
+        categoryData,
       }
     } catch (error) {
       console.error('Error in getDashboardData:', error)
       // Business logic: Return safe fallback
       return {
         expenses: [],
-        stats: { total: 0, paid: 0, pending: 0, overdue: 0 },
+        stats: { total: 0, paid: 0, pending: 0, overdue: 0, count: 0 },
+        upcomingExpenses: [],
+        categoryData: [],
       }
     }
   }
@@ -199,34 +243,289 @@ export const getExpenseCategories = cache(
   }
 )
 
+// CRUD Operations with Prisma
+import { revalidatePath } from 'next/cache'
+import prisma from '@/lib/db/prisma'
+
 /**
- * Create a new expense (placeholder for Phase 3)
+ * Create a new expense
+ * Business logic: Validate input, create expense and initial payment
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function createExpense(_data: unknown) {
-  // TODO: Add Zod validation
-  // TODO: Call Prisma create
-  // TODO: Revalidate cache
-  throw new Error('Not implemented yet - Phase 3')
+
+export interface CreateExpenseInput {
+  userId: string
+  title: string
+  amount: number
+  currency?: string
+  description?: string
+  category?: string
+  isRecurring?: boolean
+  recurrenceRule?: string
+  startDate?: Date
+  nextDueDate?: Date
+}
+
+export interface UpdateExpenseInput {
+  title?: string
+  amount?: number
+  currency?: string
+  description?: string
+  category?: string
+  isRecurring?: boolean
+  recurrenceRule?: string
+  startDate?: Date
+  nextDueDate?: Date
+}
+
+export interface ActionResult<T> {
+  success: boolean
+  data?: T
+  error?: string
+}
+
+export async function createExpense(
+  input: CreateExpenseInput
+): Promise<ActionResult<SerializedExpenseWithPayments>> {
+  try {
+    // Business logic: Create expense with Prisma
+    const expense = await prisma.expense.create({
+      data: {
+        userId: input.userId,
+        title: input.title,
+        amount: input.amount,
+        currency: input.currency || 'USD',
+        description: input.description,
+        category: input.category,
+        isRecurring: input.isRecurring || false,
+        recurrenceRule: input.recurrenceRule,
+        startDate: input.startDate,
+        nextDueDate: input.nextDueDate,
+      },
+    })
+
+    // Business logic: Create initial payment if nextDueDate is provided
+    if (input.nextDueDate) {
+      await prisma.payment.create({
+        data: {
+          expenseId: expense.id,
+          dueDate: input.nextDueDate,
+          amount: input.amount,
+          paid: false,
+        },
+      })
+    }
+
+    // Fetch expense with payments after creating payment
+    const expenseWithPayments = await prisma.expense.findUnique({
+      where: { id: expense.id },
+      include: {
+        payments: {
+          orderBy: {
+            dueDate: 'desc',
+          },
+        },
+      },
+    })
+
+    // Revalidate pages to show new data
+    revalidatePath('/expenses')
+    revalidatePath('/dashboard')
+
+    // Serialize for client
+    const serialized: SerializedExpenseWithPayments = {
+      ...expenseWithPayments!,
+      amount: Number(expenseWithPayments!.amount),
+      payments: expenseWithPayments!.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+    }
+
+    return { success: true, data: serialized }
+  } catch (error) {
+    console.error('Error creating expense:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create expense',
+    }
+  }
 }
 
 /**
- * Update an existing expense (placeholder for Phase 3)
+ * Update an existing expense
+ * Business logic: Validate ownership, update expense data
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function updateExpense(_id: string, _data: unknown) {
-  // TODO: Add Zod validation
-  // TODO: Call Prisma update
-  // TODO: Revalidate cache
-  throw new Error('Not implemented yet - Phase 3')
+export async function updateExpense(
+  id: string,
+  input: UpdateExpenseInput
+): Promise<ActionResult<SerializedExpenseWithPayments>> {
+  try {
+    // Business logic: Update expense with Prisma
+    const expense = await prisma.expense.update({
+      where: { id },
+      data: {
+        title: input.title,
+        amount: input.amount,
+        currency: input.currency,
+        description: input.description,
+        category: input.category,
+        isRecurring: input.isRecurring,
+        recurrenceRule: input.recurrenceRule,
+        startDate: input.startDate,
+        nextDueDate: input.nextDueDate,
+      },
+      include: {
+        payments: true,
+      },
+    })
+
+    // Revalidate pages
+    revalidatePath('/expenses')
+    revalidatePath('/dashboard')
+
+    // Serialize for client
+    const serialized: SerializedExpenseWithPayments = {
+      ...expense,
+      amount: Number(expense.amount),
+      payments: expense.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+    }
+
+    return { success: true, data: serialized }
+  } catch (error) {
+    console.error('Error updating expense:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update expense',
+    }
+  }
 }
 
 /**
- * Delete an expense (placeholder for Phase 3)
+ * Delete an expense
+ * Business logic: Validate ownership, cascade delete payments
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function deleteExpense(_id: string) {
-  // TODO: Call Prisma delete
-  // TODO: Revalidate cache
-  throw new Error('Not implemented yet - Phase 3')
+export async function deleteExpense(
+  id: string
+): Promise<ActionResult<void>> {
+  try {
+    // Business logic: Delete expense with Prisma (cascade deletes payments)
+    await prisma.expense.delete({
+      where: { id },
+    })
+
+    // Revalidate pages
+    revalidatePath('/expenses')
+    revalidatePath('/dashboard')
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting expense:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete expense',
+    }
+  }
+}
+
+/**
+ * Mark an expense payment as paid
+ * Business logic: Find latest unpaid payment and mark it as paid
+ */
+export async function markExpensePaid(
+  expenseId: string
+): Promise<ActionResult<SerializedExpenseWithPayments>> {
+  try {
+    // Business logic: Find the latest unpaid payment
+    const payment = await prisma.payment.findFirst({
+      where: {
+        expenseId,
+        paid: false,
+      },
+      orderBy: {
+        dueDate: 'asc',
+      },
+    })
+
+    if (!payment) {
+      return {
+        success: false,
+        error: 'No unpaid payment found',
+      }
+    }
+
+    // Mark payment as paid
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        paid: true,
+        paidAt: new Date(),
+      },
+    })
+
+    // Fetch updated expense
+    const expense = await prisma.expense.findUnique({
+      where: { id: expenseId },
+      include: {
+        payments: true,
+      },
+    })
+
+    // Revalidate pages
+    revalidatePath('/expenses')
+    revalidatePath('/dashboard')
+
+    // Serialize for client
+    const serialized: SerializedExpenseWithPayments = {
+      ...expense!,
+      amount: Number(expense!.amount),
+      payments: expense!.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+    }
+
+    return { success: true, data: serialized }
+  } catch (error) {
+    console.error('Error marking expense as paid:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to mark expense as paid',
+    }
+  }
+}
+
+/**
+ * Get all expenses for a user (for the expenses page)
+ * Business logic: Fetch with payments, transform to ExpenseWithPayments[]
+ */
+export async function getExpenses(
+  userId: string
+): Promise<ActionResult<SerializedExpenseWithPayments[]>> {
+  try {
+    const expenses = await prisma.expense.findMany({
+      where: { userId },
+      include: {
+        payments: {
+          orderBy: {
+            dueDate: 'desc',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+
+    // Convert Decimal to number for client components
+    const serializedExpenses: SerializedExpenseWithPayments[] = expenses.map((expense) => ({
+      ...expense,
+      amount: Number(expense.amount),
+      payments: expense.payments.map((payment) => ({
+        ...payment,
+        amount: Number(payment.amount),
+      })),
+    }))
+
+    return { success: true, data: serializedExpenses }
+  } catch (error) {
+    console.error('Error fetching expenses:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to fetch expenses',
+    }
+  }
 }

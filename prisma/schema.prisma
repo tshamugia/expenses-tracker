@@ -20,6 +20,7 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   expenses       Expense[]
+  categories     Category[]
   notificationPreferences NotificationPreference?
 }
 
@@ -66,4 +67,18 @@ model NotificationPreference {
   notifyBeforeDays Int   @default(3)
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  categoryName  String
+  color         String   @default("#3b82f6") // Default blue color
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, categoryName]) // Prevent duplicate category names per user
+  @@index([userId]) // Optimize queries by userId
 }
