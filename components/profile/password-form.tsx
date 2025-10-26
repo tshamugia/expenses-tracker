@@ -88,10 +88,18 @@ export function PasswordForm({ hasPassword, provider }: PasswordFormProps) {
           {/* Current Password (only if user already has password) */}
           {hasPassword && (
             <div className="space-y-2">
-              <Label htmlFor="currentPassword">
-                <Lock className="inline h-4 w-4 mr-2" />
-                Current Password
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="currentPassword">
+                  <Lock className="inline h-4 w-4 mr-2" />
+                  Current Password
+                </Label>
+                <a
+                  href="/forgot-password"
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors underline"
+                >
+                  Forgot password?
+                </a>
+              </div>
               <div className="relative">
                 <Input
                   id="currentPassword"

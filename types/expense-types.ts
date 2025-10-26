@@ -27,6 +27,15 @@ export type ExpenseWithRelations = Expense & {
   user: User
 }
 
+// Payment card info for display in expenses
+export interface PaymentCardInfo {
+  id: string
+  nickname: string | null
+  lastFourDigits: string
+  cardBrand: string
+  color: string
+}
+
 // View models for UI components
 export interface ExpenseListItem {
   id: string
@@ -38,6 +47,7 @@ export interface ExpenseListItem {
   isOverdue: boolean
   isPaid: boolean
   isRecurring: boolean
+  paymentCard: PaymentCardInfo | null
 }
 
 export interface DashboardStats {

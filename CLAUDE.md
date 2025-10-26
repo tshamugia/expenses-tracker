@@ -243,10 +243,11 @@ Protected routes are automatically handled by [middleware.ts](middleware.ts). Ro
 
 - **Framework**: Next.js 16 (App Router)
 - **Database**: Supabase PostgreSQL + Prisma ORM
-- **Authentication**: Auth.js 5 (NextAuth) with Google OAuth
+- **Authentication**: Auth.js 5 (NextAuth) with Google OAuth and Credentials
 - **UI**: Tailwind CSS + Shadcn/UI + Framer Motion
 - **State Management**: Zustand (client-side)
 - **Notifications**: Sonner (toast notifications)
+- **Email**: Resend (email notifications and password reset)
 - **Validation**: Zod (planned)
 - **Date Handling**: date-fns (planned)
 
@@ -269,6 +270,12 @@ NEXTAUTH_URL=http://localhost:3000
 # Google OAuth
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+
+# Email Service (Resend)
+RESEND_API_KEY=                 # Optional: emails logged to console if not set
+
+# Cron Job Security (Production)
+CRON_SECRET=                    # Generate with: openssl rand -base64 32
 ```
 
 See `.env.example` for the full template.
@@ -298,25 +305,30 @@ import type { ExpenseListItem } from '@/types/expense-types'
 ### Completed (Phase 1)
 - ✅ Project setup with TypeScript, Tailwind, Shadcn/UI
 - ✅ Supabase and Prisma configuration
-- ✅ Database schema with User, Expense, Payment models
+- ✅ Database schema with User, Expense, Payment, NotificationPreference models
 - ✅ Server Actions for expense CRUD operations
 - ✅ Dashboard with expense stats and list
 - ✅ Expense form with create/edit/delete functionality
 - ✅ Zustand store for optimistic updates
 - ✅ Framer Motion animations
 - ✅ Landing page
-- ✅ Authentication with Auth.js 5 and Google OAuth
-- ✅ Login page with beautiful UI/UX
+- ✅ Authentication with Auth.js 5 (Google OAuth + Credentials)
+- ✅ Login/Register page with beautiful UI/UX
+- ✅ Password set functionality for OAuth users
+- ✅ Forgot password with email verification codes
 - ✅ Route protection middleware
+- ✅ Email notification system for payment reminders
+- ✅ Notification preferences in settings
+- ✅ Cron job endpoint for scheduled notifications
 
 ### Planned (Future Phases)
-- Payment reminder notifications
 - Recurring payment scheduling
 - Category management and filtering
 - Budget tracking
 - Receipt upload with OCR
 - Export to CSV/PDF
 - Real-time sync with Supabase subscriptions
+- SMS and push notifications
 
 ## Debugging Tips
 

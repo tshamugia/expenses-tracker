@@ -2,6 +2,7 @@ import { LoginForm } from '@/components/auth/login-form'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Suspense } from 'react'
 
 export default function LoginPage() {
   return (
@@ -84,7 +85,9 @@ export default function LoginPage() {
 
           {/* Right side - Login form */}
           <div className="flex-1 flex justify-center lg:justify-end w-full">
-            <LoginForm />
+            <Suspense fallback={<div className="w-full max-w-md h-96 bg-white rounded-lg shadow-2xl animate-pulse" />}>
+              <LoginForm />
+            </Suspense>
           </div>
         </div>
       </div>

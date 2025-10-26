@@ -5,7 +5,10 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Edit2, Trash2, CheckCircle } from 'lucide-react'
 import type { ExpenseListItem } from '@/types/expense-types'
+import type { Currency } from '@/types/settings-types'
+import { PaymentCardDisplay } from './payment-card-display'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
+import { formatCurrencyWithConversion, convertCurrency } from '@/lib/utils/currency-conversion'
 import { formatExpenseDate } from '@/lib/utils/date-helpers'
 import {
   expenseItemEntry,
@@ -18,6 +21,12 @@ interface ExpenseCardProps {
   onEdit?: (expense: ExpenseListItem) => void
   onDelete?: (id: string) => void
   onMarkPaid?: (id: string) => void
+  defaultCurrency?: Currency
+  currencyRates?: {
+    usd: { code: string; rate: number } | null
+    eur: { code: string; rate: number } | null
+    date: string | null
+  }
 }
 
 function getStatusBadge(expense: ExpenseListItem) {
@@ -39,7 +48,33 @@ export function ExpenseCard({
   onEdit,
   onDelete,
   onMarkPaid,
+  defaultCurrency = 'GEL',
+  currencyRates,
 }: ExpenseCardProps) {
+  // Format currency - show original currency first, then conversion
+  const expenseCurrency = (expense.currency || 'GEL') as Currency
+  const showConversion = expenseCurrency !== defaultCurrency && currencyRates
+
+  // Always show the original amount in the expense's currency
+  const displayAmount = formatCurrency(expense.amount, expense.currency)
+  let conversionText = null
+
+  // If different from default currency, show conversion as secondary text
+  if (showConversion) {
+    // Convert the simplified rate to CurrencyRate format
+    const usdRate = currencyRates.usd ? { ...currencyRates.usd, quantity: 1, rateFormated: '', diffFormated: '', name: 'US Dollar', diff: 0, date: currencyRates.date || '', validFromDate: currencyRates.date || '' } : null
+    const eurRate = currencyRates.eur ? { ...currencyRates.eur, quantity: 1, rateFormated: '', diffFormated: '', name: 'Euro', diff: 0, date: currencyRates.date || '', validFromDate: currencyRates.date || '' } : null
+
+    const convertedAmount = convertCurrency(
+      expense.amount,
+      expenseCurrency,
+      defaultCurrency,
+      usdRate,
+      eurRate
+    )
+    const symbol = defaultCurrency === 'GEL' ? '₾' : defaultCurrency === 'USD' ? '$' : '€'
+    conversionText = `≈ ${symbol}${convertedAmount.toFixed(2)} ${defaultCurrency}`
+  }
   return (
     <motion.div
       variants={expenseItemEntry}
@@ -73,11 +108,25 @@ export function ExpenseCard({
 
               {/* Amount and Status */}
               <div className="mt-3 flex items-center gap-4">
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {formatCurrency(expense.amount, expense.currency)}
-                </p>
+                <div className="flex flex-col">
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {displayAmount}
+                  </p>
+                  {conversionText && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      {conversionText}
+                    </p>
+                  )}
+                </div>
                 {getStatusBadge(expense)}
               </div>
+
+              {/* Payment Card Info */}
+              {expense.paymentCard && (
+                <div className="mt-3">
+                  <PaymentCardDisplay paymentCard={expense.paymentCard} />
+                </div>
+              )}
 
               {/* Due Date */}
               {expense.nextDueDate && (

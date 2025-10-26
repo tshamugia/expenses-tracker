@@ -41,6 +41,7 @@ export async function getUserProfile(): Promise<ActionResult<UserProfile>> {
         email: true,
         name: true,
         image: true,
+        hasSetPassword: true,
         createdAt: true,
         accounts: {
           select: {
@@ -65,7 +66,7 @@ export async function getUserProfile(): Promise<ActionResult<UserProfile>> {
         name: user.name,
         image: user.image,
         provider: user.accounts[0]?.provider || null,
-        hasPassword: false, // Auth.js handles this now
+        hasPassword: user.hasSetPassword,
         createdAt: user.createdAt,
       },
     }
@@ -126,6 +127,7 @@ export async function updateUserProfile(
         email: true,
         name: true,
         image: true,
+        hasSetPassword: true,
         createdAt: true,
         accounts: {
           select: {
@@ -145,7 +147,7 @@ export async function updateUserProfile(
         name: updatedUser.name,
         image: updatedUser.image,
         provider: updatedUser.accounts[0]?.provider || null,
-        hasPassword: false, // Auth.js handles this now
+        hasPassword: updatedUser.hasSetPassword,
         createdAt: updatedUser.createdAt,
       },
     }
@@ -160,15 +162,87 @@ export async function updateUserProfile(
 
 /**
  * Set or change password
- * Note: Password management is now handled by Auth.js
- * This function is kept for backward compatibility but should not be used
  */
 export async function setPassword(
   input: SetPasswordInput
 ): Promise<ActionResult<{ message: string }>> {
-  return {
-    success: false,
-    error: 'Password management is now handled by Auth.js OAuth providers',
+  try {
+    const userId = await getCurrentUserId()
+
+    // Validate new password
+    if (input.newPassword.length < 8) {
+      return {
+        success: false,
+        error: 'Password must be at least 8 characters long',
+      }
+    }
+
+    // Validate confirm password
+    if (input.newPassword !== input.confirmPassword) {
+      return {
+        success: false,
+        error: 'Passwords do not match',
+      }
+    }
+
+    // Get user with current password
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    })
+
+    if (!user) {
+      return {
+        success: false,
+        error: 'User not found',
+      }
+    }
+
+    // If user already has a password, verify current password
+    if (user.password && input.currentPassword) {
+      const { compare } = await import('bcryptjs')
+      const isValidPassword = await compare(input.currentPassword, user.password)
+
+      if (!isValidPassword) {
+        return {
+          success: false,
+          error: 'Current password is incorrect',
+        }
+      }
+    } else if (user.password && !input.currentPassword) {
+      return {
+        success: false,
+        error: 'Current password is required',
+      }
+    }
+
+    // Hash new password
+    const { hash } = await import('bcryptjs')
+    const hashedPassword = await hash(input.newPassword, 12)
+
+    // Update password
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        hasSetPassword: true,
+      },
+    })
+
+    revalidatePath('/profile')
+
+    return {
+      success: true,
+      data: {
+        message: user.password ? 'Password changed successfully' : 'Password set successfully',
+      },
+    }
+  } catch (error) {
+    console.error('Error in setPassword:', error)
+    return {
+      success: false,
+      error: 'Failed to set password',
+    }
   }
 }
 
@@ -225,6 +299,7 @@ export async function deleteUserAvatar(): Promise<ActionResult<UserProfile>> {
         email: true,
         name: true,
         image: true,
+        hasSetPassword: true,
         createdAt: true,
         accounts: {
           select: {
@@ -244,7 +319,7 @@ export async function deleteUserAvatar(): Promise<ActionResult<UserProfile>> {
         name: updatedUser.name,
         image: updatedUser.image,
         provider: updatedUser.accounts[0]?.provider || null,
-        hasPassword: false, // Auth.js handles this now
+        hasPassword: updatedUser.hasSetPassword,
         createdAt: updatedUser.createdAt,
       },
     }

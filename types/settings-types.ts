@@ -3,6 +3,7 @@
  */
 
 export type Theme = 'light' | 'dark' | 'system'
+export type Currency = 'GEL' | 'USD' | 'EUR'
 export type SubscriptionPlan = 'free' | 'pro' | 'enterprise'
 export type SubscriptionStatus = 'active' | 'canceled' | 'expired'
 
@@ -14,6 +15,7 @@ export interface UserSettings {
   pushEnabled: boolean
   notifyBeforeDays: number
   theme: Theme
+  defaultCurrency: Currency
   subscriptionPlan: SubscriptionPlan
   subscriptionStatus: SubscriptionStatus
 }
@@ -24,13 +26,17 @@ export interface UpdateSettingsInput {
   pushEnabled?: boolean
   notifyBeforeDays?: number
   theme?: Theme
+  defaultCurrency?: Currency
 }
 
 export interface SubscriptionPlanInfo {
   name: string
   price: string
+  period?: string
+  description: string
   features: string[]
-  popular?: boolean
+  cta: string
+  highlighted: boolean
 }
 
 export type ActionResult<T> =

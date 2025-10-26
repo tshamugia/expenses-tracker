@@ -42,7 +42,7 @@ const COLORS = [
 ]
 
 // Custom tooltip for currency formatting
-const CustomTooltip = ({ active, payload, currency = 'USD' }: any) => {
+const CustomTooltip = ({ active, payload, currency = 'GEL' }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border bg-background p-2 shadow-md">
@@ -64,7 +64,7 @@ const CustomTooltip = ({ active, payload, currency = 'USD' }: any) => {
 export function ExpenseCharts({
   categoryData,
   stats,
-  currency = 'USD',
+  currency = 'GEL',
 }: ExpenseChartsProps) {
   // Prepare data for status breakdown pie chart
   const statusData = [
@@ -100,7 +100,7 @@ export function ExpenseCharts({
                 <YAxis
                   className="text-xs"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(value) => `$${value}`}
+                  tickFormatter={(value) => `₾${value}`}
                 />
                 <Tooltip content={<CustomTooltip currency={currency} />} />
                 <Legend wrapperStyle={{ fontSize: '12px' }} />

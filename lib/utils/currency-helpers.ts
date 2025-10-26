@@ -23,7 +23,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
  */
 export function formatCurrency(
   amount: number | string,
-  currency: string = 'USD'
+  currency: string = 'GEL'
 ): string {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   
@@ -44,7 +44,7 @@ export function formatCurrency(
 /**
  * Get currency symbol for a given currency code
  */
-export function getCurrencySymbol(currency: string = 'USD'): string {
+export function getCurrencySymbol(currency: string = 'GEL'): string {
   return CURRENCY_SYMBOLS[currency.toUpperCase()] || currency
 }
 
@@ -73,7 +73,7 @@ export function parseCurrency(value: string): number {
  */
 export function formatCompactCurrency(
   amount: number | string,
-  currency: string = 'USD'
+  currency: string = 'GEL'
 ): string {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   const symbol = getCurrencySymbol(currency)

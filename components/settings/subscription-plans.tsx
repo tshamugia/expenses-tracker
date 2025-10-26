@@ -3,17 +3,37 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { Crown, Check, Loader2, Sparkles } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Crown, Check, Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { upgradeSubscription } from '@/lib/actions/settings-actions'
 import type { UserSettings, SubscriptionPlanInfo } from '@/types/settings-types'
-import { cn } from '@/lib/utils'
 
 interface SubscriptionPlansProps {
   settings: UserSettings
   plans: SubscriptionPlanInfo[]
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5 },
+  },
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.1,
+    },
+  },
 }
 
 export function SubscriptionPlans({ settings, plans }: SubscriptionPlansProps) {
@@ -21,7 +41,7 @@ export function SubscriptionPlans({ settings, plans }: SubscriptionPlansProps) {
   const [isLoading, setIsLoading] = useState<string | null>(null)
 
   const handleUpgrade = async (planName: string) => {
-    const plan = planName.toLowerCase() as 'pro' | 'enterprise'
+    const plan = planName.toLowerCase() as 'pro' | 'business'
     setIsLoading(plan)
 
     try {
@@ -41,6 +61,18 @@ export function SubscriptionPlans({ settings, plans }: SubscriptionPlansProps) {
     }
   }
 
+  // Map subscription plan names for comparison
+  const normalizeNames = (name: string) => {
+    const mapping: Record<string, string> = {
+      'free': 'starter',
+      'starter': 'starter',
+      'pro': 'pro',
+      'business': 'business',
+      'enterprise': 'business'
+    }
+    return mapping[name.toLowerCase()] || name.toLowerCase()
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -53,93 +85,98 @@ export function SubscriptionPlans({ settings, plans }: SubscriptionPlansProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid gap-6 lg:grid-cols-3">
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {plans.map((plan) => {
-            const isCurrentPlan =
-              settings.subscriptionPlan.toLowerCase() === plan.name.toLowerCase()
-            const canUpgrade = plan.name.toLowerCase() !== 'free'
+            const isCurrentPlan = normalizeNames(settings.subscriptionPlan) === normalizeNames(plan.name)
+            const canUpgrade = plan.name.toLowerCase() !== 'starter' && !isCurrentPlan
 
             return (
-              <Card
+              <motion.div
                 key={plan.name}
-                className={cn(
-                  'relative overflow-hidden',
-                  plan.popular && 'border-primary shadow-lg',
-                  isCurrentPlan && 'bg-muted/50'
-                )}
+                className={`relative rounded-lg p-8 transition-all ${
+                  plan.highlighted
+                    ? 'bg-blue-600 text-white shadow-2xl scale-105'
+                    : 'bg-slate-50 text-slate-900 shadow-lg hover:shadow-xl'
+                } ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}`}
+                variants={cardVariants}
               >
-                {plan.popular && (
-                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground px-3 py-1 text-xs font-semibold">
-                    <Sparkles className="inline h-3 w-3 mr-1" />
-                    Popular
+                {plan.highlighted && (
+                  <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <span className="bg-amber-400 text-slate-900 px-3 py-1 rounded-full text-sm font-semibold">
+                      Most Popular
+                    </span>
                   </div>
                 )}
 
-                <CardHeader>
-                  <div className="flex items-center justify-between mb-2">
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                    {isCurrentPlan && (
-                      <Badge variant="secondary">Current Plan</Badge>
-                    )}
+                {isCurrentPlan && (
+                  <div className="absolute top-3 right-3">
+                    <Badge className="bg-green-500 hover:bg-green-600">
+                      Current Plan
+                    </Badge>
                   </div>
-                  <div className="text-3xl font-bold">{plan.price}</div>
-                </CardHeader>
+                )}
 
-                <CardContent className="space-y-4">
-                  <ul className="space-y-3">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
+                <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
+                <p className={plan.highlighted ? 'text-blue-100' : 'text-slate-600'}>
+                  {plan.description}
+                </p>
 
-                <CardFooter>
-                  {isCurrentPlan ? (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      disabled
+                <div className="my-6">
+                  <span className="text-5xl font-bold">{plan.price}</span>
+                  {plan.period && (
+                    <span
+                      className={plan.highlighted ? 'text-blue-100' : 'text-slate-600'}
                     >
-                      Current Plan
-                    </Button>
-                  ) : canUpgrade ? (
-                    <Button
-                      className="w-full"
-                      onClick={() => handleUpgrade(plan.name)}
-                      disabled={isLoading !== null}
-                    >
-                      {isLoading === plan.name.toLowerCase() ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Upgrading...
-                        </>
-                      ) : (
-                        <>
-                          <Crown className="mr-2 h-4 w-4" />
-                          Upgrade to {plan.name}
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      disabled
-                    >
-                      Current Plan
-                    </Button>
+                      {plan.period}
+                    </span>
                   )}
-                </CardFooter>
-              </Card>
+                </div>
+
+                <Button
+                  onClick={() => canUpgrade && handleUpgrade(plan.name)}
+                  disabled={!canUpgrade || isLoading !== null}
+                  className={`w-full mb-8 ${
+                    plan.highlighted
+                      ? 'bg-white text-blue-600 hover:bg-slate-100'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {isLoading === plan.name.toLowerCase() ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Upgrading...
+                    </>
+                  ) : isCurrentPlan ? (
+                    'Current Plan'
+                  ) : (
+                    plan.cta
+                  )}
+                </Button>
+
+                <div className="space-y-4">
+                  {plan.features.map((feature, idx) => (
+                    <div key={idx} className="flex items-center space-x-3">
+                      <Check
+                        className={`h-5 w-5 flex-shrink-0 ${
+                          plan.highlighted ? 'text-white' : 'text-green-600'
+                        }`}
+                      />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
 
         {/* Current Plan Summary */}
-        <div className="mt-6 rounded-lg bg-muted p-4">
+        <div className="mt-8 rounded-lg bg-muted p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">Current Subscription</p>

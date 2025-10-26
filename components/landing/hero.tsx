@@ -12,13 +12,19 @@ import {
 export function HeroSection() {
   return (
     <section className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-teal-50 flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20 relative">
-      {/* Login button in top-right corner */}
-      <div className="absolute top-6 right-6">
+      {/* Login & Register buttons in top-right corner */}
+      <div className="absolute top-6 right-6 flex items-center gap-3">
         <Link
           href="/login"
           className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:border-teal-600 hover:text-teal-600 hover:shadow-md transition-all duration-300"
         >
           Login
+        </Link>
+        <Link
+          href="/login?mode=signup"
+          className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300"
+        >
+          Register
         </Link>
       </div>
 

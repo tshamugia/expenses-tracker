@@ -10,6 +10,7 @@ import {
   Settings,
   FolderKanban,
   User,
+  Bell,
   X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -42,6 +43,11 @@ const navigation = [
     name: 'Payments',
     href: '/payments',
     icon: CreditCard,
+  },
+  {
+    name: 'Notifications',
+    href: '/notifications',
+    icon: Bell,
   },
   {
     name: 'Profile',

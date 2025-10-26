@@ -12,7 +12,11 @@
       "Bash(taskkill:*)",
       "Bash(cmd.exe //c \"taskkill //F //IM node.exe //T\")",
       "Bash(cat:*)",
-      "Bash(npm run prisma:push:*)"
+      "Bash(npm run prisma:push:*)",
+      "Bash(dir:*)",
+      "Bash(npm install:*)",
+      "Bash(del middleware.ts)",
+      "Bash(del /F \"d:\\GITHUB\\extracker\\node_modules\\.prisma\\client\\query_engine-windows.dll.node\")"
     ],
     "deny": [],
     "ask": []

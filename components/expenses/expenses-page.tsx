@@ -16,36 +16,36 @@ import {
 import { Plus, Search, Loader2 } from 'lucide-react'
 import { listContainer, fadeIn } from '@/lib/animations/variants'
 import type { ExpenseListItem } from '@/types/expense-types'
+import type { SerializedCategory } from '@/types/category-types'
+import type { Currency } from '@/types/settings-types'
+import { convertCurrency, getCurrencySymbol } from '@/lib/utils/currency-conversion'
 
 interface ExpensesPageProps {
   initialExpenses?: ExpenseListItem[]
+  categories: SerializedCategory[]
   onCreateExpense?: (data: ExpenseFormData) => Promise<void>
   onUpdateExpense?: (id: string, data: ExpenseFormData) => Promise<void>
   onDeleteExpense?: (id: string) => Promise<void>
   onMarkPaidExpense?: (id: string) => Promise<void>
   userId: string
+  defaultCurrency: Currency
+  currencyRates: {
+    usd: { code: string; rate: number } | null
+    eur: { code: string; rate: number } | null
+    date: string | null
+  }
 }
-
-const CATEGORIES = [
-  'All Categories',
-  'Food & Dining',
-  'Transportation',
-  'Utilities',
-  'Healthcare',
-  'Entertainment',
-  'Shopping',
-  'Education',
-  'Travel',
-  'Other',
-]
 
 export function ExpensesPage({
   initialExpenses = [],
+  categories,
   onCreateExpense,
   onUpdateExpense,
   onDeleteExpense,
   onMarkPaidExpense,
   userId,
+  defaultCurrency,
+  currencyRates,
 }: ExpensesPageProps) {
   // Use prop directly - state is managed by Zustand store in parent
   const expenses = initialExpenses
@@ -79,21 +79,62 @@ export function ExpensesPage({
     })
   }, [expenses, searchQuery, selectedCategory, selectedStatus])
 
-  // Calculate stats
+  // Calculate stats - convert all amounts to default currency
   const stats = useMemo(() => {
+    // Helper function to convert expense amount to default currency
+    const convertToDefaultCurrency = (expense: ExpenseListItem): number => {
+      const expenseCurrency = (expense.currency || 'GEL') as Currency
+
+      // If same currency, no conversion needed
+      if (expenseCurrency === defaultCurrency) {
+        return expense.amount
+      }
+
+      // Convert the simplified rate to CurrencyRate format
+      const usdRate = currencyRates.usd ? {
+        ...currencyRates.usd,
+        quantity: 1,
+        rateFormated: '',
+        diffFormated: '',
+        name: 'US Dollar',
+        diff: 0,
+        date: currencyRates.date || '',
+        validFromDate: currencyRates.date || ''
+      } : null
+
+      const eurRate = currencyRates.eur ? {
+        ...currencyRates.eur,
+        quantity: 1,
+        rateFormated: '',
+        diffFormated: '',
+        name: 'Euro',
+        diff: 0,
+        date: currencyRates.date || '',
+        validFromDate: currencyRates.date || ''
+      } : null
+
+      return convertCurrency(
+        expense.amount,
+        expenseCurrency,
+        defaultCurrency,
+        usdRate,
+        eurRate
+      )
+    }
+
     return {
-      total: expenses.reduce((sum, e) => sum + e.amount, 0),
+      total: expenses.reduce((sum, e) => sum + convertToDefaultCurrency(e), 0),
       paid: expenses
         .filter((e) => e.isPaid)
-        .reduce((sum, e) => sum + e.amount, 0),
+        .reduce((sum, e) => sum + convertToDefaultCurrency(e), 0),
       pending: expenses
         .filter((e) => !e.isPaid && !e.isOverdue)
-        .reduce((sum, e) => sum + e.amount, 0),
+        .reduce((sum, e) => sum + convertToDefaultCurrency(e), 0),
       overdue: expenses
         .filter((e) => e.isOverdue)
-        .reduce((sum, e) => sum + e.amount, 0),
+        .reduce((sum, e) => sum + convertToDefaultCurrency(e), 0),
     }
-  }, [expenses])
+  }, [expenses, defaultCurrency, currencyRates])
 
   const handleCreateExpense = async (data: ExpenseFormData) => {
     setIsSubmitting(true)
@@ -206,25 +247,25 @@ export function ExpensesPage({
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             label="Total"
-            value={`$${stats.total.toFixed(2)}`}
+            value={`${getCurrencySymbol(defaultCurrency)}${stats.total.toFixed(2)}`}
             color="blue"
             delay={0}
           />
           <StatCard
             label="Paid"
-            value={`$${stats.paid.toFixed(2)}`}
+            value={`${getCurrencySymbol(defaultCurrency)}${stats.paid.toFixed(2)}`}
             color="green"
             delay={0.1}
           />
           <StatCard
             label="Pending"
-            value={`$${stats.pending.toFixed(2)}`}
+            value={`${getCurrencySymbol(defaultCurrency)}${stats.pending.toFixed(2)}`}
             color="yellow"
             delay={0.2}
           />
           <StatCard
             label="Overdue"
-            value={`$${stats.overdue.toFixed(2)}`}
+            value={`${getCurrencySymbol(defaultCurrency)}${stats.overdue.toFixed(2)}`}
             color="red"
             delay={0.3}
           />
@@ -255,11 +296,17 @@ export function ExpensesPage({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map((cat) => (
-              <SelectItem key={cat} value={cat}>
-                {cat}
+            <SelectItem value="All Categories">All Categories</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.categoryName}>
+                {cat.categoryName}
               </SelectItem>
             ))}
+            {categories.length === 0 && (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                No categories yet
+              </div>
+            )}
           </SelectContent>
         </Select>
 
@@ -324,6 +371,8 @@ export function ExpensesPage({
                   onEdit={handleEditExpense}
                   onDelete={(id) => setDeleteExpenseId(id)}
                   onMarkPaid={handleMarkPaid}
+                  defaultCurrency={defaultCurrency}
+                  currencyRates={currencyRates}
                 />
               ))}
             </div>

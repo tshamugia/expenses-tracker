@@ -1,5 +1,7 @@
 import type { NextAuthConfig } from 'next-auth'
 import Google from 'next-auth/providers/google'
+import Credentials from 'next-auth/providers/credentials'
+import { verifyCredentials } from '@/lib/auth/verify-credentials'
 
 export const authConfig = {
   providers: [
@@ -14,6 +16,25 @@ export const authConfig = {
         },
       },
     }),
+    Credentials({
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null
+        }
+
+        const user = await verifyCredentials(
+          credentials.email as string,
+          credentials.password as string
+        )
+
+        return user
+      },
+    }),
   ],
   pages: {
     signIn: '/login',
@@ -21,29 +42,37 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user
-      const isOnDashboard = nextUrl.pathname.startsWith('/dashboard')
-      const isOnExpenses = nextUrl.pathname.startsWith('/expenses')
-      const isOnCategories = nextUrl.pathname.startsWith('/categories')
-      const isOnPayments = nextUrl.pathname.startsWith('/payments')
-      const isOnProfile = nextUrl.pathname.startsWith('/profile')
-      const isOnNotifications = nextUrl.pathname.startsWith('/notifications')
+      const pathname = nextUrl.pathname
 
-      const protectedRoutes = [
-        isOnDashboard,
-        isOnExpenses,
-        isOnCategories,
-        isOnPayments,
-        isOnProfile,
-        isOnNotifications,
-      ]
-
-      if (protectedRoutes.some((route) => route)) {
-        if (isLoggedIn) return true
-        return false // Redirect unauthenticated users to login page
-      } else if (isLoggedIn) {
+      // Public routes - always allow access
+      const publicRoutes = ['/', '/login', '/forgot-password', '/reset-password']
+      if (publicRoutes.some(route => pathname.startsWith(route))) {
         return true
       }
 
+      // Set-password page - only for logged-in users
+      if (pathname.startsWith('/set-password')) {
+        return isLoggedIn
+      }
+
+      // Protected routes - require authentication
+      const protectedRoutes = [
+        '/dashboard',
+        '/expenses',
+        '/categories',
+        '/payments',
+        '/profile',
+        '/notifications',
+        '/settings',
+      ]
+
+      const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route))
+
+      if (isProtectedRoute) {
+        return isLoggedIn
+      }
+
+      // Default: allow access
       return true
     },
   },

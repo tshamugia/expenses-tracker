@@ -14,7 +14,7 @@ interface ExpenseStatsProps {
   currency?: string
 }
 
-export function ExpenseStats({ data, currency = 'USD' }: ExpenseStatsProps) {
+export function ExpenseStats({ data, currency = 'GEL' }: ExpenseStatsProps) {
   const { total, paid, pending, overdue, count } = data
 
   return (

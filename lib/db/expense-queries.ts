@@ -28,6 +28,7 @@ export async function findExpensesByUserId(
         },
         take: 1,
       },
+      paymentCard: true,
     },
     orderBy: {
       nextDueDate: options?.orderBy || 'asc',
@@ -75,6 +76,7 @@ export async function findExpensesWithFilters(
           dueDate: 'desc',
         },
       },
+      paymentCard: true,
     },
     orderBy: {
       nextDueDate: 'asc',
@@ -96,6 +98,7 @@ export async function findExpenseById(expenseId: string) {
           dueDate: 'desc',
         },
       },
+      paymentCard: true,
     },
   })
 }
@@ -128,6 +131,7 @@ export async function findExpensesByDateRange(
           dueDate: 'asc',
         },
       },
+      paymentCard: true,
     },
     orderBy: {
       nextDueDate: 'asc',
@@ -153,6 +157,7 @@ export async function findOverdueExpenses(userId: string, beforeDate: Date) {
         },
         take: 1,
       },
+      paymentCard: true,
     },
     orderBy: {
       nextDueDate: 'asc',

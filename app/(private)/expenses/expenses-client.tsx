@@ -13,7 +13,9 @@ import { useExpenseStore } from '@/lib/stores/expense-store'
 import { ExpensesPage as ExpensesUI } from '@/components/expenses/expenses-page'
 import type { ExpenseFormData } from '@/components/expenses/expense-form'
 import type { ExpenseListItem, SerializedExpenseWithPayments } from '@/types/expense-types'
-import { 
+import type { SerializedCategory } from '@/types/category-types'
+import type { Currency } from '@/types/settings-types'
+import {
   createExpense,
   updateExpense,
   deleteExpense,
@@ -23,8 +25,15 @@ import { toast } from 'sonner'
 
 interface ExpensesClientProps {
   initialExpenses: SerializedExpenseWithPayments[]
+  categories: SerializedCategory[]
   error: string | null
   userId: string
+  defaultCurrency: Currency
+  currencyRates: {
+    usd: { code: string; rate: number } | null
+    eur: { code: string; rate: number } | null
+    date: string | null
+  }
 }
 
 // Transform Prisma expense to UI expense
@@ -44,10 +53,19 @@ function transformExpense(expense: SerializedExpenseWithPayments): ExpenseListIt
     nextDueDate: nextDueDate || null,
     isPaid,
     isOverdue,
+    paymentCard: (expense as any).paymentCard
+      ? {
+          id: (expense as any).paymentCard.id,
+          nickname: (expense as any).paymentCard.nickname,
+          lastFourDigits: (expense as any).paymentCard.lastFourDigits,
+          cardBrand: (expense as any).paymentCard.cardBrand,
+          color: (expense as any).paymentCard.color,
+        }
+      : null,
   }
 }
 
-export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClientProps) {
+export function ExpensesClient({ initialExpenses, categories, error, userId, defaultCurrency, currencyRates }: ExpensesClientProps) {
   const {
     expenses,
     setExpenses,
@@ -84,12 +102,13 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
         id: `temp-${Date.now()}`,
         title: data.title,
         amount: data.amount,
-        currency: 'USD',
+        currency: data.currency || 'GEL',
         category: data.category,
         isRecurring: false,
         nextDueDate: new Date(data.date),
         isPaid: false,
         isOverdue: false,
+        paymentCard: null,
       }
 
       // Optimistic update
@@ -101,6 +120,7 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
           userId,
           title: data.title,
           amount: data.amount,
+          currency: data.currency,
           category: data.category,
           description: data.notes,
           paymentCardId: data.paymentCardId === 'none' ? undefined : data.paymentCardId,
@@ -145,15 +165,17 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
       optimisticUpdate(id, {
         title: data.title,
         amount: data.amount,
+        currency: data.currency || original.currency,
         category: data.category,
         nextDueDate: new Date(data.date),
       })
 
       // Call Server Action
       startTransition(async () => {
-        const result = await updateExpense(id, {
+        const result = await updateExpense(id, userId, {
           title: data.title,
           amount: data.amount,
+          currency: data.currency,
           category: data.category,
           description: data.notes,
           paymentCardId: data.paymentCardId === 'none' ? undefined : data.paymentCardId,
@@ -197,7 +219,7 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
 
       // Call Server Action
       startTransition(async () => {
-        const result = await deleteExpense(id)
+        const result = await deleteExpense(id, userId)
 
         if (result.success) {
           toast.success('Expense deleted successfully!')
@@ -229,7 +251,7 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
 
       // Call Server Action
       startTransition(async () => {
-        const result = await markExpensePaid(id)
+        const result = await markExpensePaid(id, userId)
 
         if (result.success) {
           toast.success('Marked as paid!')
@@ -250,11 +272,14 @@ export function ExpensesClient({ initialExpenses, error, userId }: ExpensesClien
   return (
     <ExpensesUI
       initialExpenses={expenses}
+      categories={categories}
       onCreateExpense={handleCreateExpense}
       onUpdateExpense={handleUpdateExpense}
       onDeleteExpense={handleDeleteExpense}
       onMarkPaidExpense={handleMarkPaidExpense}
       userId={userId}
+      defaultCurrency={defaultCurrency}
+      currencyRates={currencyRates}
     />
   )
 }

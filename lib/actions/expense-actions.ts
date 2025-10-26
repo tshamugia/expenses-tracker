@@ -55,6 +55,15 @@ export const getDashboardData = cache(
           isOverdue: !isPaid && overdueStatus,
           isPaid,
           isRecurring: expense.isRecurring,
+          paymentCard: expense.paymentCard
+            ? {
+                id: expense.paymentCard.id,
+                nickname: expense.paymentCard.nickname,
+                lastFourDigits: expense.paymentCard.lastFourDigits,
+                cardBrand: expense.paymentCard.cardBrand,
+                color: expense.paymentCard.color,
+              }
+            : null,
         }
       })
 
@@ -357,9 +366,25 @@ export async function createExpense(
  */
 export async function updateExpense(
   id: string,
+  userId: string,
   input: UpdateExpenseInput
 ): Promise<ActionResult<SerializedExpenseWithPayments>> {
   try {
+    // SECURITY: Verify expense belongs to user before updating
+    const existingExpense = await prisma.expense.findFirst({
+      where: {
+        id,
+        userId: userId, // Ensure user owns this expense
+      },
+    })
+
+    if (!existingExpense) {
+      return {
+        success: false,
+        error: 'Expense not found or access denied',
+      }
+    }
+
     // Business logic: Update expense with Prisma
     const expense = await prisma.expense.update({
       where: { id },
@@ -406,9 +431,25 @@ export async function updateExpense(
  * Business logic: Validate ownership, cascade delete payments
  */
 export async function deleteExpense(
-  id: string
+  id: string,
+  userId: string
 ): Promise<ActionResult<void>> {
   try {
+    // SECURITY: Verify expense belongs to user before deleting
+    const existingExpense = await prisma.expense.findFirst({
+      where: {
+        id,
+        userId: userId, // Ensure user owns this expense
+      },
+    })
+
+    if (!existingExpense) {
+      return {
+        success: false,
+        error: 'Expense not found or access denied',
+      }
+    }
+
     // Business logic: Delete expense with Prisma (cascade deletes payments)
     await prisma.expense.delete({
       where: { id },
@@ -433,9 +474,25 @@ export async function deleteExpense(
  * Business logic: Find latest unpaid payment and mark it as paid
  */
 export async function markExpensePaid(
-  expenseId: string
+  expenseId: string,
+  userId: string
 ): Promise<ActionResult<SerializedExpenseWithPayments>> {
   try {
+    // SECURITY: Verify expense belongs to user
+    const expense = await prisma.expense.findFirst({
+      where: {
+        id: expenseId,
+        userId: userId, // Ensure user owns this expense
+      },
+    })
+
+    if (!expense) {
+      return {
+        success: false,
+        error: 'Expense not found or access denied',
+      }
+    }
+
     // Business logic: Find the latest unpaid payment
     const payment = await prisma.payment.findFirst({
       where: {
@@ -464,7 +521,7 @@ export async function markExpensePaid(
     })
 
     // Fetch updated expense
-    const expense = await prisma.expense.findUnique({
+    const expenseWithPayments = await prisma.expense.findUnique({
       where: { id: expenseId },
       include: {
         payments: true,
@@ -477,9 +534,9 @@ export async function markExpensePaid(
 
     // Serialize for client
     const serialized: SerializedExpenseWithPayments = {
-      ...expense!,
-      amount: Number(expense!.amount),
-      payments: expense!.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
+      ...expenseWithPayments!,
+      amount: Number(expenseWithPayments!.amount),
+      payments: expenseWithPayments!.payments.map((p) => ({ ...p, amount: Number(p.amount) })),
     }
 
     return { success: true, data: serialized }
@@ -508,6 +565,7 @@ export async function getExpenses(
             dueDate: 'desc',
           },
         },
+        paymentCard: true,
       },
       orderBy: {
         createdAt: 'desc',

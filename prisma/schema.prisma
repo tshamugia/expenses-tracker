@@ -17,6 +17,8 @@ model User {
   emailVerified  DateTime?
   name           String?
   image          String?
+  password       String?   // Hashed password for email/password auth (nullable for OAuth-only users)
+  hasSetPassword Boolean   @default(false) // Track if user has set a password
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -67,13 +69,25 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String
+  token     String   @unique // 6-digit code
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
 model Expense {
   id            String    @id @default(uuid()) @db.Uuid
   userId        String    @db.Uuid
   paymentCardId String?   @db.Uuid
   title         String
   amount        Decimal   @db.Decimal(12, 2)
-  currency      String    @default("USD")
+  currency      String    @default("GEL")
   description   String?
   category      String?
   isRecurring   Boolean   @default(false)
@@ -112,6 +126,7 @@ model NotificationPreference {
   notifyBeforeDays Int   @default(3)
   // UI preferences
   theme         String   @default("light") // 'light', 'dark', 'system'
+  defaultCurrency String @default("GEL") // 'GEL', 'USD', 'EUR'
   // Subscription
   subscriptionPlan String @default("free") // 'free', 'pro', 'enterprise'
   subscriptionStatus String @default("active") // 'active', 'canceled', 'expired'

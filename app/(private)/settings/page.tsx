@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { Settings } from 'lucide-react'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { ThemeSettings } from '@/components/settings/theme-settings'
+import { CurrencySettings } from '@/components/settings/currency-settings'
 import { SubscriptionPlans } from '@/components/settings/subscription-plans'
 import { getUserSettings, getSubscriptionPlans } from '@/lib/actions/settings-actions'
 import { Card, CardContent } from '@/components/ui/card'
@@ -51,6 +52,9 @@ async function SettingsContent() {
         <NotificationSettings settings={settingsResult.data} />
         <ThemeSettings settings={settingsResult.data} />
       </div>
+
+      {/* Currency Settings */}
+      <CurrencySettings settings={settingsResult.data} />
 
       {/* Subscription Plans */}
       <SubscriptionPlans

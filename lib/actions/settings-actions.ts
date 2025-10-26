@@ -49,6 +49,7 @@ export async function getUserSettings(): Promise<ActionResult<UserSettings>> {
           pushEnabled: false,
           notifyBeforeDays: 3,
           theme: 'light',
+          defaultCurrency: 'GEL',
           subscriptionPlan: 'free',
           subscriptionStatus: 'active',
         },
@@ -65,6 +66,7 @@ export async function getUserSettings(): Promise<ActionResult<UserSettings>> {
         pushEnabled: settings.pushEnabled,
         notifyBeforeDays: settings.notifyBeforeDays,
         theme: settings.theme as 'light' | 'dark' | 'system',
+        defaultCurrency: (settings.defaultCurrency || 'GEL') as 'GEL' | 'USD' | 'EUR',
         subscriptionPlan: settings.subscriptionPlan as 'free' | 'pro' | 'enterprise',
         subscriptionStatus: settings.subscriptionStatus as 'active' | 'canceled' | 'expired',
       },
@@ -111,6 +113,7 @@ export async function updateUserSettings(
             notifyBeforeDays: input.notifyBeforeDays,
           }),
           ...(input.theme !== undefined && { theme: input.theme }),
+          ...(input.defaultCurrency !== undefined && { defaultCurrency: input.defaultCurrency }),
         },
       })
     } else {
@@ -123,6 +126,7 @@ export async function updateUserSettings(
           pushEnabled: input.pushEnabled ?? false,
           notifyBeforeDays: input.notifyBeforeDays ?? 3,
           theme: input.theme ?? 'light',
+          defaultCurrency: input.defaultCurrency ?? 'GEL',
           subscriptionPlan: 'free',
           subscriptionStatus: 'active',
         },
@@ -130,6 +134,7 @@ export async function updateUserSettings(
     }
 
     revalidatePath('/settings')
+    revalidatePath('/dashboard')
 
     return {
       success: true,
@@ -141,6 +146,7 @@ export async function updateUserSettings(
         pushEnabled: settings.pushEnabled,
         notifyBeforeDays: settings.notifyBeforeDays,
         theme: settings.theme as 'light' | 'dark' | 'system',
+        defaultCurrency: (settings.defaultCurrency || 'GEL') as 'GEL' | 'USD' | 'EUR',
         subscriptionPlan: settings.subscriptionPlan as 'free' | 'pro' | 'enterprise',
         subscriptionStatus: settings.subscriptionStatus as 'active' | 'canceled' | 'expired',
       },
@@ -156,6 +162,7 @@ export async function updateUserSettings(
 
 /**
  * Get available subscription plans
+ * Returns same structure as landing page pricing
  */
 export async function getSubscriptionPlans(): Promise<
   ActionResult<SubscriptionPlanInfo[]>
@@ -163,40 +170,49 @@ export async function getSubscriptionPlans(): Promise<
   try {
     const plans: SubscriptionPlanInfo[] = [
       {
-        name: 'Free',
-        price: '$0/month',
+        name: 'Starter',
+        price: 'Free',
+        description: 'Perfect for getting started',
         features: [
-          'Up to 10 expenses per month',
-          'Basic expense tracking',
-          'Email notifications',
-          'Single user',
+          'Up to 10 expenses',
+          'Basic analytics',
+          'Manual payment tracking',
+          'Email support',
         ],
+        cta: 'Current Plan',
+        highlighted: false,
       },
       {
         name: 'Pro',
-        price: '$9.99/month',
+        price: '$4.99',
+        period: '/month',
+        description: 'Best for regular users',
         features: [
           'Unlimited expenses',
           'Advanced analytics',
-          'Priority email support',
-          'Multiple payment cards',
-          'Recurring expense automation',
-          'Export to CSV/PDF',
+          'Recurring payments',
+          'Payment reminders',
+          'Category tracking',
+          'Priority support',
         ],
-        popular: true,
+        cta: 'Start Free Trial',
+        highlighted: true,
       },
       {
-        name: 'Enterprise',
-        price: '$29.99/month',
+        name: 'Business',
+        price: '$9.99',
+        period: '/month',
+        description: 'For teams and businesses',
         features: [
           'Everything in Pro',
-          'Team collaboration',
-          'Custom categories',
+          'Multi-user collaboration',
+          'Custom reports',
           'API access',
           'Dedicated support',
           'Advanced security',
-          'Custom integrations',
         ],
+        cta: 'Contact Sales',
+        highlighted: false,
       },
     ]
 
@@ -217,10 +233,18 @@ export async function getSubscriptionPlans(): Promise<
  * Upgrade subscription plan (placeholder for now)
  */
 export async function upgradeSubscription(
-  plan: 'pro' | 'enterprise'
+  plan: 'pro' | 'business'
 ): Promise<ActionResult<{ message: string }>> {
   try {
     const userId = await getCurrentUserId()
+
+    // Map plan names to database values
+    const planMapping: Record<string, string> = {
+      'pro': 'pro',
+      'business': 'enterprise', // Map business to enterprise for backward compatibility
+    }
+
+    const dbPlan = planMapping[plan] || plan
 
     // In a real app, this would:
     // 1. Integrate with a payment processor (Stripe, PayPal, etc.)
@@ -232,12 +256,12 @@ export async function upgradeSubscription(
     await prisma.notificationPreference.upsert({
       where: { userId },
       update: {
-        subscriptionPlan: plan,
+        subscriptionPlan: dbPlan,
         subscriptionStatus: 'active',
       },
       create: {
         userId,
-        subscriptionPlan: plan,
+        subscriptionPlan: dbPlan,
         subscriptionStatus: 'active',
       },
     })

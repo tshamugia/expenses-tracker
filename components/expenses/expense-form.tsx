@@ -20,8 +20,9 @@ import type { ExpenseListItem } from '@/types/expense-types'
 import type { SerializedCategory } from '@/types/category-types'
 import type { SerializedPaymentCard } from '@/types/payment-card-types'
 import { getUserCategories, createCategory } from '@/lib/actions/category-actions'
-import { getUserPaymentCards } from '@/lib/actions/payment-card-actions'
+import { getUserPaymentCards, createPaymentCard } from '@/lib/actions/payment-card-actions'
 import { CategoryForm, type CategoryFormData } from '@/components/categories/category-form'
+import { PaymentCardForm, type PaymentCardFormData } from '@/components/payments/payment-card-form'
 import { toast } from 'sonner'
 
 interface ExpenseFormProps {
@@ -36,6 +37,7 @@ interface ExpenseFormProps {
 export interface ExpenseFormData {
   title: string
   amount: number
+  currency?: string
   category: string
   date: string
   notes?: string
@@ -53,6 +55,7 @@ export function ExpenseForm({
   const [formData, setFormData] = useState<ExpenseFormData>({
     title: '',
     amount: 0,
+    currency: 'GEL',
     category: '',
     date: new Date().toISOString().split('T')[0],
     notes: '',
@@ -64,7 +67,9 @@ export function ExpenseForm({
   const [categories, setCategories] = useState<SerializedCategory[]>([])
   const [paymentCards, setPaymentCards] = useState<SerializedPaymentCard[]>([])
   const [isCategoryFormOpen, setIsCategoryFormOpen] = useState(false)
+  const [isPaymentCardFormOpen, setIsPaymentCardFormOpen] = useState(false)
   const [isCreatingCategory, setIsCreatingCategory] = useState(false)
+  const [isCreatingPaymentCard, setIsCreatingPaymentCard] = useState(false)
   const [isFetchingCategories, setIsFetchingCategories] = useState(false)
   const [isFetchingCards, setIsFetchingCards] = useState(false)
 
@@ -102,33 +107,44 @@ export function ExpenseForm({
   }, [isOpen, userId])
 
   // Update form data when initialData changes (for editing)
+  // Wait for categories and payment cards to be loaded first
   useEffect(() => {
-    if (isOpen && initialData) {
-      // Editing mode - pre-fill with expense data
-      setFormData({
-        title: initialData.title || '',
-        amount: initialData.amount || 0,
-        category: initialData.category || '',
-        date: initialData.nextDueDate
+    // Only update form data after categories and cards are loaded (or if we're not fetching)
+    const canSetFormData = !isFetchingCategories && !isFetchingCards
+
+    if (isOpen && canSetFormData) {
+      if (initialData) {
+        // Editing mode - pre-fill with expense data
+        const formattedDate = initialData.nextDueDate
           ? new Date(initialData.nextDueDate).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0],
-        notes: '',
-      })
-    } else if (isOpen && !initialData) {
-      // Create mode - reset to defaults
-      setFormData({
-        title: '',
-        amount: 0,
-        category: '',
-        date: new Date().toISOString().split('T')[0],
-        notes: '',
-        paymentCardId: 'none',
-      })
+          : new Date().toISOString().split('T')[0]
+
+        setFormData({
+          title: initialData.title || '',
+          amount: initialData.amount || 0,
+          currency: initialData.currency || 'GEL',
+          category: initialData.category || '',
+          date: formattedDate,
+          notes: '',
+          paymentCardId: initialData.paymentCard?.id || 'none',
+        })
+      } else {
+        // Create mode - reset to defaults
+        setFormData({
+          title: '',
+          amount: 0,
+          currency: 'GEL',
+          category: '',
+          date: new Date().toISOString().split('T')[0],
+          notes: '',
+          paymentCardId: 'none',
+        })
+      }
+      // Reset errors and touched when modal opens
+      setErrors({})
+      setTouched({})
     }
-    // Reset errors and touched when modal opens
-    setErrors({})
-    setTouched({})
-  }, [isOpen, initialData])
+  }, [isOpen, initialData, isFetchingCategories, isFetchingCards])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -173,6 +189,7 @@ export function ExpenseForm({
     setFormData({
       title: '',
       amount: 0,
+      currency: 'GEL',
       category: '',
       date: new Date().toISOString().split('T')[0],
       notes: '',
@@ -236,6 +253,40 @@ export function ExpenseForm({
       toast.error('Failed to create category')
     } finally {
       setIsCreatingCategory(false)
+    }
+  }
+
+  const handleCreatePaymentCard = async (data: PaymentCardFormData) => {
+    setIsCreatingPaymentCard(true)
+    try {
+      const result = await createPaymentCard({
+        userId,
+        cardholderName: data.cardholderName,
+        cardNumber: data.cardNumber,
+        expiryMonth: data.expiryMonth,
+        expiryYear: data.expiryYear,
+        nickname: data.nickname,
+        color: data.color,
+      })
+
+      if (result.success && result.data) {
+        // Add new payment card to list
+        setPaymentCards((prev) => [result.data!, ...prev])
+        // Auto-select the newly created payment card
+        setFormData((prev) => ({
+          ...prev,
+          paymentCardId: result.data!.id,
+        }))
+        toast.success('Payment card added successfully')
+        setIsPaymentCardFormOpen(false)
+      } else {
+        toast.error(result.error || 'Failed to add payment card')
+      }
+    } catch (error) {
+      console.error('Error creating payment card:', error)
+      toast.error('Failed to add payment card')
+    } finally {
+      setIsCreatingPaymentCard(false)
     }
   }
 
@@ -303,8 +354,12 @@ export function ExpenseForm({
                   </motion.button>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Form - Add key to force re-render when editing different expenses */}
+                <form
+                  key={initialData?.id || 'new'}
+                  onSubmit={handleSubmit}
+                  className="space-y-5"
+                >
                   {/* Expense Name */}
                   <motion.div
                     variants={formFieldEntry}
@@ -354,7 +409,7 @@ export function ExpenseForm({
                     </label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-semibold">
-                        $
+                        {formData.currency === 'USD' ? '$' : formData.currency === 'EUR' ? '€' : '₾'}
                       </span>
                       <Input
                         type="number"
@@ -384,12 +439,38 @@ export function ExpenseForm({
                     )}
                   </motion.div>
 
-                  {/* Category */}
+                  {/* Currency Selector */}
                   <motion.div
                     variants={formFieldEntry}
                     initial="initial"
                     animate="animate"
                     transition={{ delay: 0.2 }}
+                    className="group"
+                  >
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                      Currency
+                    </label>
+                    <Select
+                      value={formData.currency || 'GEL'}
+                      onValueChange={(value) => handleFieldChange('currency', value)}
+                    >
+                      <SelectTrigger className="w-full rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="GEL">₾ GEL - Georgian Lari</SelectItem>
+                        <SelectItem value="USD">$ USD - US Dollar</SelectItem>
+                        <SelectItem value="EUR">€ EUR - Euro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </motion.div>
+
+                  {/* Category */}
+                  <motion.div
+                    variants={formFieldEntry}
+                    initial="initial"
+                    animate="animate"
+                    transition={{ delay: 0.25 }}
                     className="group"
                   >
                     <div className="flex items-center justify-between mb-2.5">
@@ -408,7 +489,7 @@ export function ExpenseForm({
                       </motion.button>
                     </div>
                     <Select
-                      value={formData.category}
+                      value={formData.category || undefined}
                       onValueChange={(value) => handleFieldChange('category', value)}
                       disabled={isFetchingCategories}
                     >
@@ -475,11 +556,23 @@ export function ExpenseForm({
                     transition={{ delay: 0.225 }}
                     className="group"
                   >
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
-                      Payment Card <span className="text-slate-400">(Optional)</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Payment Card <span className="text-slate-400">(Optional)</span>
+                      </label>
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setIsPaymentCardFormOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                      >
+                        <CreditCard className="h-3.5 w-3.5" />
+                        New Card
+                      </motion.button>
+                    </div>
                     <Select
-                      value={formData.paymentCardId}
+                      value={formData.paymentCardId || undefined}
                       onValueChange={(value) => handleFieldChange('paymentCardId', value)}
                       disabled={isFetchingCards}
                     >
@@ -491,7 +584,7 @@ export function ExpenseForm({
                             isFetchingCards
                               ? "Loading cards..."
                               : paymentCards.length === 0
-                              ? "No cards - add one in Payments"
+                              ? "No cards - create one"
                               : "Select a card (optional)"
                           }
                         />
@@ -500,7 +593,13 @@ export function ExpenseForm({
                         {paymentCards.length === 0 ? (
                           <div className="px-2 py-6 text-center text-sm text-slate-500">
                             <p>No payment cards yet</p>
-                            <p className="mt-1 text-xs">Add cards in the Payments page</p>
+                            <button
+                              type="button"
+                              onClick={() => setIsPaymentCardFormOpen(true)}
+                              className="mt-2 text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                            >
+                              Create your first card
+                            </button>
                           </div>
                         ) : (
                           <>
@@ -623,6 +722,14 @@ export function ExpenseForm({
             onClose={() => setIsCategoryFormOpen(false)}
             onSubmit={handleCreateCategory}
             isLoading={isCreatingCategory}
+          />
+
+          {/* Payment Card Form Modal */}
+          <PaymentCardForm
+            isOpen={isPaymentCardFormOpen}
+            onClose={() => setIsPaymentCardFormOpen(false)}
+            onSubmit={handleCreatePaymentCard}
+            isLoading={isCreatingPaymentCard}
           />
         </>
       )}
