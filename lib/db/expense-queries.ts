@@ -6,6 +6,7 @@
  */
 
 import prisma from '@/lib/db/prisma'
+import type { ExpenseWithRelationsData } from '@/types/expense-types'
 
 /**
  * Find expenses by user ID with payment relations
@@ -16,7 +17,7 @@ export async function findExpensesByUserId(
     limit?: number
     orderBy?: 'asc' | 'desc'
   }
-) {
+): Promise<ExpenseWithRelationsData[]> {
   return await prisma.expense.findMany({
     where: {
       userId,
@@ -48,7 +49,7 @@ export async function findExpensesWithFilters(
     startDate?: Date
     endDate?: Date
   }
-) {
+): Promise<ExpenseWithRelationsData[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { userId }
 
@@ -87,7 +88,7 @@ export async function findExpensesWithFilters(
 /**
  * Find a single expense by ID
  */
-export async function findExpenseById(expenseId: string) {
+export async function findExpenseById(expenseId: string): Promise<ExpenseWithRelationsData | null> {
   return await prisma.expense.findUnique({
     where: {
       id: expenseId,
@@ -110,7 +111,7 @@ export async function findExpensesByDateRange(
   userId: string,
   startDate: Date,
   endDate: Date
-) {
+): Promise<ExpenseWithRelationsData[]> {
   return await prisma.expense.findMany({
     where: {
       userId,
@@ -142,7 +143,7 @@ export async function findExpensesByDateRange(
 /**
  * Find overdue expenses (before today)
  */
-export async function findOverdueExpenses(userId: string, beforeDate: Date) {
+export async function findOverdueExpenses(userId: string, beforeDate: Date): Promise<ExpenseWithRelationsData[]> {
   return await prisma.expense.findMany({
     where: {
       userId,

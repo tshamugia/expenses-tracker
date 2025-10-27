@@ -1,6 +1,30 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy-loaded Resend client - only initialized when accessed (not during build)
+let resendInstance: Resend | null = null
+
+function getResendClient(): Resend {
+  if (!resendInstance) {
+    const apiKey = process.env.RESEND_API_KEY
+
+    if (!apiKey) {
+      // Return a dummy client for development mode without API key
+      // Functions will handle the missing key gracefully with console logs
+      resendInstance = new Resend('re_dummy_key_for_development')
+    } else {
+      resendInstance = new Resend(apiKey)
+    }
+  }
+
+  return resendInstance
+}
+
+// Export for backward compatibility (lazy initialization)
+const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    return getResendClient()[prop as keyof Resend]
+  }
+})
 
 export interface SendPasswordResetEmailParams {
   email: string

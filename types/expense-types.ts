@@ -1,8 +1,14 @@
-import type { Expense, Payment, User } from '@prisma/client'
+import type { Expense, Payment, User, PaymentCard } from '@prisma/client'
 
 // Extended types with relations
 export type ExpenseWithPayments = Expense & {
   payments: Payment[]
+}
+
+// Expense with payment card and payments (for query results)
+export type ExpenseWithRelationsData = Expense & {
+  payments: Payment[]
+  paymentCard: PaymentCard | null
 }
 
 // Serialized versions for Client Components (Decimal → number)

@@ -57,7 +57,7 @@ export function ExpenseCard({
 
   // Always show the original amount in the expense's currency
   const displayAmount = formatCurrency(expense.amount, expense.currency)
-  let conversionText = null
+  let conversionText: string | null = null
 
   // If different from default currency, show conversion as secondary text
   if (showConversion) {
