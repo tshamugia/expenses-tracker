@@ -178,7 +178,7 @@ export function DashboardClient({
         </div>
 
         {/* Interactive Charts - Bar and Pie Charts */}
-        <ExpenseCharts categoryData={categoryData} stats={stats} />
+        <ExpenseCharts categoryData={categoryData} stats={stats} currency={defaultCurrency} />
 
         {/* Upcoming Expenses - Replaces Expense Cards */}
         <UpcomingExpenses

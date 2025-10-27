@@ -80,14 +80,8 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   const Icon = notificationIcons[notification.type as NotificationType]
   const colors = notificationColors[notification.type as NotificationType]
 
-  const handleClick = async () => {
-    if (!notification.isRead) {
-      await markNotificationAsRead(notification.id)
-      router.refresh()
-    }
-  }
-
   const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     setIsDeleting(true)
 
@@ -109,13 +103,12 @@ export function NotificationItem({ notification }: NotificationItemProps) {
   const content = (
     <Card
       className={cn(
-        'relative overflow-hidden transition-all hover:shadow-md',
+        'relative overflow-hidden transition-all hover:shadow-md cursor-pointer',
         !notification.isRead && 'border-l-4',
         !notification.isRead && colors.border,
         notification.isRead && 'opacity-60',
         isDeleting && 'opacity-50'
       )}
-      onClick={handleClick}
     >
       <div className="flex gap-4 p-4">
         {/* Icon */}
@@ -136,18 +129,18 @@ export function NotificationItem({ notification }: NotificationItemProps) {
               <div className="h-2 w-2 shrink-0 rounded-full bg-primary" />
             )}
           </div>
-          <p className="text-sm text-muted-foreground">{notification.message}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {notification.message}
+          </p>
           <div className="flex items-center gap-4 pt-1">
             <p className="text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(notification.createdAt), {
                 addSuffix: true,
               })}
             </p>
-            {notification.actionUrl && (
-              <span className="text-xs text-primary flex items-center gap-1">
-                View details <ExternalLink className="h-3 w-3" />
-              </span>
-            )}
+            <span className="text-xs text-primary flex items-center gap-1">
+              Read more <ExternalLink className="h-3 w-3" />
+            </span>
           </div>
         </div>
 
@@ -165,13 +158,9 @@ export function NotificationItem({ notification }: NotificationItemProps) {
     </Card>
   )
 
-  if (notification.actionUrl) {
-    return (
-      <Link href={notification.actionUrl} className="block">
-        {content}
-      </Link>
-    )
-  }
-
-  return <div className="cursor-pointer">{content}</div>
+  return (
+    <Link href={`/notifications/${notification.id}`} className="block">
+      {content}
+    </Link>
+  )
 }

@@ -320,6 +320,13 @@ import type { ExpenseListItem } from '@/types/expense-types'
 - ✅ Email notification system for payment reminders
 - ✅ Notification preferences in settings
 - ✅ Cron job endpoint for scheduled notifications
+- ✅ Enhanced notification system:
+  - **3-day reminder notifications** (sent exactly 3 days before due date)
+  - **Overdue payment notifications** (sent daily for all overdue payments)
+  - **Instant notifications** when adding past/overdue expenses
+  - **Always sends both email AND in-app notifications** (regardless of preferences)
+  - Different notification types (payment, warning, error) based on urgency
+  - Notification detail page for reading full notification information
 
 ### Planned (Future Phases)
 - Recurring payment scheduling

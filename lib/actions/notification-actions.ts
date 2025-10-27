@@ -54,6 +54,42 @@ export async function getUserNotifications(
 }
 
 /**
+ * Get a single notification by ID
+ */
+export async function getNotificationById(
+  notificationId: string
+): Promise<ActionResult<Notification>> {
+  try {
+    const userId = await getCurrentUserId()
+
+    const notification = await prisma.notification.findFirst({
+      where: {
+        id: notificationId,
+        userId, // Ensure user owns the notification
+      },
+    })
+
+    if (!notification) {
+      return {
+        success: false,
+        error: 'Notification not found',
+      }
+    }
+
+    return {
+      success: true,
+      data: notification as Notification,
+    }
+  } catch (error) {
+    console.error('Error in getNotificationById:', error)
+    return {
+      success: false,
+      error: 'Failed to load notification',
+    }
+  }
+}
+
+/**
  * Get notification statistics (total and unread count)
  */
 export async function getNotificationStats(): Promise<

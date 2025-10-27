@@ -255,6 +255,7 @@ export const getExpenseCategories = cache(
 // CRUD Operations with Prisma
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db/prisma'
+import { notifyPastOrOverdueExpense } from '@/lib/services/notification-service'
 
 /**
  * Create a new expense
@@ -316,8 +317,9 @@ export async function createExpense(
     })
 
     // Business logic: Create initial payment if nextDueDate is provided
+    let paymentId: string | undefined
     if (input.nextDueDate) {
-      await prisma.payment.create({
+      const payment = await prisma.payment.create({
         data: {
           expenseId: expense.id,
           dueDate: input.nextDueDate,
@@ -325,6 +327,26 @@ export async function createExpense(
           paid: false,
         },
       })
+      paymentId = payment.id
+
+      // Check if the expense is past due or due today and send immediate notification
+      const now = new Date()
+      now.setHours(0, 0, 0, 0)
+      const dueDate = new Date(input.nextDueDate)
+      dueDate.setHours(0, 0, 0, 0)
+
+      if (dueDate <= now) {
+        // Expense is overdue or due today - send instant notification
+        await notifyPastOrOverdueExpense(
+          input.userId,
+          input.title,
+          input.nextDueDate,
+          input.amount,
+          input.currency || 'USD',
+          payment.id,
+          expense.id
+        )
+      }
     }
 
     // Fetch expense with payments after creating payment
@@ -342,6 +364,7 @@ export async function createExpense(
     // Revalidate pages to show new data
     revalidatePath('/expenses')
     revalidatePath('/dashboard')
+    revalidatePath('/notifications') // Revalidate notifications page to show new notification
 
     // Serialize for client
     const serialized: SerializedExpenseWithPayments = {

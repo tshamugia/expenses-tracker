@@ -21,7 +21,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { CategoryData, DashboardStats } from '@/types/expense-types'
-import { formatCurrency } from '@/lib/utils/currency-helpers'
+import { formatCurrency, getCurrencySymbol } from '@/lib/utils/currency-helpers'
 
 interface ExpenseChartsProps {
   categoryData: CategoryData[]
@@ -100,7 +100,7 @@ export function ExpenseCharts({
                 <YAxis
                   className="text-xs"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                  tickFormatter={(value) => `₾${value}`}
+                  tickFormatter={(value) => `${getCurrencySymbol(currency)}${value}`}
                 />
                 <Tooltip content={<CustomTooltip currency={currency} />} />
                 <Legend wrapperStyle={{ fontSize: '12px' }} />
