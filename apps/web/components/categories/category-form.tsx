@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, FolderKanban } from 'lucide-react'
 import { modalBackdrop, formFieldEntry } from '@/lib/animations/variants'
-import type { SerializedCategory } from '@/types/category-types'
+import type { SerializedCategory } from '@extracker/types'
 
 interface CategoryFormProps {
   isOpen: boolean

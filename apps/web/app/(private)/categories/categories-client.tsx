@@ -18,7 +18,7 @@ import {
   updateCategory,
   deleteCategory,
 } from '@/lib/actions/category-actions'
-import type { SerializedCategory } from '@/types/category-types'
+import type { SerializedCategory } from '@extracker/types'
 import { toast } from 'sonner'
 
 interface CategoriesClientProps {
@@ -43,12 +43,12 @@ export function CategoriesClient({ initialCategories, userId }: CategoriesClient
         color: data.color,
       })
 
-      if (result.success && result.data) {
-        setCategories((prev) => [result.data!, ...prev])
+      if (result.success) {
+        setCategories((prev) => [result.data, ...prev])
         setIsFormOpen(false)
         toast.success('Category created successfully!')
       } else {
-        toast.error(result.error || 'Failed to create category')
+        toast.error(result.error)
       }
     } catch (error) {
       console.error('Error creating category:', error)
@@ -73,15 +73,15 @@ export function CategoriesClient({ initialCategories, userId }: CategoriesClient
         color: data.color,
       })
 
-      if (result.success && result.data) {
+      if (result.success) {
         setCategories((prev) =>
-          prev.map((cat) => (cat.id === editingCategory.id ? result.data! : cat))
+          prev.map((cat) => (cat.id === editingCategory.id ? result.data : cat))
         )
         setIsFormOpen(false)
         setEditingCategory(null)
         toast.success('Category updated successfully!')
       } else {
-        toast.error(result.error || 'Failed to update category')
+        toast.error(result.error)
       }
     } catch (error) {
       console.error('Error updating category:', error)

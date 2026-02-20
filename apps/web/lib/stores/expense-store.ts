@@ -7,7 +7,7 @@
  */
 
 import { create } from 'zustand'
-import type { ExpenseListItem } from '@/types/expense-types'
+import type { ExpenseListItem } from '@extracker/types'
 
 interface ExpenseStore {
   // State

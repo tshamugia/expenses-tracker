@@ -20,13 +20,14 @@ import {
 } from '@/lib/db/expense-queries'
 import { isOverdue } from '@/lib/utils/date-helpers'
 import type {
+  ActionResult,
   DashboardData,
   ExpenseListItem,
   ExpenseFilters,
   ExpenseWithPayments,
   SerializedExpenseWithPayments,
   CategoryData,
-} from '@/types/expense-types'
+} from '@extracker/types'
 
 /**
  * Get dashboard data for a user
@@ -289,11 +290,6 @@ export interface UpdateExpenseInput {
   nextDueDate?: Date
 }
 
-export interface ActionResult<T> {
-  success: boolean
-  data?: T
-  error?: string
-}
 
 export async function createExpense(
   input: CreateExpenseInput
@@ -482,7 +478,7 @@ export async function deleteExpense(
     revalidatePath('/expenses')
     revalidatePath('/dashboard')
 
-    return { success: true }
+    return { success: true, data: undefined }
   } catch (error) {
     console.error('Error deleting expense:', error)
     return {

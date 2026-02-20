@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { formatExpenseDate } from '@/lib/utils/date-helpers'
-import type { SerializedCategory } from '@/types/category-types'
+import type { SerializedCategory } from '@extracker/types'
 
 interface CategoryTableProps {
   categories: SerializedCategory[]

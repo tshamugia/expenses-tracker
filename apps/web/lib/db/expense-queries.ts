@@ -6,7 +6,7 @@
  */
 
 import prisma from '@/lib/db/prisma'
-import type { ExpenseWithRelationsData } from '@/types/expense-types'
+import type { ExpenseWithRelationsData } from '@extracker/types'
 
 /**
  * Find expenses by user ID with payment relations

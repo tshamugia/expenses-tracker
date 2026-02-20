@@ -18,7 +18,7 @@ import {
   markAllNotificationsAsRead,
   deleteAllReadNotifications,
 } from '@/lib/actions/notification-actions'
-import type { Notification, NotificationType } from '@/types/notification-types'
+import type { Notification, NotificationType } from '@extracker/types'
 
 interface NotificationListProps {
   notifications: Notification[]

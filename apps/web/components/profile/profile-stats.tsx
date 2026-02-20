@@ -2,7 +2,7 @@
 
 import { DollarSign, Receipt, CreditCard } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import type { UserStats } from '@/types/user-types'
+import type { UserStats } from '@extracker/types'
 
 interface ProfileStatsProps {
   stats: UserStats

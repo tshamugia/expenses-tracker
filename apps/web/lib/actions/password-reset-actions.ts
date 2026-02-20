@@ -3,10 +3,7 @@
 import { hash } from 'bcryptjs'
 import prisma from '@/lib/db/prisma'
 import { sendPasswordResetEmail } from '@/lib/services/email'
-
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+import type { ActionResult } from '@extracker/types'
 
 /**
  * Generate a 6-digit code

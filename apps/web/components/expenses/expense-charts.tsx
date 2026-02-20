@@ -20,7 +20,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import type { CategoryData, DashboardStats } from '@/types/expense-types'
+import type { CategoryData, DashboardStats } from '@extracker/types'
 import { formatCurrency, getCurrencySymbol } from '@/lib/utils/currency-helpers'
 
 interface ExpenseChartsProps {

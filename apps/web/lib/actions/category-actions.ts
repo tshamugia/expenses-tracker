@@ -12,11 +12,11 @@ import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
 import prisma from '@/lib/db/prisma'
 import type {
+  ActionResult,
   SerializedCategory,
   CreateCategoryInput,
   UpdateCategoryInput,
-  CategoryActionResult,
-} from '@/types/category-types'
+} from '@extracker/types'
 
 /**
  * Get all categories for a user
@@ -66,7 +66,7 @@ export const getCategoryById = cache(
  */
 export async function createCategory(
   input: CreateCategoryInput
-): Promise<CategoryActionResult<SerializedCategory>> {
+): Promise<ActionResult<SerializedCategory>> {
   try {
     // Business logic: Trim and validate category name
     const categoryName = input.categoryName.trim()
@@ -138,7 +138,7 @@ export async function updateCategory(
   categoryId: string,
   userId: string,
   input: UpdateCategoryInput
-): Promise<CategoryActionResult<SerializedCategory>> {
+): Promise<ActionResult<SerializedCategory>> {
   try {
     // Business logic: Verify ownership
     const existingCategory = await prisma.category.findFirst({
@@ -229,7 +229,7 @@ export async function updateCategory(
 export async function deleteCategory(
   categoryId: string,
   userId: string
-): Promise<CategoryActionResult<void>> {
+): Promise<ActionResult<void>> {
   try {
     // Business logic: Verify ownership
     const category = await prisma.category.findFirst({
@@ -273,6 +273,7 @@ export async function deleteCategory(
 
     return {
       success: true,
+      data: undefined,
     }
   } catch (error) {
     console.error('Error deleting category:', error)

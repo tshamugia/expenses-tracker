@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { ArrowRightLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { CurrencyRate } from '@/lib/services/currency'
+import type { CurrencyRate } from '@extracker/types'
 
 interface CurrencyCalculatorProps {
   usd: CurrencyRate | null

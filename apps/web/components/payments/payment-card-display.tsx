@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { Edit, Trash2 } from 'lucide-react'
 import { formatExpiryDate, formatCardNumber } from '@/lib/utils/card-validation'
-import type { PaymentCardListItem } from '@/types/payment-card-types'
+import type { PaymentCardListItem } from '@extracker/types'
 
 interface PaymentCardDisplayProps {
   card: PaymentCardListItem

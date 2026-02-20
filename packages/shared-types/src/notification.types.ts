@@ -29,7 +29,3 @@ export interface NotificationStats {
   total: number
   unread: number
 }
-
-export type ActionResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: string }

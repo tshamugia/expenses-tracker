@@ -5,10 +5,7 @@ import { signIn } from '@/auth'
 import prisma from '@/lib/db/prisma'
 import { revalidatePath } from 'next/cache'
 import { AuthError } from 'next-auth'
-
-export type ActionResult<T = void> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+import type { ActionResult } from '@extracker/types'
 
 /**
  * Set password for a user (for Google OAuth users or password reset)

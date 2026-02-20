@@ -1,5 +1,5 @@
 import { ExpenseCard } from './expense-card'
-import type { ExpenseListItem } from '@/types/expense-types'
+import type { ExpenseListItem } from '@extracker/types'
 
 interface ExpenseListProps {
   expenses: ExpenseListItem[]

@@ -1,4 +1,4 @@
-import type { CardBrand, CardValidationResult } from '@/types/payment-card-types'
+import type { CardBrand, CardValidationResult } from '@extracker/types'
 
 /**
  * Luhn Algorithm (Mod 10) for credit card validation

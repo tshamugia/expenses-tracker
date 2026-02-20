@@ -12,9 +12,7 @@ import { useEffect, useTransition } from 'react'
 import { useExpenseStore } from '@/lib/stores/expense-store'
 import { ExpensesPage as ExpensesUI } from '@/components/expenses/expenses-page'
 import type { ExpenseFormData } from '@/components/expenses/expense-form'
-import type { ExpenseListItem, SerializedExpenseWithPayments } from '@/types/expense-types'
-import type { SerializedCategory } from '@/types/category-types'
-import type { Currency } from '@/types/settings-types'
+import type { ExpenseListItem, SerializedExpenseWithPayments, SerializedCategory, Currency } from '@extracker/types'
 import {
   createExpense,
   updateExpense,
@@ -127,13 +125,13 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
           nextDueDate: new Date(data.date),
         })
 
-        if (result.success && result.data) {
+        if (result.success) {
           // Replace optimistic with real data
           const realExpense = transformExpense({
             ...result.data,
             payments: [],
           })
-          
+
           optimisticRemove(optimisticExpense.id)
           optimisticAdd(realExpense)
 
@@ -142,7 +140,7 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
           // Rollback optimistic update
           optimisticRemove(optimisticExpense.id)
           toast.error('Failed to create expense', {
-            description: result.error || 'Unknown error',
+            description: result.error,
           })
         }
       })
@@ -182,20 +180,20 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
           nextDueDate: new Date(data.date),
         })
 
-        if (result.success && result.data) {
+        if (result.success) {
           // Confirm with real data
           const realExpense = transformExpense({
             ...result.data,
             payments: [],
           })
-          
+
           optimisticUpdate(id, realExpense)
           toast.success('Expense updated successfully!')
         } else {
           // Rollback optimistic update
           optimisticUpdate(id, original)
           toast.error('Failed to update expense', {
-            description: result.error || 'Unknown error',
+            description: result.error,
           })
         }
       })

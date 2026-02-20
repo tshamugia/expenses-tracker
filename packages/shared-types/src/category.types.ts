@@ -31,10 +31,3 @@ export interface UpdateCategoryInput {
   categoryName?: string
   color?: string
 }
-
-// Action result wrapper
-export interface CategoryActionResult<T> {
-  success: boolean
-  data?: T
-  error?: string
-}

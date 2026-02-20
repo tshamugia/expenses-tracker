@@ -13,11 +13,11 @@ import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db/prisma'
 import { getAuthUserId } from '@/lib/auth/get-session'
 import type {
+  ActionResult,
   UserSettings,
   UpdateSettingsInput,
   SubscriptionPlanInfo,
-  ActionResult,
-} from '@/types/settings-types'
+} from '@extracker/types'
 
 /**
  * Helper function to get the current authenticated user ID

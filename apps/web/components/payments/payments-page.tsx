@@ -11,7 +11,7 @@ import {
   updatePaymentCard,
   deletePaymentCard,
 } from '@/lib/actions/payment-card-actions'
-import type { PaymentCardListItem } from '@/types/payment-card-types'
+import type { PaymentCardListItem } from '@extracker/types'
 import { toast } from 'sonner'
 
 interface PaymentsPageProps {
@@ -38,11 +38,11 @@ export function PaymentsPage({ cards: initialCards, userId }: PaymentsPageProps)
         color: data.color,
       })
 
-      if (result.success && result.data) {
+      if (result.success) {
         // Add new card to the list
         setCards((prev) => [
           {
-            ...result.data!,
+            ...result.data,
             expenseCount: 0,
           },
           ...prev,
@@ -50,7 +50,7 @@ export function PaymentsPage({ cards: initialCards, userId }: PaymentsPageProps)
         toast.success('Payment card added successfully')
         setIsFormOpen(false)
       } else {
-        toast.error(result.error || 'Failed to add payment card')
+        toast.error(result.error)
       }
     } catch (error) {
       console.error('Error creating payment card:', error)
@@ -73,13 +73,13 @@ export function PaymentsPage({ cards: initialCards, userId }: PaymentsPageProps)
         color: data.color,
       })
 
-      if (result.success && result.data) {
+      if (result.success) {
         // Update card in the list
         setCards((prev) =>
           prev.map((card) =>
             card.id === editingCard.id
               ? {
-                  ...result.data!,
+                  ...result.data,
                   expenseCount: card.expenseCount,
                 }
               : card
@@ -89,7 +89,7 @@ export function PaymentsPage({ cards: initialCards, userId }: PaymentsPageProps)
         setIsFormOpen(false)
         setEditingCard(null)
       } else {
-        toast.error(result.error || 'Failed to update payment card')
+        toast.error(result.error)
       }
     } catch (error) {
       console.error('Error updating payment card:', error)

@@ -18,7 +18,7 @@ import {
 import { DollarSign, Euro, Coins } from 'lucide-react'
 import { updateUserSettings } from '@/lib/actions/settings-actions'
 import { toast } from 'sonner'
-import type { UserSettings, Currency } from '@/types/settings-types'
+import type { UserSettings, Currency } from '@extracker/types'
 
 interface CurrencySettingsProps {
   settings: UserSettings

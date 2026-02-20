@@ -18,9 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import { createExpense } from '@/lib/actions/expense-actions'
 import { toast } from 'sonner'
-import type { DashboardData, ExpenseListItem } from '@/types/expense-types'
-import type { CurrencyRate } from '@/lib/services/currency'
-import type { Currency } from '@/lib/utils/currency-conversion'
+import type { DashboardData, ExpenseListItem, CurrencyRate, Currency } from '@extracker/types'
 import { convertCurrency } from '@/lib/utils/currency-conversion'
 
 interface DashboardClientProps {
@@ -126,13 +124,13 @@ export function DashboardClient({
           nextDueDate: new Date(data.date),
         })
 
-        if (result.success && result.data) {
+        if (result.success) {
           toast.success('Expense created successfully!')
           setIsFormOpen(false)
           // The page will automatically revalidate and show the new expense
         } else {
           toast.error('Failed to create expense', {
-            description: result.error || 'Unknown error',
+            description: result.error,
           })
         }
         setIsSubmitting(false)

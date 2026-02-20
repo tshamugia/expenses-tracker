@@ -18,9 +18,9 @@ export default async function ExpensesPage() {
     getMainCurrencyRates(),
   ])
 
-  const expenses = result.success && result.data ? result.data : []
-  const error = result.success ? null : result.error || 'Failed to load expenses'
-  const defaultCurrency = settingsResult.success && settingsResult.data
+  const expenses = result.success ? result.data : []
+  const error = result.success ? null : result.error
+  const defaultCurrency = settingsResult.success
     ? settingsResult.data.defaultCurrency
     : 'GEL'
 

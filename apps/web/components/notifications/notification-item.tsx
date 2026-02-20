@@ -22,7 +22,7 @@ import {
   deleteNotification,
 } from '@/lib/actions/notification-actions'
 import { toast } from 'sonner'
-import type { Notification, NotificationType } from '@/types/notification-types'
+import type { Notification, NotificationType } from '@extracker/types'
 
 interface NotificationItemProps {
   notification: Notification

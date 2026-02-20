@@ -1,7 +1,7 @@
 'use client'
 
 import { PaymentsPage } from '@/components/payments/payments-page'
-import type { PaymentCardListItem } from '@/types/payment-card-types'
+import type { PaymentCardListItem } from '@extracker/types'
 
 interface PaymentsClientProps {
   cards: PaymentCardListItem[]

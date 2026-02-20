@@ -16,6 +16,7 @@
     "seed:notifications": "dotenv -e ../../.env.local -- tsx scripts/seed-notifications.ts"
   },
   "dependencies": {
+    "@extracker/types": "workspace:*",
     "@auth/prisma-adapter": "^2.11.0",
     "@prisma/client": "^6.18.0",
     "@radix-ui/react-avatar": "^1.1.10",

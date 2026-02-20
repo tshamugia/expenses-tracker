@@ -16,12 +16,12 @@ import {
   validateExpiryDate,
 } from '@/lib/utils/card-validation'
 import type {
+  ActionResult,
   SerializedPaymentCard,
   CreatePaymentCardInput,
   UpdatePaymentCardInput,
-  ActionResult,
   PaymentCardListItem,
-} from '@/types/payment-card-types'
+} from '@extracker/types'
 
 /**
  * Get all payment cards for a user
@@ -245,7 +245,7 @@ export async function deletePaymentCard(
     revalidatePath('/expenses')
     revalidatePath('/dashboard')
 
-    return { success: true }
+    return { success: true, data: undefined }
   } catch (error) {
     console.error('Error deleting payment card:', error)
     return {

@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { CreditCard } from 'lucide-react'
 import { PaymentCardDisplay } from './payment-card-display'
-import type { PaymentCardListItem } from '@/types/payment-card-types'
+import type { PaymentCardListItem } from '@extracker/types'
 
 interface PaymentCardsListProps {
   cards: PaymentCardListItem[]

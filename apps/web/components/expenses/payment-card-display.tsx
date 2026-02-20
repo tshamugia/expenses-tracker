@@ -5,7 +5,7 @@
  * Displays a payment card with visual design showing last 4 digits and card name
  */
 
-import type { PaymentCardInfo } from '@/types/expense-types'
+import type { PaymentCardInfo } from '@extracker/types'
 import { CreditCard } from 'lucide-react'
 
 interface PaymentCardDisplayProps {

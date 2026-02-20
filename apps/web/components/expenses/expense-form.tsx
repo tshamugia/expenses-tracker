@@ -16,9 +16,7 @@ import {
   modalBackdrop,
   formFieldEntry,
 } from '@/lib/animations/variants'
-import type { ExpenseListItem } from '@/types/expense-types'
-import type { SerializedCategory } from '@/types/category-types'
-import type { SerializedPaymentCard } from '@/types/payment-card-types'
+import type { ExpenseListItem, SerializedCategory, SerializedPaymentCard } from '@extracker/types'
 import { getUserCategories, createCategory } from '@/lib/actions/category-actions'
 import { getUserPaymentCards, createPaymentCard } from '@/lib/actions/payment-card-actions'
 import { CategoryForm, type CategoryFormData } from '@/components/categories/category-form'
@@ -235,18 +233,18 @@ export function ExpenseForm({
         color: data.color,
       })
 
-      if (result.success && result.data) {
+      if (result.success) {
         // Add new category to list
-        setCategories((prev) => [result.data!, ...prev])
+        setCategories((prev) => [result.data, ...prev])
         // Auto-select the newly created category
         setFormData((prev) => ({
           ...prev,
-          category: result.data!.categoryName,
+          category: result.data.categoryName,
         }))
         toast.success('Category created successfully')
         setIsCategoryFormOpen(false)
       } else {
-        toast.error(result.error || 'Failed to create category')
+        toast.error(result.error)
       }
     } catch (error) {
       console.error('Error creating category:', error)
@@ -269,18 +267,18 @@ export function ExpenseForm({
         color: data.color,
       })
 
-      if (result.success && result.data) {
+      if (result.success) {
         // Add new payment card to list
-        setPaymentCards((prev) => [result.data!, ...prev])
+        setPaymentCards((prev) => [result.data, ...prev])
         // Auto-select the newly created payment card
         setFormData((prev) => ({
           ...prev,
-          paymentCardId: result.data!.id,
+          paymentCardId: result.data.id,
         }))
         toast.success('Payment card added successfully')
         setIsPaymentCardFormOpen(false)
       } else {
-        toast.error(result.error || 'Failed to add payment card')
+        toast.error(result.error)
       }
     } catch (error) {
       console.error('Error creating payment card:', error)

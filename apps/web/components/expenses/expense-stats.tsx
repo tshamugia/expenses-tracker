@@ -6,7 +6,7 @@ import {
   Hash
 } from 'lucide-react'
 import { StatCard } from './stat-card'
-import type { DashboardStats } from '@/types/expense-types'
+import type { DashboardStats } from '@extracker/types'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
 
 interface ExpenseStatsProps {

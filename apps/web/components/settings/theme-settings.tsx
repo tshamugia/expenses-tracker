@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { updateUserSettings } from '@/lib/actions/settings-actions'
-import type { UserSettings, Theme } from '@/types/settings-types'
+import type { UserSettings, Theme } from '@extracker/types'
 
 interface ThemeSettingsProps {
   settings: UserSettings

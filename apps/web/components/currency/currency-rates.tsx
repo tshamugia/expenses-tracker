@@ -5,7 +5,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrendingUp, TrendingDown, DollarSign, Euro } from 'lucide-react'
-import type { CurrencyRate } from '@/lib/services/currency'
+import type { CurrencyRate } from '@extracker/types'
 
 interface CurrencyRatesProps {
   usd: CurrencyRate | null

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { updateUserSettings } from '@/lib/actions/settings-actions'
-import type { UserSettings } from '@/types/settings-types'
+import type { UserSettings } from '@extracker/types'
 
 interface NotificationSettingsProps {
   settings: UserSettings

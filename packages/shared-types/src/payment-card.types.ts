@@ -40,13 +40,6 @@ export interface UpdatePaymentCardInput {
   color?: string
 }
 
-// Action result type
-export interface ActionResult<T> {
-  success: boolean
-  data?: T
-  error?: string
-}
-
 // Card brand types
 export type CardBrand = 'Visa' | 'Mastercard' | 'Amex' | 'Discover' | 'Unknown'
 

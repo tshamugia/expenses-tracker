@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AvatarUpload } from './avatar-upload'
 import { updateUserProfile, deleteUserAvatar } from '@/lib/actions/user-actions'
-import type { UserProfile } from '@/types/user-types'
+import type { UserProfile } from '@extracker/types'
 
 interface ProfileFormProps {
   user: UserProfile

@@ -6,7 +6,7 @@
  */
 
 import { getMainCurrencyRates } from '@/lib/services/currency'
-import type { CurrencyRate } from '@/lib/services/currency'
+import type { CurrencyRate } from '@extracker/types'
 
 export interface CurrencyRatesResult {
   success: boolean

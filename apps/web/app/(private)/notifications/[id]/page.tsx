@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { NotificationType } from '@/types/notification-types'
+import type { NotificationType } from '@extracker/types'
 
 const notificationIcons: Record<NotificationType, typeof Info> = {
   info: Info,
