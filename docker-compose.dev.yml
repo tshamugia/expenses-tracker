@@ -4,7 +4,7 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: apps/web/Dockerfile.dev
       args:
         - NODE_ENV=development
     container_name: extracker-dev
@@ -15,7 +15,8 @@ services:
       # Mount source code for hot reload
       - .:/app
       - /app/node_modules
-      - /app/.next
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
     environment:
       # Database
       - DATABASE_URL=${DATABASE_URL}

@@ -16,13 +16,23 @@
       "Bash(dir:*)",
       "Bash(npm install:*)",
       "Bash(del middleware.ts)",
-      "Bash(del /F \"d:\\GITHUB\\extracker\\node_modules\\.prisma\\client\\query_engine-windows.dll.node\")"
+      "Bash(del /F \"d:\\GITHUB\\extracker\\node_modules\\.prisma\\client\\query_engine-windows.dll.node\")",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(du -sh:*)",
+      "Bash(git -C \"D:/GITHUB/extracker\" log --oneline -10)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(pnpm:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
   },
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
-    "next-devtools"
+    "next-devtools",
+    "shadcn"
   ]
 }

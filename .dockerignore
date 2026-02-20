@@ -16,6 +16,7 @@ dist
 .gitignore
 .vscode
 .idea
+.claude
 
 # Environment variables (provide at runtime)
 .env*
@@ -42,9 +43,6 @@ Thumbs.db
 *.temp
 .cache
 
-# Scripts (not needed in production)
-scripts
-
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
@@ -52,19 +50,13 @@ next-env.d.ts
 # Vercel
 .vercel
 
-# Misc (keep config files needed for build)
-.eslintrc*
-.prettierrc*
-# tsconfig.json - NEEDED FOR BUILD
-# tailwind.config.ts - NEEDED FOR BUILD
-# postcss.config.mjs - NEEDED FOR BUILD
-components.json
-
 # CI/CD
 .github
 .gitlab-ci.yml
 
-# Docker
-Dockerfile*
+# Docker (avoid recursive)
 docker-compose*.yml
 .dockerignore
+
+# Nx cache
+.nx

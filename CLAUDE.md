@@ -8,38 +8,83 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Version**: 0.0.1 (Demo - Pre-production)
 
+## Monorepo Structure
+
+This project uses an **Nx monorepo** with **pnpm workspaces**. The Next.js web app lives in `apps/web/`, and shared packages will be added under `packages/`.
+
+```
+extracker/
+├── apps/
+│   └── web/                        # Next.js web application
+│       ├── app/                    # Next.js App Router pages and layouts
+│       ├── components/             # React components organized by feature
+│       ├── lib/                    # Business logic and utilities
+│       ├── types/                  # TypeScript type definitions
+│       ├── prisma/                 # Database schema and seed scripts
+│       ├── scripts/                # Utility scripts
+│       ├── public/                 # Static assets
+│       ├── auth.ts, auth.config.ts # Auth.js configuration
+│       ├── next.config.ts          # Next.js config
+│       ├── tailwind.config.ts      # Tailwind CSS config
+│       ├── tsconfig.json           # Extends ../../tsconfig.base.json
+│       └── package.json            # Web-specific deps + scripts
+├── packages/                       # Shared packages (future)
+├── nx.json                         # Nx workspace config
+├── pnpm-workspace.yaml             # pnpm workspace definition
+├── .npmrc                          # pnpm settings
+├── package.json                    # Root workspace (Nx devDeps + proxy scripts)
+├── tsconfig.base.json              # Shared TypeScript config
+├── .env.local                      # Environment variables (shared at root)
+└── docker-compose.yml              # Docker config
+```
+
 ## Essential Commands
+
+All commands can be run from the workspace root. They proxy to `nx run web:<target>`.
 
 ### Development
 ```bash
-npm run dev              # Start development server
-npm run build            # Build for production (run this to check TypeScript errors)
-npm run start            # Start production server
-npm run lint             # Run ESLint
+pnpm run dev              # Start development server
+pnpm run build            # Build for production (run this to check TypeScript errors)
+pnpm run start            # Start production server
+pnpm run lint             # Run ESLint
 ```
 
-**IMPORTANT**: Never run `npm run dev` or `npm run start` directly. Always use `npm run build` to check for TypeScript build errors.
+**IMPORTANT**: Never run `pnpm run dev` or `pnpm run start` directly. Always use `pnpm run build` to check for TypeScript build errors.
 
 ### Database Management
 ```bash
-npm run db:test          # Test database connection
-npm run db:verify        # Verify database connection
-npm run prisma:generate  # Generate Prisma Client
-npm run prisma:push      # Push schema changes to database
-npm run prisma:studio    # Open Prisma Studio GUI
-npm run prisma:seed      # Seed database with demo data
-npm run seed:notifications # Seed notification data for testing
+pnpm run db:test          # Test database connection
+pnpm run db:verify        # Verify database connection
+pnpm run prisma:generate  # Generate Prisma Client
+pnpm run prisma:push      # Push schema changes to database
+pnpm run prisma:studio    # Open Prisma Studio GUI
+pnpm run prisma:seed      # Seed database with demo data
+pnpm run seed:notifications # Seed notification data for testing
 ```
 
-All database commands automatically use `.env.local` via `dotenv-cli`.
+All database commands automatically use `.env.local` (at workspace root) via `dotenv-cli`.
+
+### Nx Commands
+```bash
+npx nx graph              # Visualize project dependency graph
+npx nx affected -t build  # Build only affected projects
+npx nx affected -t lint   # Lint only affected projects
+```
+
+### Running commands directly in apps/web
+```bash
+pnpm --filter web run build    # Run build directly via pnpm filter
+cd apps/web && pnpm run build  # Or cd into the app
+```
 
 ## Architecture
 
 ### Three-Layer Architecture
 
-1. **Presentation Layer** - Client Components (`components/`) with Shadcn/UI and Tailwind CSS
-2. **Business Logic Layer** - Server Actions (`lib/actions/`) handling business rules and data operations
-3. **Data Access Layer** - Prisma queries (`lib/db/`) and services (`lib/services/`) for database operations
+1. **Presentation Layer** - Client Components (`apps/web/components/`) with Shadcn/UI and Tailwind CSS
+2. **Business Logic Layer** - Server Actions (`apps/web/lib/actions/`) handling business rules and data operations
+3. **Data Access Layer** - Prisma queries (`apps/web/lib/db/`) and services (`apps/web/lib/services/`) for database operations
 
 ### Data Flow
 
@@ -53,14 +98,14 @@ User Interaction → Client Component → Server Action → Prisma/Service → S
 
 - **No REST API**: Server Actions provide type-safe, direct server-side mutations instead of REST/GraphQL endpoints (API routes exist only for auth, cron, and testing)
 - **React Server Components (RSC)**: Default for pages and layouts to reduce client bundle size
-- **Server Actions**: All CRUD operations are server actions in `lib/actions/` marked with `'use server'`
-- **Services Layer**: Complex business logic (email, notifications, currency) abstracted into `lib/services/`
-- **Optimistic Updates**: Zustand store (`lib/stores/expense-store.ts`) manages client-side state for instant UI feedback before server confirmation
+- **Server Actions**: All CRUD operations are server actions in `apps/web/lib/actions/` marked with `'use server'`
+- **Services Layer**: Complex business logic (email, notifications, currency) abstracted into `apps/web/lib/services/`
+- **Optimistic Updates**: Zustand store (`apps/web/lib/stores/expense-store.ts`) manages client-side state for instant UI feedback before server confirmation
 - **Type Safety**: End-to-end TypeScript with Prisma-generated types and custom view models
 
 ## Project Structure
 
-### Core Directories
+### Core Directories (under `apps/web/`)
 
 - `app/` - Next.js App Router pages and layouts
   - `(private)/` - Protected routes with app layout (dashboard, expenses, categories, payments, profile, notifications, settings)
@@ -94,18 +139,18 @@ User Interaction → Client Component → Server Action → Prisma/Service → S
 
 ### Important Files
 
-- `auth.ts` - Auth.js 5 configuration with NextAuth
-- `auth.config.ts` - Auth providers (Google OAuth, Credentials) and route protection
-- `lib/db/prisma.ts` - Prisma Client singleton (always import from here)
-- `lib/actions/expense-actions.ts` - All expense CRUD operations and queries
-- `lib/actions/category-actions.ts` - Category management actions
-- `lib/actions/payment-card-actions.ts` - Payment card CRUD operations
-- `lib/actions/notification-actions.ts` - Notification management
-- `lib/services/notification-service.ts` - Notification business logic and email sending
-- `lib/services/email.ts` - Email service abstraction (Resend)
-- `lib/services/currency.ts` - Currency conversion service
-- `types/expense-types.ts` - Type definitions for Expense domain
-- `prisma/schema.prisma` - Complete database schema
+- `apps/web/auth.ts` - Auth.js 5 configuration with NextAuth
+- `apps/web/auth.config.ts` - Auth providers (Google OAuth, Credentials) and route protection
+- `apps/web/lib/db/prisma.ts` - Prisma Client singleton (always import from here)
+- `apps/web/lib/actions/expense-actions.ts` - All expense CRUD operations and queries
+- `apps/web/lib/actions/category-actions.ts` - Category management actions
+- `apps/web/lib/actions/payment-card-actions.ts` - Payment card CRUD operations
+- `apps/web/lib/actions/notification-actions.ts` - Notification management
+- `apps/web/lib/services/notification-service.ts` - Notification business logic and email sending
+- `apps/web/lib/services/email.ts` - Email service abstraction (Resend)
+- `apps/web/lib/services/currency.ts` - Currency conversion service
+- `apps/web/types/expense-types.ts` - Type definitions for Expense domain
+- `apps/web/prisma/schema.prisma` - Complete database schema
 
 ## Naming Conventions
 
@@ -297,6 +342,7 @@ Protected routes are automatically handled by auth.config.ts callbacks. Routes u
 ## Tech Stack
 
 - **Framework**: Next.js 16.0.0 (App Router, React 19)
+- **Monorepo**: Nx + pnpm workspaces
 - **Database**: Supabase PostgreSQL + Prisma ORM 6.18.0
 - **Authentication**: Auth.js 5 (NextAuth) with Google OAuth and Credentials
 - **UI**: Tailwind CSS 3 + Shadcn/UI + Framer Motion + next-themes
@@ -311,7 +357,7 @@ Protected routes are automatically handled by auth.config.ts callbacks. Routes u
 
 ## Environment Variables
 
-Required in `.env.local`:
+Required in `.env.local` (at workspace root):
 
 ```bash
 # Supabase
@@ -357,18 +403,21 @@ See `.env.example` for the full template.
 
 ## Path Aliases
 
-TypeScript paths are configured with `@/` alias:
+TypeScript paths are configured with `@/` alias within `apps/web/`:
 
 ```typescript
+// These imports work from within apps/web/ files
 import prisma from '@/lib/db/prisma'
 import { createExpense } from '@/lib/actions/expense-actions'
 import { sendEmail } from '@/lib/services/email'
 import type { ExpenseListItem } from '@/types/expense-types'
 ```
 
+The `@/*` alias maps to `apps/web/*` (configured in `apps/web/tsconfig.json`).
+
 ## Current Implementation Status (v0.0.1)
 
-### ✅ Completed Features
+### Completed Features
 
 #### Core Features
 - Project setup with TypeScript, Tailwind CSS, Shadcn/UI
@@ -444,7 +493,7 @@ import type { ExpenseListItem } from '@/types/expense-types'
 - Card validation utilities
 - Notification service (email + in-app)
 
-### 🚧 Planned (Future Releases)
+### Planned (Future Releases)
 
 - Advanced recurring payment scheduling (RRULE implementation)
 - Budget tracking and limits
@@ -462,20 +511,21 @@ import type { ExpenseListItem } from '@/types/expense-types'
 
 ## Debugging Tips
 
-- **TypeScript errors**: `npm run build`
-- **Database connection**: `npm run db:test` or `npm run db:verify`
-- **View database GUI**: `npm run prisma:studio`
+- **TypeScript errors**: `pnpm run build`
+- **Database connection**: `pnpm run db:test` or `pnpm run db:verify`
+- **View database GUI**: `pnpm run prisma:studio`
 - **Check logs**: Server Actions log errors to console (check terminal)
 - **Revalidation**: Use `revalidatePath()` after mutations to refresh Server Component data
-- **Auth debugging**: Check `auth.ts` and `auth.config.ts` for session handling
+- **Auth debugging**: Check `apps/web/auth.ts` and `apps/web/auth.config.ts` for session handling
 - **Email debugging**: If `RESEND_API_KEY` is not set, emails are logged to console
+- **Nx project graph**: `npx nx graph` to visualize dependencies
 
 ## Deployment Recommendations
 
 ### Database
 - Use Supabase PostgreSQL (connection pooling via Prisma)
-- Run `npm run prisma:push` to sync schema before deployment
-- Consider using `npm run prisma:seed` for demo data
+- Run `pnpm run prisma:push` to sync schema before deployment
+- Consider using `pnpm run prisma:seed` for demo data
 
 ### Environment Variables
 - Set all required environment variables in production
