@@ -7,11 +7,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, DollarSign } from 'lucide-react'
-import type { ExpenseListItem, CurrencyRate } from '@extracker/types'
+import type { ExpenseListItem, CurrencyRate, Currency } from '@extracker/types'
 import { PaymentCardDisplay } from './payment-card-display'
-import { formatCurrency } from '@/lib/utils/currency-helpers'
-import { formatExpenseDate } from '@/lib/utils/date-helpers'
-import { formatCurrencyWithConversion, type Currency } from '@/lib/utils/currency-conversion'
+import { formatCurrency, formatExpenseDate, formatCurrencyWithConversion } from '@extracker/core'
 
 interface UpcomingExpensesProps {
   expenses: ExpenseListItem[]

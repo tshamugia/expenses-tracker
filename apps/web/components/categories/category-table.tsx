@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { formatExpenseDate } from '@/lib/utils/date-helpers'
+import { formatExpenseDate } from '@extracker/core'
 import type { SerializedCategory } from '@extracker/types'
 
 interface CategoryTableProps {

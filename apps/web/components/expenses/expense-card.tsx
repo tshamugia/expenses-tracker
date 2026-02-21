@@ -6,9 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Edit2, Trash2, CheckCircle } from 'lucide-react'
 import type { ExpenseListItem, Currency } from '@extracker/types'
 import { PaymentCardDisplay } from './payment-card-display'
-import { formatCurrency } from '@/lib/utils/currency-helpers'
-import { formatCurrencyWithConversion, convertCurrency } from '@/lib/utils/currency-conversion'
-import { formatExpenseDate } from '@/lib/utils/date-helpers'
+import { formatCurrency, formatCurrencyWithConversion, convertCurrency, formatExpenseDate } from '@extracker/core'
 import {
   expenseItemEntry,
   deleteButtonHover,

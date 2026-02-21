@@ -1,6 +1,5 @@
 /**
  * Date helper utilities for expense tracking
- * Following Next.js and Prisma best practices
  */
 
 /**
@@ -46,15 +45,15 @@ export function formatExpenseDate(date: Date | null): string {
  */
 export function formatRelativeDate(date: Date | null): string {
   if (!date) return 'No date'
-  
+
   const now = new Date()
   now.setHours(0, 0, 0, 0)
   const compareDate = new Date(date)
   compareDate.setHours(0, 0, 0, 0)
-  
+
   const diffTime = compareDate.getTime() - now.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  
+
   if (diffDays === 0) return 'Today'
   if (diffDays === 1) return 'Tomorrow'
   if (diffDays === -1) return 'Yesterday'

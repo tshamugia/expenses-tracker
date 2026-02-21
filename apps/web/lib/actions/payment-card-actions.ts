@@ -14,7 +14,7 @@ import {
   validateCardNumber,
   getLastFourDigits,
   validateExpiryDate,
-} from '@/lib/utils/card-validation'
+} from '@extracker/core'
 import type {
   ActionResult,
   SerializedPaymentCard,

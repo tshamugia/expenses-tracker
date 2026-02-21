@@ -3,9 +3,8 @@
  * Helper functions for converting between currencies using NBG rates
  */
 
-import type { CurrencyRate } from '@/lib/services/currency'
-
-export type Currency = 'GEL' | 'USD' | 'EUR'
+import type { CurrencyRate, Currency } from '@extracker/types'
+import { getCurrencySymbol } from './currency.helpers'
 
 /**
  * Convert amount from one currency to another using NBG rates
@@ -47,24 +46,6 @@ export function convertCurrency(
   }
 
   return amount
-}
-
-/**
- * Get currency symbol
- * @param currency - Currency code
- * @returns Currency symbol
- */
-export function getCurrencySymbol(currency: Currency): string {
-  switch (currency) {
-    case 'GEL':
-      return '₾'
-    case 'USD':
-      return '$'
-    case 'EUR':
-      return '€'
-    default:
-      return currency
-  }
 }
 
 /**

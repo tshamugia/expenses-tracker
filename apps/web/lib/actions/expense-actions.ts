@@ -18,7 +18,7 @@ import {
   findOverdueExpenses,
   findExpenseCategories,
 } from '@/lib/db/expense-queries'
-import { isOverdue } from '@/lib/utils/date-helpers'
+import { isOverdue } from '@extracker/core'
 import type {
   ActionResult,
   DashboardData,

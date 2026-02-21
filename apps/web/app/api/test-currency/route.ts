@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { getMainCurrencyRates } from '@/lib/services/currency'
+import { getMainCurrencyRates } from '@extracker/core'
 
 export async function GET() {
   try {

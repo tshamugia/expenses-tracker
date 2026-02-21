@@ -5,7 +5,7 @@
  * Handles fetching and caching currency rates from NBG API
  */
 
-import { getMainCurrencyRates } from '@/lib/services/currency'
+import { getMainCurrencyRates } from '@extracker/core'
 import type { CurrencyRate } from '@extracker/types'
 
 export interface CurrencyRatesResult {

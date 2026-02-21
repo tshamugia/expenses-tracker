@@ -1,7 +1,7 @@
 import { getExpenses } from '@/lib/actions/expense-actions'
 import { getUserCategories } from '@/lib/actions/category-actions'
 import { getUserSettings } from '@/lib/actions/settings-actions'
-import { getMainCurrencyRates } from '@/lib/services/currency'
+import { getMainCurrencyRates } from '@extracker/core'
 import { ExpensesClient } from './expenses-client'
 import { getAuthUserId } from '@/lib/auth/get-session'
 

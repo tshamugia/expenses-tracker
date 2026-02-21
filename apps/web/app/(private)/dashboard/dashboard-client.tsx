@@ -19,7 +19,7 @@ import { Plus } from 'lucide-react'
 import { createExpense } from '@/lib/actions/expense-actions'
 import { toast } from 'sonner'
 import type { DashboardData, ExpenseListItem, CurrencyRate, Currency } from '@extracker/types'
-import { convertCurrency } from '@/lib/utils/currency-conversion'
+import { convertCurrency } from '@extracker/core'
 
 interface DashboardClientProps {
   dashboardData: DashboardData

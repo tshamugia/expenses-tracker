@@ -26,7 +26,7 @@ export function formatCurrency(
   currency: string = 'GEL'
 ): string {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-  
+
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -77,7 +77,7 @@ export function formatCompactCurrency(
 ): string {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
   const symbol = getCurrencySymbol(currency)
-  
+
   if (numAmount >= 1000000) {
     return `${symbol}${(numAmount / 1000000).toFixed(1)}M`
   }

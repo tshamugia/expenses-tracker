@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { Edit, Trash2 } from 'lucide-react'
-import { formatExpiryDate, formatCardNumber } from '@/lib/utils/card-validation'
+import { formatExpiryDate, formatCardNumber } from '@extracker/core'
 import type { PaymentCardListItem } from '@extracker/types'
 
 interface PaymentCardDisplayProps {

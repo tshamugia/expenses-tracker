@@ -3,22 +3,7 @@
  * Fetches exchange rates from National Bank of Georgia API
  */
 
-export interface CurrencyRate {
-  code: string
-  quantity: number
-  rateFormated: string
-  diffFormated: string
-  rate: number
-  name: string
-  diff: number
-  date: string
-  validFromDate: string
-}
-
-export interface NBGApiResponse {
-  date: string
-  currencies: CurrencyRate[]
-}
+import type { CurrencyRate, NBGApiResponse } from '@extracker/types'
 
 /**
  * Fetch currency rates from NBG API for a specific date
@@ -34,9 +19,7 @@ export async function fetchCurrencyRates(
 
     const url = `https://nbg.gov.ge/gw/api/ct/monetarypolicy/currencies/ka/json/?date=${targetDate}`
 
-    const response = await fetch(url, {
-      next: { revalidate: 3600 } // Cache for 1 hour
-    })
+    const response = await fetch(url)
 
     if (!response.ok) {
       console.error('Failed to fetch currency rates:', response.statusText)

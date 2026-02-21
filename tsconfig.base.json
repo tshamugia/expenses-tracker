@@ -14,7 +14,8 @@
     "jsx": "react-jsx",
     "incremental": true,
     "paths": {
-      "@extracker/types": ["packages/shared-types/src/index.ts"]
+      "@extracker/types": ["packages/shared-types/src/index.ts"],
+      "@extracker/core": ["packages/core/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", ".next", "out", "build"]

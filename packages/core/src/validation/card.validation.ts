@@ -114,7 +114,7 @@ export function validateCardNumber(cardNumber: string): CardValidationResult {
 }
 
 /**
- * Format card number for display (•••• •••• •••• 1234)
+ * Format card number for display
  */
 export function formatCardNumber(cardNumber: string, showAll: boolean = false): string {
   const digits = cardNumber.replace(/\D/g, '')
@@ -123,7 +123,7 @@ export function formatCardNumber(cardNumber: string, showAll: boolean = false): 
     // Format as groups of 4: 1234 5678 9012 3456
     return digits.replace(/(\d{4})/g, '$1 ').trim()
   } else {
-    // Show only last 4 digits: •••• •••• •••• 1234
+    // Show only last 4 digits
     const lastFour = digits.slice(-4)
     const maskedGroups = '•••• •••• •••• '
     return maskedGroups + lastFour

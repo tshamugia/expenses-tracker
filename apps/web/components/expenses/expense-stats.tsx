@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { StatCard } from './stat-card'
 import type { DashboardStats } from '@extracker/types'
-import { formatCurrency } from '@/lib/utils/currency-helpers'
+import { formatCurrency } from '@extracker/core'
 
 interface ExpenseStatsProps {
   data: DashboardStats

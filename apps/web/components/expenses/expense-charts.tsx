@@ -21,7 +21,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import type { CategoryData, DashboardStats } from '@extracker/types'
-import { formatCurrency, getCurrencySymbol } from '@/lib/utils/currency-helpers'
+import { formatCurrency, getCurrencySymbol } from '@extracker/core'
 
 interface ExpenseChartsProps {
   categoryData: CategoryData[]

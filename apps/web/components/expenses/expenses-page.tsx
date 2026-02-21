@@ -16,7 +16,7 @@ import {
 import { Plus, Search, Loader2 } from 'lucide-react'
 import { listContainer, fadeIn } from '@/lib/animations/variants'
 import type { ExpenseListItem, SerializedCategory, Currency } from '@extracker/types'
-import { convertCurrency, getCurrencySymbol } from '@/lib/utils/currency-conversion'
+import { convertCurrency, getCurrencySymbol } from '@extracker/core'
 
 interface ExpensesPageProps {
   initialExpenses?: ExpenseListItem[]

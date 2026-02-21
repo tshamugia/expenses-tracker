@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, CreditCard } from 'lucide-react'
 import { modalBackdrop, formFieldEntry } from '@/lib/animations/variants'
-import { validateCardNumber, formatCardNumber, detectCardBrand } from '@/lib/utils/card-validation'
+import { validateCardNumber, formatCardNumber, detectCardBrand } from '@extracker/core'
 import type { PaymentCardListItem } from '@extracker/types'
 
 interface PaymentCardFormProps {
