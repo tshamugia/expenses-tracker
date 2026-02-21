@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Monorepo Structure
 
-This project uses an **Nx monorepo** with **pnpm workspaces**. The Next.js web app lives in `apps/web/`, and shared packages will be added under `packages/`.
+This project uses an **Nx monorepo** with **pnpm workspaces**. The Next.js web app lives in `apps/web/`, and shared packages live under `packages/`.
 
 ```
 extracker/
@@ -19,8 +19,7 @@ extracker/
 │       ├── app/                    # Next.js App Router pages and layouts
 │       ├── components/             # React components organized by feature
 │       ├── lib/                    # Business logic and utilities
-│       ├── types/                  # TypeScript type definitions
-│       ├── prisma/                 # Database schema and seed scripts
+│       ├── types/                  # Web-specific type definitions (next-auth.d.ts, global.d.ts, supabase.ts)
 │       ├── scripts/                # Utility scripts
 │       ├── public/                 # Static assets
 │       ├── auth.ts, auth.config.ts # Auth.js configuration
@@ -28,7 +27,14 @@ extracker/
 │       ├── tailwind.config.ts      # Tailwind CSS config
 │       ├── tsconfig.json           # Extends ../../tsconfig.base.json
 │       └── package.json            # Web-specific deps + scripts
-├── packages/                       # Shared packages (future)
+├── packages/
+│   ├── shared-types/               # @extracker/types - Shared TypeScript types
+│   │   └── src/                    # Type definitions (expense, category, payment-card, etc.)
+│   ├── core/                       # @extracker/core - Shared business logic
+│   │   └── src/                    # Helpers, validation, constants, services
+│   └── db/                         # @extracker/db - Database layer (Prisma)
+│       ├── prisma/                 # Schema, migrations, seed script
+│       └── src/                    # Client singleton, queries
 ├── nx.json                         # Nx workspace config
 ├── pnpm-workspace.yaml             # pnpm workspace definition
 ├── .npmrc                          # pnpm settings
@@ -38,9 +44,20 @@ extracker/
 └── docker-compose.yml              # Docker config
 ```
 
+### Package Dependency Graph
+
+```
+@extracker/types   (no internal deps)
+       ↓
+@extracker/core    (depends on types)
+@extracker/db      (depends on types)
+       ↓
+apps/web           (depends on all three)
+```
+
 ## Essential Commands
 
-All commands can be run from the workspace root. They proxy to `nx run web:<target>`.
+All commands can be run from the workspace root. They proxy via Nx to the appropriate project.
 
 ### Development
 ```bash
@@ -52,18 +69,18 @@ pnpm run lint             # Run ESLint
 
 **IMPORTANT**: Never run `pnpm run dev` or `pnpm run start` directly. Always use `pnpm run build` to check for TypeScript build errors.
 
-### Database Management
+### Database Management (runs in `packages/db`)
 ```bash
 pnpm run db:test          # Test database connection
-pnpm run db:verify        # Verify database connection
+pnpm run db:verify        # Verify database connection (runs in apps/web)
 pnpm run prisma:generate  # Generate Prisma Client
 pnpm run prisma:push      # Push schema changes to database
 pnpm run prisma:studio    # Open Prisma Studio GUI
 pnpm run prisma:seed      # Seed database with demo data
-pnpm run seed:notifications # Seed notification data for testing
+pnpm run seed:notifications # Seed notification data for testing (runs in apps/web)
 ```
 
-All database commands automatically use `.env.local` (at workspace root) via `dotenv-cli`.
+All database commands automatically use `.env.local` (at workspace root) via `dotenv-cli`. The Prisma schema lives at `packages/db/prisma/schema.prisma`.
 
 ### Nx Commands
 ```bash
@@ -84,7 +101,7 @@ cd apps/web && pnpm run build  # Or cd into the app
 
 1. **Presentation Layer** - Client Components (`apps/web/components/`) with Shadcn/UI and Tailwind CSS
 2. **Business Logic Layer** - Server Actions (`apps/web/lib/actions/`) handling business rules and data operations
-3. **Data Access Layer** - Prisma queries (`apps/web/lib/db/`) and services (`apps/web/lib/services/`) for database operations
+3. **Data Access Layer** - Prisma queries (`packages/db/`) and services (`apps/web/lib/services/`) for database operations
 
 ### Data Flow
 
@@ -127,30 +144,32 @@ User Interaction → Client Component → Server Action → Prisma/Service → S
   - `providers/` - Context providers (theme, session)
 - `lib/` - Business logic and utilities
   - `actions/` - Server Actions for all data mutations (CRUD operations)
-  - `db/` - Prisma client singleton
-  - `services/` - Business logic services (email, notifications, currency)
+  - `db/` - Supabase client (web-specific)
+  - `services/` - Business logic services (email, notifications)
   - `stores/` - Zustand state management
-  - `utils/` - Helper functions (date, currency, validation, card validation)
-  - `constants/` - App-wide configuration
+  - `utils/` - Web-specific utilities (`cn.ts` for Tailwind class merging)
   - `auth/` - Authentication utilities (credential verification)
-- `types/` - TypeScript type definitions
-- `prisma/` - Database schema and seed scripts
-- `scripts/` - Utility scripts (database testing, seeding)
+- `types/` - Web-specific type definitions (next-auth.d.ts, global.d.ts, supabase.ts)
+- `scripts/` - Utility scripts (seeding, verification)
 
 ### Important Files
 
+**Shared Packages:**
+- `packages/db/src/client.ts` - Prisma Client singleton (`import { prisma } from '@extracker/db'`)
+- `packages/db/src/queries/expense-queries.ts` - Expense database queries
+- `packages/db/prisma/schema.prisma` - Complete database schema
+- `packages/shared-types/src/` - All shared type definitions (expense, category, payment-card, notification, settings, user, currency, common)
+- `packages/core/src/` - Shared helpers (date, currency, card validation), constants, and currency service
+
+**Web App:**
 - `apps/web/auth.ts` - Auth.js 5 configuration with NextAuth
 - `apps/web/auth.config.ts` - Auth providers (Google OAuth, Credentials) and route protection
-- `apps/web/lib/db/prisma.ts` - Prisma Client singleton (always import from here)
 - `apps/web/lib/actions/expense-actions.ts` - All expense CRUD operations and queries
 - `apps/web/lib/actions/category-actions.ts` - Category management actions
 - `apps/web/lib/actions/payment-card-actions.ts` - Payment card CRUD operations
 - `apps/web/lib/actions/notification-actions.ts` - Notification management
 - `apps/web/lib/services/notification-service.ts` - Notification business logic and email sending
 - `apps/web/lib/services/email.ts` - Email service abstraction (Resend)
-- `apps/web/lib/services/currency.ts` - Currency conversion service
-- `apps/web/types/expense-types.ts` - Type definitions for Expense domain
-- `apps/web/prisma/schema.prisma` - Complete database schema
 
 ## Naming Conventions
 
@@ -403,17 +422,32 @@ See `.env.example` for the full template.
 
 ## Path Aliases
 
-TypeScript paths are configured with `@/` alias within `apps/web/`:
+### Workspace Package Imports
+
+Shared packages are imported by their package name:
 
 ```typescript
-// These imports work from within apps/web/ files
-import prisma from '@/lib/db/prisma'
-import { createExpense } from '@/lib/actions/expense-actions'
-import { sendEmail } from '@/lib/services/email'
-import type { ExpenseListItem } from '@/types/expense-types'
+// Database (Prisma client + queries)
+import { prisma } from '@extracker/db'
+import { findExpensesByUserId } from '@extracker/db'
+
+// Shared types
+import type { ActionResult, ExpenseListItem, SerializedExpense } from '@extracker/types'
+
+// Shared helpers, validation, constants, services
+import { formatCurrency, isOverdue, validateCardNumber, APP_CONFIG } from '@extracker/core'
+import { getMainCurrencyRates } from '@extracker/core'
 ```
 
-The `@/*` alias maps to `apps/web/*` (configured in `apps/web/tsconfig.json`).
+### Web App Internal Imports
+
+Within `apps/web/`, the `@/` alias maps to `apps/web/*`:
+
+```typescript
+import { createExpense } from '@/lib/actions/expense-actions'
+import { sendEmail } from '@/lib/services/email'
+import { auth } from '@/auth'
+```
 
 ## Current Implementation Status (v0.0.1)
 
