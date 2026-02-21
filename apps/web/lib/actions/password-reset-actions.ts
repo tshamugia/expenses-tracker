@@ -1,7 +1,7 @@
 'use server'
 
 import { hash } from 'bcryptjs'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 import { sendPasswordResetEmail } from '@/lib/services/email'
 import type { ActionResult } from '@extracker/types'
 

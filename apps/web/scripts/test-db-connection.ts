@@ -3,7 +3,7 @@
  * Run with: npx tsx scripts/test-db-connection.ts
  */
 
-import prisma from '../lib/db/prisma'
+import { prisma } from '@extracker/db'
 
 async function testConnection() {
   console.log('🔍 Testing database connection...\n')

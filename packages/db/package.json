@@ -1,0 +1,30 @@
+{
+  "name": "@extracker/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "prisma:generate": "dotenv -e ../../.env.local -- prisma generate",
+    "prisma:push": "dotenv -e ../../.env.local -- prisma db push",
+    "prisma:studio": "dotenv -e ../../.env.local -- prisma studio",
+    "prisma:seed": "dotenv -e ../../.env.local -- tsx prisma/seed.ts",
+    "db:test": "dotenv -e ../../.env.local -- tsx scripts/test-db-connection.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.18.0",
+    "@extracker/types": "workspace:*"
+  },
+  "devDependencies": {
+    "prisma": "^6.18.0",
+    "dotenv-cli": "^10.0.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5"
+  }
+}

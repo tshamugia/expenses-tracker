@@ -9,7 +9,7 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 import { getAuthUserId } from '@/lib/auth/get-session'
 import type {
   ActionResult,

@@ -5,7 +5,7 @@
  * Called by Server Actions in lib/actions/
  */
 
-import prisma from '@/lib/db/prisma'
+import { prisma } from '../client'
 import type { ExpenseWithRelationsData } from '@extracker/types'
 
 /**
@@ -183,4 +183,3 @@ export async function findExpenseCategories(userId: string) {
     distinct: ['category'],
   })
 }
-

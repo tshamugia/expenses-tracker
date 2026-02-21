@@ -26,6 +26,9 @@ importers:
       '@extracker/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@extracker/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@extracker/types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -178,6 +181,28 @@ importers:
         specifier: workspace:*
         version: link:../shared-types
     devDependencies:
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/db:
+    dependencies:
+      '@extracker/types':
+        specifier: workspace:*
+        version: link:../shared-types
+      '@prisma/client':
+        specifier: ^6.18.0
+        version: 6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)
+    devDependencies:
+      dotenv-cli:
+        specifier: ^10.0.0
+        version: 10.0.0
+      prisma:
+        specifier: ^6.18.0
+        version: 6.19.2(typescript@5.9.3)
+      tsx:
+        specifier: ^4.20.6
+        version: 4.21.0
       typescript:
         specifier: ^5
         version: 5.9.3

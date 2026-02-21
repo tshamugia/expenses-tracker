@@ -7,16 +7,12 @@
     "build": "dotenv -e ../../.env.local -- next build",
     "start": "dotenv -e ../../.env.local -- next start",
     "lint": "eslint",
-    "db:test": "dotenv -e ../../.env.local -- tsx scripts/test-db-connection.ts",
     "db:verify": "dotenv -e ../../.env.local -- tsx scripts/verify-db-connection.ts",
-    "prisma:generate": "dotenv -e ../../.env.local -- prisma generate",
-    "prisma:push": "dotenv -e ../../.env.local -- prisma db push",
-    "prisma:studio": "dotenv -e ../../.env.local -- prisma studio",
-    "prisma:seed": "dotenv -e ../../.env.local -- tsx prisma/seed.ts",
     "seed:notifications": "dotenv -e ../../.env.local -- tsx scripts/seed-notifications.ts"
   },
   "dependencies": {
     "@extracker/core": "workspace:*",
+    "@extracker/db": "workspace:*",
     "@extracker/types": "workspace:*",
     "@auth/prisma-adapter": "^2.11.0",
     "@prisma/client": "^6.18.0",

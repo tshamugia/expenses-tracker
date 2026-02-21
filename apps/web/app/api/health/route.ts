@@ -4,7 +4,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 
 export async function GET() {
   try {

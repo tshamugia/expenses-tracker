@@ -2,7 +2,7 @@
 
 import { hash } from 'bcryptjs'
 import { signIn } from '@/auth'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 import { revalidatePath } from 'next/cache'
 import { AuthError } from 'next-auth'
 import type { ActionResult } from '@extracker/types'

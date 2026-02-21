@@ -1,5 +1,5 @@
 import { compare } from 'bcryptjs'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 
 /**
  * Verify user credentials (used by NextAuth Credentials provider)

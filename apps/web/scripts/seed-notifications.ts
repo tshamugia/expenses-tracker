@@ -1,4 +1,4 @@
-import prisma from '../lib/db/prisma'
+import { prisma } from '@extracker/db'
 
 async function main() {
   // Get demo user

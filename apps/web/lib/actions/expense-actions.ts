@@ -17,7 +17,7 @@ import {
   findExpensesByDateRange,
   findOverdueExpenses,
   findExpenseCategories,
-} from '@/lib/db/expense-queries'
+} from '@extracker/db'
 import { isOverdue } from '@extracker/core'
 import type {
   ActionResult,
@@ -255,7 +255,7 @@ export const getExpenseCategories = cache(
 
 // CRUD Operations with Prisma
 import { revalidatePath } from 'next/cache'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 import { notifyPastOrOverdueExpense } from '@/lib/services/notification-service'
 
 /**

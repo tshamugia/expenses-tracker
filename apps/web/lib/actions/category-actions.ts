@@ -10,7 +10,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 import type {
   ActionResult,
   SerializedCategory,

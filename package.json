@@ -8,12 +8,12 @@
     "build": "nx run web:build",
     "start": "nx run web:start",
     "lint": "nx run web:lint",
-    "db:test": "nx run web:db:test",
+    "db:test": "nx run @extracker/db:db:test",
     "db:verify": "nx run web:db:verify",
-    "prisma:generate": "nx run web:prisma:generate",
-    "prisma:push": "nx run web:prisma:push",
-    "prisma:studio": "nx run web:prisma:studio",
-    "prisma:seed": "nx run web:prisma:seed",
+    "prisma:generate": "nx run @extracker/db:prisma:generate",
+    "prisma:push": "nx run @extracker/db:prisma:push",
+    "prisma:studio": "nx run @extracker/db:prisma:studio",
+    "prisma:seed": "nx run @extracker/db:prisma:seed",
     "seed:notifications": "nx run web:seed:notifications"
   },
   "devDependencies": {

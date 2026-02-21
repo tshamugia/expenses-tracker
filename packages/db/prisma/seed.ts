@@ -1,4 +1,4 @@
-import prisma from '../lib/db/prisma'
+import { prisma } from '../src/client'
 
 async function main() {
   // Upsert demo user

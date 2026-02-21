@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import prisma from '../lib/db/prisma'
+import { prisma } from '@extracker/db'
 
 async function testPrisma() {
   try {

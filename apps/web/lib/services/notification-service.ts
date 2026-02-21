@@ -5,7 +5,7 @@
  * Handles checking for upcoming payments and sending email reminders
  */
 
-import prisma from '@/lib/db/prisma'
+import { prisma } from '@extracker/db'
 import { sendPaymentReminderEmail } from './email'
 
 export interface NotificationResult {

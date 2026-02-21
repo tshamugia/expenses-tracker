@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: 'standalone',
   outputFileTracingRoot: '../../',
-  transpilePackages: ['@extracker/types', '@extracker/core'],
+  transpilePackages: ['@extracker/types', '@extracker/core', '@extracker/db'],
   images: {
     remotePatterns: [
       {
