@@ -26,8 +26,8 @@ export async function fetchCurrencyRates(
       return null
     }
 
-    const data = await response.json()
-    return data[0] as NBGApiResponse
+    const data = (await response.json()) as NBGApiResponse[]
+    return data[0]
   } catch (error) {
     console.error('Error fetching currency rates:', error)
     return null

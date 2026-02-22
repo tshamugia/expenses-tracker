@@ -14,7 +14,10 @@
     "prisma:push": "nx run @extracker/db:prisma:push",
     "prisma:studio": "nx run @extracker/db:prisma:studio",
     "prisma:seed": "nx run @extracker/db:prisma:seed",
-    "seed:notifications": "nx run web:seed:notifications"
+    "seed:notifications": "nx run web:seed:notifications",
+    "api:dev": "nx run api:dev",
+    "api:build": "nx run api:build",
+    "api:start": "nx run api:start"
   },
   "devDependencies": {
     "nx": "^20.4.0",

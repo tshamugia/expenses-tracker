@@ -678,190 +678,169 @@ model RefreshToken {
 
 ## 8. Migration Phases
 
-### Phase 0: Preparation (Week 1)
+### Phase 0: Preparation (Week 1) - COMPLETED
 
 **Goal**: Set up Nx monorepo structure without breaking the existing web app.
 
-| # | Task | Details |
-|---|------|---------|
-| 0.1 | Install Nx globally | `npm i -g nx` |
-| 0.2 | Initialize Nx workspace | `npx create-nx-workspace@latest extracker-mono --preset=ts` |
-| 0.3 | Configure pnpm workspaces | Create `pnpm-workspace.yaml` with apps/* and packages/* |
-| 0.4 | Set up `tsconfig.base.json` | Root TypeScript config with path aliases |
-| 0.5 | Create `packages/config` | Shared ESLint and TypeScript configs |
-| 0.6 | Move existing app to `apps/web` | Relocate all current files, update imports |
-| 0.7 | Verify web app builds | `nx run web:build` must pass |
-| 0.8 | Update CLAUDE.md | Add monorepo commands and structure |
+- [x] **0.1** Install Nx globally — `npm i -g nx`
+- [x] **0.2** Initialize Nx workspace — `npx create-nx-workspace@latest extracker-mono --preset=ts`
+- [x] **0.3** Configure pnpm workspaces — Create `pnpm-workspace.yaml` with apps/* and packages/*
+- [x] **0.4** Set up `tsconfig.base.json` — Root TypeScript config with path aliases
+- [x] **0.5** Create `packages/config` — Shared ESLint and TypeScript configs
+- [x] **0.6** Move existing app to `apps/web` — Relocate all current files, update imports
+- [x] **0.7** Verify web app builds — `nx run web:build` must pass
+- [x] **0.8** Update CLAUDE.md — Add monorepo commands and structure
 
 **Deliverable**: Existing web app runs unchanged inside Nx monorepo.
 
 ---
 
-### Phase 1: Extract Shared Packages (Week 2)
+### Phase 1: Extract Shared Packages (Week 2) - COMPLETED
 
 **Goal**: Pull out reusable code into shared packages.
 
-| # | Task | Details |
-|---|------|---------|
-| 1.1 | Create `@extracker/db` | Move `prisma/` → `packages/db/prisma/`, move `lib/db/prisma.ts` → `packages/db/src/client.ts` |
-| 1.2 | Create `@extracker/types` | Move `types/*.ts` → `packages/shared-types/src/`, create barrel exports |
-| 1.3 | Create `@extracker/core` | Move `lib/utils/date-helpers.ts`, `currency-helpers.ts`, `card-validation.ts` → `packages/core/src/` |
-| 1.4 | Move validation logic | Extract validation from Server Actions → `packages/core/src/validation/` |
-| 1.5 | Move constants | Move `lib/constants/` → `packages/core/src/constants/` |
-| 1.6 | Update web app imports | Replace `@/types/`, `@/lib/utils/`, `@/lib/db/prisma` with `@extracker/*` |
-| 1.7 | Verify web app builds | All imports resolve, `nx run web:build` passes |
-| 1.8 | Add package build tasks | Configure `nx` build pipeline for packages |
+- [x] **1.1** Create `@extracker/db` — Move `prisma/` → `packages/db/prisma/`, move `lib/db/prisma.ts` → `packages/db/src/client.ts`
+- [x] **1.2** Create `@extracker/types` — Move `types/*.ts` → `packages/shared-types/src/`, create barrel exports
+- [x] **1.3** Create `@extracker/core` — Move `lib/utils/date-helpers.ts`, `currency-helpers.ts`, `card-validation.ts` → `packages/core/src/`
+- [x] **1.4** Move validation logic — Extract validation from Server Actions → `packages/core/src/validation/`
+- [x] **1.5** Move constants — Move `lib/constants/` → `packages/core/src/constants/`
+- [x] **1.6** Update web app imports — Replace `@/types/`, `@/lib/utils/`, `@/lib/db/prisma` with `@extracker/*`
+- [x] **1.7** Verify web app builds — All imports resolve, `nx run web:build` passes
+- [x] **1.8** Add package build tasks — Configure `nx` build pipeline for packages
 
 **Deliverable**: Shared packages extracted. Web app uses `@extracker/db`, `@extracker/types`, `@extracker/core`.
 
 ---
 
-### Phase 2: Elysia.js API Server (Weeks 3-5)
+### Phase 2: Elysia.js API Server (Weeks 3-5) - COMPLETED
 
 **Goal**: Build the complete REST API for mobile consumption.
 
 #### Week 3: Foundation
 
-| # | Task | Details |
-|---|------|---------|
-| 2.1 | Scaffold `apps/api` | Initialize Elysia.js project with Bun |
-| 2.2 | Configure plugins | JWT, CORS, Swagger, Bearer plugins |
-| 2.3 | Set up auth middleware | JWT verification, userId extraction |
-| 2.4 | Build auth routes | `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/google` |
-| 2.5 | Add RefreshToken model | Update Prisma schema, run migration |
-| 2.6 | Build password reset routes | `POST /auth/forgot-password`, `/auth/verify-code`, `/auth/reset-password` |
-| 2.7 | Set up error handling | Global error handler with consistent error responses |
-| 2.8 | Test auth flow | Register → Login → Access protected route → Refresh token |
 
-#### Week 4: Core CRUD Endpoints
+- [x] **2.1** Scaffold `apps/api` — Initialize Elysia.js project with Bun
+- [x] **2.2** Configure plugins — JWT, CORS, Swagger, Bearer plugins
+- [x] **2.3** Set up auth middleware — JWT verification, userId extraction
+- [x] **2.4** Build auth routes — `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/google`
+- [x] **2.5** Add RefreshToken model — Update Prisma schema, run migration
+- [x] **2.6** Build password reset routes — `POST /auth/forgot-password`, `/auth/verify-code`, `/auth/reset-password`
+- [x] **2.7** Set up error handling — Global error handler with consistent error responses
+- [x] **2.8** Test auth flow — Register → Login → Access protected route → Refresh token (covered by integration tests)
 
-| # | Task | Details |
-|---|------|---------|
-| 2.9  | Expense routes | `GET`, `POST`, `PATCH /:id`, `DELETE /:id`, `POST /:id/mark-paid` |
-| 2.10 | Category routes | `GET`, `POST`, `PATCH /:id`, `DELETE /:id` |
-| 2.11 | Payment card routes | `GET`, `GET /:id/with-stats`, `POST`, `PATCH /:id`, `DELETE /:id` |
-| 2.12 | Notification routes | `GET`, `GET /stats`, `PATCH /:id/read`, `POST /read-all`, `DELETE /:id`, `DELETE /read` |
-| 2.13 | Dashboard route | `GET /dashboard` — stats, upcoming, category breakdown |
-| 2.14 | Settings routes | `GET /settings`, `PATCH /settings` |
-| 2.15 | Currency routes | `GET /currency/rates` |
-| 2.16 | Export App type | `export type App = typeof app` for Eden Treaty |
+#### Week 4: Core CRUD Endpoints - COMPLETED
 
-#### Week 5: Polish & Testing
+- [x] **2.9** Expense routes — `GET`, `POST`, `PATCH /:id`, `DELETE /:id`, `POST /:id/mark-paid`
+- [x] **2.10** Category routes — `GET`, `POST`, `PATCH /:id`, `DELETE /:id`
+- [x] **2.11** Payment card routes — `GET`, `GET /:id/with-stats`, `POST`, `PATCH /:id`, `DELETE /:id`
+- [x] **2.12** Notification routes — `GET`, `GET /stats`, `PATCH /:id/read`, `POST /read-all`, `DELETE /:id`, `DELETE /read`
+- [x] **2.13** Dashboard route — `GET /dashboard` — stats, upcoming, category breakdown
+- [x] **2.14** Settings routes — `GET /settings`, `PATCH /settings`
+- [x] **2.15** Currency routes — `GET /currency/rates`
+- [x] **2.16** Export App type — `export type App = typeof app` for Eden Treaty
 
-| # | Task | Details |
-|---|------|---------|
-| 2.17 | Add request validation | Elysia `t.Object()` schemas on all routes |
-| 2.18 | Add rate limiting | Per-IP and per-user rate limits |
-| 2.19 | Add pagination | Cursor-based or offset pagination on list endpoints |
-| 2.20 | Swagger docs review | Verify all endpoints documented |
-| 2.21 | Integration testing | Test all endpoints with Bun test runner |
-| 2.22 | Docker setup | `Dockerfile` for API server |
+#### Week 5: Polish & Testing - COMPLETED
 
-**Deliverable**: Fully functional REST API with Swagger docs at `http://localhost:4000/swagger`.
+- [x] **2.17** Add request validation — Elysia `t.Object()` schemas on all routes (UUID format, currency enums, hex color patterns, maxLength, date-time format)
+- [x] **2.18** Add rate limiting — Sliding-window per-IP rate limits (100/min general, 10/min auth, 5/min password reset)
+- [x] **2.19** Add pagination — Offset pagination on all list endpoints (categories, payment cards now paginated; standardized response format)
+- [x] **2.20** Swagger docs review — All endpoints documented with descriptions, tags, security markers, improved API overview
+- [x] **2.21** Integration testing — 107 tests across 18 describe blocks using Bun test runner with `.handle()` pattern
+- [x] **2.22** Docker setup — Multi-stage `Dockerfile` with non-root user, health check, and `.dockerignore`
+
+**Deliverable**: Fully functional REST API with Swagger docs at `http://localhost:4000/swagger`. DELIVERED.
 
 ---
 
-### Phase 3: React Native Mobile App — Foundation (Weeks 6-8)
+### Phase 3: React Native Mobile App — Foundation (Weeks 6-8) - PENDING
 
 **Goal**: Build mobile app with core screens and navigation.
 
 #### Week 6: Project Setup & Auth
 
-| # | Task | Details |
-|---|------|---------|
-| 3.1  | Scaffold Expo app | `npx create-expo-app@latest apps/mobile` |
-| 3.2  | Configure Expo Router | File-based navigation with auth guard |
-| 3.3  | Set up Eden Treaty client | Type-safe API client with token management |
-| 3.4  | Set up TanStack Query | QueryClient provider, default options |
-| 3.5  | Set up Zustand stores | Auth store (tokens, user), UI store |
-| 3.6  | Build login screen | Email/password form, Google Sign-In button |
-| 3.7  | Build register screen | Name, email, password form |
-| 3.8  | Implement auth flow | Login → store tokens → navigate to tabs |
-| 3.9  | Implement token refresh | Auto-refresh on 401, logout on refresh failure |
-| 3.10 | Build auth guard | Redirect to login if no token |
+- [ ] **3.1** Scaffold Expo app — `npx create-expo-app@latest apps/mobile`
+- [ ] **3.2** Configure Expo Router — File-based navigation with auth guard
+- [ ] **3.3** Set up Eden Treaty client — Type-safe API client with token management
+- [ ] **3.4** Set up TanStack Query — QueryClient provider, default options
+- [ ] **3.5** Set up Zustand stores — Auth store (tokens, user), UI store
+- [ ] **3.6** Build login screen — Email/password form, Google Sign-In button
+- [ ] **3.7** Build register screen — Name, email, password form
+- [ ] **3.8** Implement auth flow — Login → store tokens → navigate to tabs
+- [ ] **3.9** Implement token refresh — Auto-refresh on 401, logout on refresh failure
+- [ ] **3.10** Build auth guard — Redirect to login if no token
 
 #### Week 7: Core Screens
 
-| # | Task | Details |
-|---|------|---------|
-| 3.11 | Build dashboard screen | Stats cards, upcoming expenses, category chart |
-| 3.12 | Build expense list screen | List with filters, pull-to-refresh, infinite scroll |
-| 3.13 | Build expense detail screen | Full expense info, payment history, mark paid |
-| 3.14 | Build create expense screen | Form with category picker, card picker, date picker |
-| 3.15 | Build edit expense screen | Pre-filled form, update mutation |
-| 3.16 | Delete expense | Swipe-to-delete or delete button with confirmation |
+- [ ] **3.11** Build dashboard screen — Stats cards, upcoming expenses, category chart
+- [ ] **3.12** Build expense list screen — List with filters, pull-to-refresh, infinite scroll
+- [ ] **3.13** Build expense detail screen — Full expense info, payment history, mark paid
+- [ ] **3.14** Build create expense screen — Form with category picker, card picker, date picker
+- [ ] **3.15** Build edit expense screen — Pre-filled form, update mutation
+- [ ] **3.16** Delete expense — Swipe-to-delete or delete button with confirmation
 
 #### Week 8: Secondary Screens
 
-| # | Task | Details |
-|---|------|---------|
-| 3.17 | Build notification screen | Notification list with unread badge, mark read |
-| 3.18 | Build category management | List, create, edit, delete categories |
-| 3.19 | Build payment card screen | List, add, edit, delete payment cards |
-| 3.20 | Build profile screen | User info, change password |
-| 3.21 | Build settings screen | Theme, currency, notification preferences |
-| 3.22 | Tab navigation | Bottom tabs: Dashboard, Expenses, Notifications, Profile |
+- [ ] **3.17** Build notification screen — Notification list with unread badge, mark read
+- [ ] **3.18** Build category management — List, create, edit, delete categories
+- [ ] **3.19** Build payment card screen — List, add, edit, delete payment cards
+- [ ] **3.20** Build profile screen — User info, change password
+- [ ] **3.21** Build settings screen — Theme, currency, notification preferences
+- [ ] **3.22** Tab navigation — Bottom tabs: Dashboard, Expenses, Notifications, Profile
 
 **Deliverable**: Functional mobile app with all core screens.
 
 ---
 
-### Phase 4: Mobile Polish & Features (Weeks 9-10)
+### Phase 4: Mobile Polish & Features (Weeks 9-10) - PENDING
 
 **Goal**: Native mobile experience with platform-specific features.
 
-| # | Task | Details |
-|---|------|---------|
-| 4.1  | Push notifications | Expo Notifications + backend integration |
-| 4.2  | Offline support | TanStack Query offline persistence |
-| 4.3  | Biometric auth | Face ID / fingerprint to unlock app |
-| 4.4  | Pull-to-refresh | On all list screens |
-| 4.5  | Haptic feedback | On mark-paid, delete, create actions |
-| 4.6  | Dark mode | Sync with system theme or user preference |
-| 4.7  | App icon & splash screen | Branded assets |
-| 4.8  | Loading skeletons | Skeleton screens while data loads |
-| 4.9  | Error boundaries | Graceful error handling with retry |
-| 4.10 | Animations | Screen transitions, list item animations |
+- [ ] **4.1** Push notifications — Expo Notifications + backend integration
+- [ ] **4.2** Offline support — TanStack Query offline persistence
+- [ ] **4.3** Biometric auth — Face ID / fingerprint to unlock app
+- [ ] **4.4** Pull-to-refresh — On all list screens
+- [ ] **4.5** Haptic feedback — On mark-paid, delete, create actions
+- [ ] **4.6** Dark mode — Sync with system theme or user preference
+- [ ] **4.7** App icon & splash screen — Branded assets
+- [ ] **4.8** Loading skeletons — Skeleton screens while data loads
+- [ ] **4.9** Error boundaries — Graceful error handling with retry
+- [ ] **4.10** Animations — Screen transitions, list item animations
 
 **Deliverable**: Polished mobile app ready for internal testing.
 
 ---
 
-### Phase 5: Integration & Testing (Weeks 11-12)
+### Phase 5: Integration & Testing (Weeks 11-12) - PENDING
 
 **Goal**: End-to-end testing, CI/CD, and deployment readiness.
 
-| # | Task | Details |
-|---|------|---------|
-| 5.1  | E2E tests (API) | Full endpoint testing with Bun test |
-| 5.2  | E2E tests (Mobile) | Detox or Maestro for mobile UI testing |
-| 5.3  | Cross-platform testing | iOS Simulator + Android Emulator |
-| 5.4  | CI pipeline (Nx) | GitHub Actions with `nx affected` for efficient CI |
-| 5.5  | API deployment | Docker → Cloud Run / Railway / Fly.io |
-| 5.6  | Mobile builds | EAS Build for iOS and Android |
-| 5.7  | OTA updates | EAS Update for over-the-air JS updates |
-| 5.8  | Environment configs | Staging + production env management |
-| 5.9  | Monitoring | API health checks, error tracking (Sentry) |
-| 5.10 | Performance audit | API response times, mobile startup time |
+- [ ] **5.1** E2E tests (API) — Full endpoint testing with Bun test
+- [ ] **5.2** E2E tests (Mobile) — Detox or Maestro for mobile UI testing
+- [ ] **5.3** Cross-platform testing — iOS Simulator + Android Emulator
+- [ ] **5.4** CI pipeline (Nx) — GitHub Actions with `nx affected` for efficient CI
+- [ ] **5.5** API deployment — Docker → Cloud Run / Railway / Fly.io
+- [ ] **5.6** Mobile builds — EAS Build for iOS and Android
+- [ ] **5.7** OTA updates — EAS Update for over-the-air JS updates
+- [ ] **5.8** Environment configs — Staging + production env management
+- [ ] **5.9** Monitoring — API health checks, error tracking (Sentry)
+- [ ] **5.10** Performance audit — API response times, mobile startup time
 
 **Deliverable**: All apps deployed, CI/CD running, monitoring active.
 
 ---
 
-### Phase 6: Advanced Features (Post-Launch)
+### Phase 6: Advanced Features (Post-Launch) - PENDING
 
-| # | Feature | Platform | Details |
-|---|---------|----------|---------|
-| 6.1 | Real-time sync | Mobile | Supabase Realtime subscriptions via API |
-| 6.2 | Receipt OCR | Mobile | Camera → OCR → auto-fill expense form |
-| 6.3 | Widgets | Mobile | iOS/Android home screen widgets (expense summary) |
-| 6.4 | Export | Both | CSV/PDF export via API endpoint |
-| 6.5 | Budget tracking | Both | Budget limits per category with alerts |
-| 6.6 | Shared expenses | Both | Family/team expense sharing |
-| 6.7 | Apple/Google Wallet | Mobile | Payment card integration |
-| 6.8 | Siri/Google Assistant | Mobile | Voice commands for quick expense entry |
-| 6.9 | Advanced analytics | Both | Monthly trends, spending predictions |
-| 6.10 | Multi-language (i18n) | Both | Georgian, English + more |
+- [ ] **6.1** Real-time sync — Mobile — Supabase Realtime subscriptions via API
+- [ ] **6.2** Receipt OCR — Mobile — Camera → OCR → auto-fill expense form
+- [ ] **6.3** Widgets — Mobile — iOS/Android home screen widgets (expense summary)
+- [ ] **6.4** Export — Both — CSV/PDF export via API endpoint
+- [ ] **6.5** Budget tracking — Both — Budget limits per category with alerts
+- [ ] **6.6** Shared expenses — Both — Family/team expense sharing
+- [ ] **6.7** Apple/Google Wallet — Mobile — Payment card integration
+- [ ] **6.8** Siri/Google Assistant — Mobile — Voice commands for quick expense entry
+- [ ] **6.9** Advanced analytics — Both — Monthly trends, spending predictions
+- [ ] **6.10** Multi-language (i18n) — Both — Georgian, English + more
 
 ---
 
@@ -1094,14 +1073,16 @@ CORS_ORIGINS=http://localhost:3000,exp://localhost:8081
 
 ## Summary Timeline
 
-```
-Week 1        Phase 0: Nx monorepo setup, move web app
-Week 2        Phase 1: Extract shared packages (@extracker/db, types, core)
-Weeks 3-5     Phase 2: Build Elysia.js API (auth, CRUD, dashboard, docs)
-Weeks 6-8     Phase 3: React Native mobile app (auth, core screens, navigation)
-Weeks 9-10    Phase 4: Mobile polish (push notifications, offline, biometrics)
-Weeks 11-12   Phase 5: Testing, CI/CD, deployment
-Post-launch   Phase 6: Advanced features (OCR, widgets, analytics, i18n)
-```
+| Phase | Timeline | Description | Status |
+|-------|----------|-------------|--------|
+| Phase 0 | Week 1 | Nx monorepo setup, move web app | COMPLETED |
+| Phase 1 | Week 2 | Extract shared packages (@extracker/db, types, core) | COMPLETED |
+| Phase 2 | Weeks 3-5 | Build Elysia.js API (auth, CRUD, dashboard, docs) | COMPLETED |
+| Phase 3 | Weeks 6-8 | React Native mobile app (auth, core screens, navigation) | PENDING |
+| Phase 4 | Weeks 9-10 | Mobile polish (push notifications, offline, biometrics) | PENDING |
+| Phase 5 | Weeks 11-12 | Testing, CI/CD, deployment | PENDING |
+| Phase 6 | Post-launch | Advanced features (OCR, widgets, analytics, i18n) | PENDING |
+
+**Progress: 3/7 phases completed (37/72 tasks done)**
 
 **Total estimated timeline: 12 weeks to production-ready mobile app.**

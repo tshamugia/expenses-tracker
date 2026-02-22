@@ -1,6 +1,8 @@
 # CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Always call appropirate agent for implement the tasks.
+never run pnpm run dev.
 
 ## Project Overview
 

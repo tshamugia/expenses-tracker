@@ -29,7 +29,17 @@
       "Bash(git commit:*)",
       "Bash(npx nx:*)",
       "Bash(python3:*)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(test:*)",
+      "Bash(cd D:/GITHUB/extracker/apps/api && npx tsc --noEmit 2>&1)",
+      "Bash(git:*)",
+      "Bash(head:*)",
+      "Bash(cd D:/GITHUB/extracker && npx tsc --noEmit --project apps/api/tsconfig.json 2>&1)",
+      "Bash(cd D:/GITHUB/extracker/apps/api && dotenv -e ../../.env.local -- bun test 2>&1)",
+      "Bash(cd D:/GITHUB/extracker/apps/api && npx dotenv -e ../../.env.local -- bun test 2>&1)",
+      "Bash(cd D:/GITHUB/extracker/apps/api && npx dotenv -e ../../.env.local -- bun run -e \"\nimport { Elysia } from 'elysia';\nimport { cors } from '@elysiajs/cors';\nimport { jwt } from '@elysiajs/jwt';\nimport { bearer } from '@elysiajs/bearer';\nimport { fail, ERROR_CODES } from './src/utils/response';\nimport { authRoutes } from './src/routes/auth.routes';\nimport { expenseRoutes } from './src/routes/expense.routes';\n\nconst jwtPlugin = new Elysia\\({ name: 'plugin/jwt' }\\).use\\(\n  jwt\\({ name: 'jwt', secret: 'test-jwt-secret-for-tests', exp: '15m' }\\)\n\\);\n\nconst app = new Elysia\\(\\)\n  .use\\(cors\\({ origin: true }\\)\\)\n  .use\\(jwtPlugin\\)\n  .use\\(bearer\\(\\)\\)\n  .onError\\(\\({ code, error, set }\\) => {\n    console.log\\('GLOBAL ERROR:', code, error.message\\);\n    switch \\(code\\) {\n      case 'VALIDATION':\n        set.status = 422;\n        return fail\\(error.message, ERROR_CODES.VALIDATION_ERROR\\);\n      case 'NOT_FOUND':\n        set.status = 404;\n        return fail\\('Route not found', ERROR_CODES.NOT_FOUND\\);\n      default:\n        set.status = 500;\n        return fail\\('Internal server error', ERROR_CODES.INTERNAL_ERROR\\);\n    }\n  }\\)\n  .use\\(expenseRoutes\\);\n\nconst response = await app.handle\\(new Request\\('http://localhost/expenses'\\)\\);\nconsole.log\\('STATUS:', response.status\\);\nconst body = await response.json\\(\\);\nconsole.log\\('BODY:', JSON.stringify\\(body\\)\\);\n\" 2>&1)",
+      "Bash(cd D:/GITHUB/extracker/apps/api && npx dotenv -e ../../.env.local -- bun --eval \"\nimport { Elysia } from 'elysia';\nimport { cors } from '@elysiajs/cors';\nimport { jwt } from '@elysiajs/jwt';\nimport { bearer } from '@elysiajs/bearer';\nimport { fail, ERROR_CODES } from './src/utils/response.ts';\nimport { expenseRoutes } from './src/routes/expense.routes.ts';\n\nconst jwtPlugin = new Elysia\\({ name: 'plugin/jwt' }\\).use\\(\n  jwt\\({ name: 'jwt', secret: 'test-jwt-secret-for-tests', exp: '15m' }\\)\n\\);\n\nconst app = new Elysia\\(\\)\n  .use\\(cors\\({ origin: true }\\)\\)\n  .use\\(jwtPlugin\\)\n  .use\\(bearer\\(\\)\\)\n  .onError\\(\\({ code, error, set }\\) => {\n    console.log\\('GLOBAL_ERROR code=' + code + ' msg=' + error.message\\);\n    switch \\(code\\) {\n      case 'VALIDATION':\n        set.status = 422;\n        return fail\\(error.message, ERROR_CODES.VALIDATION_ERROR\\);\n      case 'NOT_FOUND':\n        set.status = 404;\n        return fail\\('Route not found', ERROR_CODES.NOT_FOUND\\);\n      default:\n        set.status = 500;\n        return fail\\('Internal server error', ERROR_CODES.INTERNAL_ERROR\\);\n    }\n  }\\)\n  .use\\(expenseRoutes\\);\n\nconst response = await app.handle\\(new Request\\('http://localhost/expenses'\\)\\);\nconsole.log\\('STATUS:', response.status\\);\nconst body = await response.json\\(\\);\nconsole.log\\('BODY:', JSON.stringify\\(body\\)\\);\n\" 2>&1)",
+      "Bash(cd D:/GITHUB/extracker/apps/api && npx dotenv -e ../../.env.local -- bun run src/__tests__/debug-auth.ts 2>&1)"
     ],
     "deny": [],
     "ask": []
