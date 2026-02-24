@@ -1,6 +1,7 @@
 import { StyleSheet } from 'react-native'
 import { Chip } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface StatusBadgeProps {
   isPaid: boolean
@@ -14,37 +15,33 @@ interface StatusConfig {
   textColor: string
 }
 
-function getStatusConfig(isPaid: boolean, isOverdue: boolean): StatusConfig {
-  if (isPaid) {
-    return {
-      label: 'Paid',
-      icon: 'check-circle',
-      backgroundColor: '#DCFCE7',
-      textColor: '#166534',
-    }
-  }
-  if (isOverdue) {
-    return {
-      label: 'Overdue',
-      icon: 'alert-circle',
-      backgroundColor: '#FEE2E2',
-      textColor: '#991B1B',
-    }
-  }
-  return {
-    label: 'Pending',
-    icon: 'clock-outline',
-    backgroundColor: '#FEF3C7',
-    textColor: '#92400E',
-  }
-}
-
 /**
  * Compact status chip indicating Paid, Overdue, or Pending state.
  * Evaluates paid status first; an expense cannot be both paid and overdue.
  */
 export function StatusBadge({ isPaid, isOverdue }: StatusBadgeProps) {
-  const config = getStatusConfig(isPaid, isOverdue)
+  const { colors } = useAppTheme()
+
+  const config: StatusConfig = isPaid
+    ? {
+        label: 'Paid',
+        icon: 'check-circle',
+        backgroundColor: `${colors.success}1A`,
+        textColor: colors.success,
+      }
+    : isOverdue
+      ? {
+          label: 'Overdue',
+          icon: 'alert-circle',
+          backgroundColor: `${colors.error}1A`,
+          textColor: colors.error,
+        }
+      : {
+          label: 'Pending',
+          icon: 'clock-outline',
+          backgroundColor: `${colors.warning}1A`,
+          textColor: colors.warning,
+        }
 
   return (
     <Chip

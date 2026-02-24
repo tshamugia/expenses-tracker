@@ -1,8 +1,10 @@
 import { Tabs } from 'expo-router'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useNotificationStats } from '@/lib/hooks'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 export default function TabLayout() {
+  const { colors } = useAppTheme()
   const { data: stats } = useNotificationStats()
   const unreadCount = stats?.unread ?? 0
   const badgeText = unreadCount > 99 ? '99+' : unreadCount > 0 ? String(unreadCount) : undefined
@@ -10,11 +12,12 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#6366F1',
-        tabBarInactiveTintColor: '#9CA3AF',
-        headerStyle: { backgroundColor: '#6366F1' },
+        tabBarActiveTintColor: colors.brandPrimary,
+        tabBarInactiveTintColor: colors.textMuted,
+        headerStyle: { backgroundColor: colors.headerBackground },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: '600' },
+        tabBarStyle: { backgroundColor: colors.tabBarBackground, borderTopColor: colors.border },
       }}
     >
       <Tabs.Screen
@@ -43,7 +46,7 @@ export default function TabLayout() {
             <MaterialCommunityIcons name="bell" size={size} color={color} />
           ),
           tabBarBadge: badgeText,
-          tabBarBadgeStyle: unreadCount > 0 ? { backgroundColor: '#DC2626' } : undefined,
+          tabBarBadgeStyle: unreadCount > 0 ? { backgroundColor: colors.error } : undefined,
         }}
       />
       <Tabs.Screen

@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native'
 import { TextInput, Menu, Text, ActivityIndicator } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { useCategories } from '@/lib/hooks/use-categories'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface CategoryPickerProps {
   value: string | null
@@ -18,6 +19,7 @@ interface CategoryPickerProps {
  * the selection.
  */
 export function CategoryPicker({ value, onChange }: CategoryPickerProps) {
+  const { colors } = useAppTheme()
   const [menuVisible, setMenuVisible] = useState(false)
   const { data, isLoading } = useCategories()
 
@@ -59,16 +61,18 @@ export function CategoryPicker({ value, onChange }: CategoryPickerProps) {
                 value={displayText}
                 placeholder={placeholder}
                 editable={false}
-                outlineColor="#D1D5DB"
-                activeOutlineColor="#6366F1"
+                outlineColor={colors.inputBorder}
+                activeOutlineColor={colors.brandPrimary}
                 outlineStyle={styles.outline}
+                style={{ backgroundColor: colors.inputBackground }}
+                textColor={colors.textPrimary}
                 right={
                   isLoading ? (
-                    <TextInput.Icon icon={() => <ActivityIndicator size={18} color="#6366F1" />} />
+                    <TextInput.Icon icon={() => <ActivityIndicator size={18} color={colors.brandPrimary} />} />
                   ) : (
                     <TextInput.Icon
                       icon={menuVisible ? 'chevron-up' : 'chevron-down'}
-                      color="#6B7280"
+                      color={colors.textTertiary}
                     />
                   )
                 }
@@ -76,16 +80,16 @@ export function CategoryPicker({ value, onChange }: CategoryPickerProps) {
             </View>
           </Pressable>
         }
-        contentStyle={styles.menuContent}
+        contentStyle={[styles.menuContent, { backgroundColor: colors.cardBackground }]}
         style={styles.menu}
       >
         <Menu.Item
           onPress={() => handleSelect(null)}
           title="No Category"
           leadingIcon={() => (
-            <MaterialCommunityIcons name="close-circle-outline" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="close-circle-outline" size={18} color={colors.textMuted} />
           )}
-          titleStyle={styles.noCategoryTitle}
+          titleStyle={{ color: colors.textMuted }}
         />
 
         {categories.map((category) => (
@@ -97,20 +101,20 @@ export function CategoryPicker({ value, onChange }: CategoryPickerProps) {
               <View
                 style={[
                   styles.colorDot,
-                  { backgroundColor: category.color || '#6366F1' },
+                  { backgroundColor: category.color || colors.brandPrimary },
                 ]}
               />
             )}
             titleStyle={[
-              styles.menuItemTitle,
-              value === category.categoryName && styles.menuItemTitleSelected,
+              { color: colors.textSecondary },
+              value === category.categoryName && { color: colors.brandPrimary, fontWeight: '600' },
             ]}
           />
         ))}
 
         {categories.length === 0 && !isLoading && (
           <View style={styles.emptyContainer}>
-            <Text variant="bodySmall" style={styles.emptyText}>
+            <Text variant="bodySmall" style={{ color: colors.textMuted }}>
               No categories found
             </Text>
           </View>
@@ -128,18 +132,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   menuContent: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
-  },
-  noCategoryTitle: {
-    color: '#9CA3AF',
-  },
-  menuItemTitle: {
-    color: '#374151',
-  },
-  menuItemTitleSelected: {
-    color: '#6366F1',
-    fontWeight: '600',
   },
   colorDot: {
     width: 14,
@@ -150,8 +143,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
-  },
-  emptyText: {
-    color: '#9CA3AF',
   },
 })

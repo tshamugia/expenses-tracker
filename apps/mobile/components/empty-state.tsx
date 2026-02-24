@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface EmptyStateProps {
   icon: string
@@ -30,18 +31,20 @@ export function EmptyState({
   actionLabel,
   onAction,
 }: EmptyStateProps) {
+  const { colors } = useAppTheme()
+
   return (
     <View style={styles.container}>
       <MaterialCommunityIcons
         name={icon as keyof typeof MaterialCommunityIcons.glyphMap}
         size={64}
-        color="#9CA3AF"
+        color={colors.textMuted}
       />
-      <Text variant="titleMedium" style={styles.title}>
+      <Text variant="titleMedium" style={[styles.title, { color: colors.textPrimary }]}>
         {title}
       </Text>
       {description ? (
-        <Text variant="bodyMedium" style={styles.description}>
+        <Text variant="bodyMedium" style={[styles.description, { color: colors.textTertiary }]}>
           {description}
         </Text>
       ) : null}
@@ -50,7 +53,7 @@ export function EmptyState({
           mode="contained"
           onPress={onAction}
           style={styles.button}
-          buttonColor="#6366F1"
+          buttonColor={colors.brandPrimary}
         >
           {actionLabel}
         </Button>
@@ -71,12 +74,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 16,
     textAlign: 'center',
-    color: '#374151',
   },
   description: {
     marginTop: 8,
     textAlign: 'center',
-    color: '#6B7280',
     lineHeight: 22,
   },
   button: {

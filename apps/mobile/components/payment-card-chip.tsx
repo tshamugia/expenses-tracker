@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { Text } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import type { PaymentCardInfo } from '@extracker/types'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface PaymentCardChipProps {
   paymentCard: PaymentCardInfo
@@ -12,18 +13,19 @@ interface PaymentCardChipProps {
  * either its nickname or masked last four digits.
  */
 export function PaymentCardChip({ paymentCard }: PaymentCardChipProps) {
+  const { colors } = useAppTheme()
   const displayText = paymentCard.nickname
     ? paymentCard.nickname
     : `\u2022\u2022\u2022\u2022 ${paymentCard.lastFourDigits}`
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.chipBackground }]}>
       <MaterialCommunityIcons
         name="credit-card-outline"
         size={14}
-        color="#6B7280"
+        color={colors.textMuted}
       />
-      <Text variant="bodySmall" style={styles.label} numberOfLines={1}>
+      <Text variant="bodySmall" style={[styles.label, { color: colors.textSecondary }]} numberOfLines={1}>
         {displayText}
       </Text>
     </View>
@@ -34,7 +36,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -42,7 +43,6 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   label: {
-    color: '#6B7280',
     lineHeight: 16,
   },
 })

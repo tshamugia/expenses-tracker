@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 /**
  * Stack navigator layout for all expense-related routes:
@@ -6,16 +7,19 @@ import { Stack } from 'expo-router'
  *   /expense/[id]      - Expense detail view
  *   /expense/[id]/edit - Edit expense form
  *
- * Uses the app's primary indigo (#6366F1) header style to
+ * Uses the app's header background color from theme to
  * maintain visual consistency with the tab navigator.
  */
 export default function ExpenseLayout() {
+  const { colors } = useAppTheme()
+
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: '#6366F1' },
+        headerStyle: { backgroundColor: colors.headerBackground },
         headerTintColor: '#ffffff',
         headerTitleStyle: { fontWeight: '600' },
+        animation: 'slide_from_right',
       }}
     />
   )

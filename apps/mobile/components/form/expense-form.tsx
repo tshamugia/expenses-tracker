@@ -11,6 +11,7 @@ import { CurrencyPicker } from './currency-picker'
 import { CategoryPicker } from './category-picker'
 import { PaymentCardPicker } from './payment-card-picker'
 import { DatePicker } from './date-picker'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 // ────────────────────────────────────────────────────────────────
 // Types
@@ -70,6 +71,8 @@ export function ExpenseForm({
   isLoading = false,
   submitLabel = 'Save Expense',
 }: ExpenseFormProps) {
+  const { colors } = useAppTheme()
+
   // ── Field state ──────────────────────────────────────────────
   const [title, setTitle] = useState(initialValues?.title ?? '')
   const [amount, setAmount] = useState(initialValues?.amount ?? '')
@@ -172,9 +175,11 @@ export function ExpenseForm({
             onChangeText={handleTitleChange}
             placeholder="e.g. Netflix Subscription"
             error={!!errors.title}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
             outlineStyle={styles.outline}
+            style={{ backgroundColor: colors.inputBackground }}
+            textColor={colors.textPrimary}
             accessibilityLabel="Expense title"
           />
           {errors.title ? (
@@ -194,10 +199,12 @@ export function ExpenseForm({
             placeholder="0.00"
             keyboardType="decimal-pad"
             error={!!errors.amount}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
             outlineStyle={styles.outline}
-            left={<TextInput.Affix text={currency} textStyle={styles.currencyAffix} />}
+            style={{ backgroundColor: colors.inputBackground }}
+            textColor={colors.textPrimary}
+            left={<TextInput.Affix text={currency} textStyle={{ color: colors.textTertiary, fontWeight: '500' }} />}
             accessibilityLabel="Expense amount"
           />
           {errors.amount ? (
@@ -219,9 +226,11 @@ export function ExpenseForm({
           placeholder="Add a note (optional)"
           multiline
           numberOfLines={3}
-          outlineColor="#D1D5DB"
-          activeOutlineColor="#6366F1"
+          outlineColor={colors.inputBorder}
+          activeOutlineColor={colors.brandPrimary}
           outlineStyle={styles.outline}
+          style={{ backgroundColor: colors.inputBackground }}
+          textColor={colors.textPrimary}
           accessibilityLabel="Expense description"
         />
 
@@ -236,19 +245,19 @@ export function ExpenseForm({
         />
 
         {/* Recurring toggle */}
-        <View style={styles.switchRow}>
+        <View style={[styles.switchRow, { backgroundColor: colors.screenBackgroundSecondary, borderColor: colors.inputBorder }]}>
           <View style={styles.switchLabel}>
-            <Text variant="bodyLarge" style={styles.switchLabelText}>
+            <Text variant="bodyLarge" style={[styles.switchLabelText, { color: colors.textPrimary }]}>
               Recurring
             </Text>
-            <Text variant="bodySmall" style={styles.switchHint}>
+            <Text variant="bodySmall" style={[styles.switchHint, { color: colors.textMuted }]}>
               Automatically repeats on schedule
             </Text>
           </View>
           <Switch
             value={isRecurring}
             onValueChange={setIsRecurring}
-            color="#6366F1"
+            color={colors.brandPrimary}
           />
         </View>
 
@@ -261,7 +270,7 @@ export function ExpenseForm({
           onPress={handleSubmit}
           loading={isLoading}
           disabled={isLoading}
-          buttonColor="#6366F1"
+          buttonColor={colors.brandPrimary}
           textColor="#ffffff"
           contentStyle={styles.submitContent}
           labelStyle={styles.submitLabel}
@@ -292,21 +301,15 @@ const styles = StyleSheet.create({
   outline: {
     borderRadius: 12,
   },
-  currencyAffix: {
-    color: '#6B7280',
-    fontWeight: '500',
-  },
   /* Recurring switch row */
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F9FAFB',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
   },
   switchLabel: {
     flex: 1,
@@ -314,10 +317,8 @@ const styles = StyleSheet.create({
   },
   switchLabelText: {
     fontWeight: '500',
-    color: '#111827',
   },
   switchHint: {
-    color: '#9CA3AF',
     marginTop: 2,
   },
   /* Submit button */

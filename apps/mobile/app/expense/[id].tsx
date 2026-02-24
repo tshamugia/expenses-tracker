@@ -9,8 +9,10 @@ import {
   useDeleteExpense,
 } from '@/lib/hooks'
 import { useSnackbar } from '@/lib/hooks/use-snackbar'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
-import { ScreenLoading } from '@/components/screen-loading'
+import { hapticSuccess, hapticError, hapticMedium } from '@/lib/utils/haptics'
+import { ExpenseDetailSkeleton } from '@/components/skeletons'
 import { ScreenError } from '@/components/screen-error'
 import { StatusBadge } from '@/components/status-badge'
 import { CategoryChip } from '@/components/category-chip'
@@ -70,6 +72,7 @@ export default function ExpenseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const { showSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
 
   // Data fetching
   const { data: expense, isLoading, error, refetch } = useExpense(id!)
@@ -100,19 +103,21 @@ export default function ExpenseDetailScreen() {
 
   // Amount text color: green when paid, red when overdue, default otherwise
   const amountColor = isPaid
-    ? '#16A34A'
+    ? colors.success
     : isExpenseOverdue
-      ? '#DC2626'
-      : '#111827'
+      ? colors.error
+      : colors.textPrimary
 
   // Handlers
   const handleMarkPaid = useCallback(() => {
     if (!id) return
     markPaid.mutate(id, {
       onSuccess: () => {
+        hapticSuccess()
         showSnackbar('Expense marked as paid', 'success')
       },
       onError: (err) => {
+        hapticError()
         showSnackbar(getApiErrorMessage(err), 'error')
       },
     })
@@ -122,24 +127,26 @@ export default function ExpenseDetailScreen() {
     if (!id) return
     deleteExpense.mutate(id, {
       onSuccess: () => {
+        hapticMedium()
         showSnackbar('Expense deleted', 'success')
         router.back()
       },
       onError: (err) => {
+        hapticError()
         showSnackbar(getApiErrorMessage(err), 'error')
       },
     })
   }, [id, deleteExpense, showSnackbar, router])
 
   // Loading and error states
-  if (isLoading) return <ScreenLoading />
+  if (isLoading) return <ExpenseDetailSkeleton />
   if (error) return <ScreenError message={error.message} onRetry={refetch} />
   if (!expense) return <ScreenError message="Expense not found" />
 
   const exp = expense as unknown as ExpenseData
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackground }]}>
       {/* Dynamic header title and action buttons */}
       <Stack.Screen
         options={{
@@ -181,28 +188,28 @@ export default function ExpenseDetailScreen() {
             {formatCurrency(exp.amount, exp.currency)}
           </Text>
           <StatusBadge isPaid={isPaid} isOverdue={isExpenseOverdue} />
-          <Text variant="bodyMedium" style={styles.currencyCode}>
+          <Text variant="bodyMedium" style={[styles.currencyCode, { color: colors.textMuted }]}>
             {exp.currency}
           </Text>
         </View>
 
         {/* ── Details Card ──────────────────────────────────────── */}
-        <Surface style={styles.detailsCard} elevation={1}>
+        <Surface style={[styles.detailsCard, { backgroundColor: colors.cardBackground }]} elevation={1}>
           {exp.category ? (
-            <DetailRow label="Category">
+            <DetailRow label="Category" colors={colors}>
               <CategoryChip name={exp.category} />
             </DetailRow>
           ) : null}
 
           {exp.nextDueDate ? (
             <>
-              {exp.category ? <Divider style={styles.divider} /> : null}
-              <DetailRow label="Due Date">
+              {exp.category ? <Divider style={[styles.divider, { backgroundColor: colors.divider }]} /> : null}
+              <DetailRow label="Due Date" colors={colors}>
                 <View style={styles.dueDateValue}>
-                  <Text variant="bodyMedium" style={styles.detailValue}>
+                  <Text variant="bodyMedium" style={[styles.detailValue, { color: colors.textPrimary }]}>
                     {formatExpenseDate(new Date(exp.nextDueDate))}
                   </Text>
-                  <Text variant="bodySmall" style={styles.relativeDateText}>
+                  <Text variant="bodySmall" style={[styles.relativeDateText, { color: colors.textMuted }]}>
                     {formatRelativeDate(new Date(exp.nextDueDate))}
                   </Text>
                 </View>
@@ -212,9 +219,9 @@ export default function ExpenseDetailScreen() {
 
           {exp.isRecurring ? (
             <>
-              <Divider style={styles.divider} />
-              <DetailRow label="Recurring">
-                <Text variant="bodyMedium" style={styles.detailValue}>
+              <Divider style={[styles.divider, { backgroundColor: colors.divider }]} />
+              <DetailRow label="Recurring" colors={colors}>
+                <Text variant="bodyMedium" style={[styles.detailValue, { color: colors.textPrimary }]}>
                   {exp.recurrenceRule || 'Yes'}
                 </Text>
               </DetailRow>
@@ -223,9 +230,9 @@ export default function ExpenseDetailScreen() {
 
           {exp.description ? (
             <>
-              <Divider style={styles.divider} />
-              <DetailRow label="Description">
-                <Text variant="bodyMedium" style={styles.descriptionText}>
+              <Divider style={[styles.divider, { backgroundColor: colors.divider }]} />
+              <DetailRow label="Description" colors={colors}>
+                <Text variant="bodyMedium" style={[styles.descriptionText, { color: colors.textSecondary }]}>
                   {exp.description}
                 </Text>
               </DetailRow>
@@ -234,8 +241,8 @@ export default function ExpenseDetailScreen() {
 
           {exp.paymentCard ? (
             <>
-              <Divider style={styles.divider} />
-              <DetailRow label="Payment Card">
+              <Divider style={[styles.divider, { backgroundColor: colors.divider }]} />
+              <DetailRow label="Payment Card" colors={colors}>
                 <PaymentCardChip paymentCard={exp.paymentCard} />
               </DetailRow>
             </>
@@ -249,7 +256,7 @@ export default function ExpenseDetailScreen() {
             onPress={handleMarkPaid}
             loading={markPaid.isPending}
             disabled={markPaid.isPending}
-            buttonColor="#16A34A"
+            buttonColor={colors.success}
             textColor="#ffffff"
             icon="check-circle"
             contentStyle={styles.markPaidContent}
@@ -265,15 +272,15 @@ export default function ExpenseDetailScreen() {
         {/* ── Payment History ───────────────────────────────────── */}
         {exp.payments.length > 0 ? (
           <View style={styles.historySection}>
-            <Text variant="titleMedium" style={styles.sectionTitle}>
+            <Text variant="titleMedium" style={[styles.sectionTitle, { color: colors.textPrimary }]}>
               Payment History
             </Text>
 
-            <Surface style={styles.historyCard} elevation={1}>
+            <Surface style={[styles.historyCard, { backgroundColor: colors.cardBackground }]} elevation={1}>
               {exp.payments.map((payment, index) => (
                 <View key={payment.id}>
-                  {index > 0 ? <Divider style={styles.divider} /> : null}
-                  <PaymentRow payment={payment} currency={exp.currency} />
+                  {index > 0 ? <Divider style={[styles.divider, { backgroundColor: colors.divider }]} /> : null}
+                  <PaymentRow payment={payment} currency={exp.currency} colors={colors} />
                 </View>
               ))}
             </Surface>
@@ -307,13 +314,15 @@ export default function ExpenseDetailScreen() {
 function DetailRow({
   label,
   children,
+  colors,
 }: {
   label: string
   children: React.ReactNode
+  colors: { textTertiary: string }
 }) {
   return (
     <View style={styles.detailRow}>
-      <Text variant="bodySmall" style={styles.detailLabel}>
+      <Text variant="bodySmall" style={[styles.detailLabel, { color: colors.textTertiary }]}>
         {label}
       </Text>
       {children}
@@ -327,19 +336,21 @@ function DetailRow({
 function PaymentRow({
   payment,
   currency,
+  colors,
 }: {
   payment: PaymentData
   currency: string
+  colors: { textPrimary: string; textTertiary: string; textMuted: string; success: string }
 }) {
   return (
     <View style={styles.paymentRow}>
       <View style={styles.paymentLeft}>
-        <Text variant="bodyMedium" style={styles.paymentDate}>
+        <Text variant="bodyMedium" style={[styles.paymentDate, { color: colors.textPrimary }]}>
           {payment.dueDate
             ? formatExpenseDate(new Date(payment.dueDate))
             : 'No date'}
         </Text>
-        <Text variant="bodySmall" style={styles.paymentAmount}>
+        <Text variant="bodySmall" style={[styles.paymentAmount, { color: colors.textTertiary }]}>
           {formatCurrency(payment.amount, currency)}
         </Text>
       </View>
@@ -350,14 +361,14 @@ function PaymentRow({
             <MaterialCommunityIcons
               name="check-circle"
               size={16}
-              color="#16A34A"
+              color={colors.success}
             />
             <View style={styles.paidTextColumn}>
-              <Text variant="bodySmall" style={styles.paidText}>
+              <Text variant="bodySmall" style={[styles.paidText, { color: colors.success }]}>
                 Paid
               </Text>
               {payment.paidAt ? (
-                <Text variant="labelSmall" style={styles.paidAtText}>
+                <Text variant="labelSmall" style={[styles.paidAtText, { color: colors.textMuted }]}>
                   {formatExpenseDate(new Date(payment.paidAt))}
                 </Text>
               ) : null}
@@ -368,9 +379,9 @@ function PaymentRow({
             <MaterialCommunityIcons
               name="clock-outline"
               size={16}
-              color="#9CA3AF"
+              color={colors.textMuted}
             />
-            <Text variant="bodySmall" style={styles.unpaidText}>
+            <Text variant="bodySmall" style={[styles.unpaidText, { color: colors.textMuted }]}>
               Unpaid
             </Text>
           </View>
@@ -387,7 +398,6 @@ function PaymentRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
 
   // Header
@@ -416,15 +426,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.5,
   },
-  currencyCode: {
-    color: '#9CA3AF',
-  },
+  currencyCode: {},
 
   // Details card
   detailsCard: {
     borderRadius: 12,
     padding: 16,
-    backgroundColor: '#ffffff',
   },
   detailRow: {
     flexDirection: 'row',
@@ -434,30 +441,24 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   detailLabel: {
-    color: '#6B7280',
     fontWeight: '500',
     flexShrink: 0,
   },
   detailValue: {
-    color: '#111827',
     textAlign: 'right',
   },
   dueDateValue: {
     alignItems: 'flex-end',
     gap: 2,
   },
-  relativeDateText: {
-    color: '#9CA3AF',
-  },
+  relativeDateText: {},
   descriptionText: {
-    color: '#374151',
     flex: 1,
     textAlign: 'right',
     lineHeight: 22,
   },
   divider: {
     marginVertical: 8,
-    backgroundColor: '#F3F4F6',
   },
 
   // Mark as paid button
@@ -479,12 +480,10 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontWeight: '600',
-    color: '#111827',
   },
   historyCard: {
     borderRadius: 12,
     padding: 16,
-    backgroundColor: '#ffffff',
   },
   paymentRow: {
     flexDirection: 'row',
@@ -497,12 +496,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   paymentDate: {
-    color: '#111827',
     fontWeight: '500',
   },
-  paymentAmount: {
-    color: '#6B7280',
-  },
+  paymentAmount: {},
   paymentRight: {
     alignItems: 'flex-end',
     marginLeft: 12,
@@ -516,15 +512,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   paidText: {
-    color: '#16A34A',
     fontWeight: '600',
   },
   paidAtText: {
-    color: '#9CA3AF',
     marginTop: 1,
   },
   unpaidText: {
-    color: '#9CA3AF',
     fontWeight: '500',
   },
 })

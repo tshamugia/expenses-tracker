@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, Surface } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface StatCardProps {
   icon: string
@@ -20,8 +21,10 @@ interface StatCardProps {
  *   </View>
  */
 export function StatCard({ icon, label, value, color }: StatCardProps) {
+  const { colors } = useAppTheme()
+
   return (
-    <Surface style={styles.surface} elevation={1}>
+    <Surface style={[styles.surface, { backgroundColor: colors.cardBackground }]} elevation={1}>
       <View style={[styles.iconContainer, { backgroundColor: `${color}1A` }]}>
         <MaterialCommunityIcons
           name={icon as keyof typeof MaterialCommunityIcons.glyphMap}
@@ -29,10 +32,10 @@ export function StatCard({ icon, label, value, color }: StatCardProps) {
           color={color}
         />
       </View>
-      <Text variant="bodySmall" style={styles.label}>
+      <Text variant="bodySmall" style={[styles.label, { color: colors.textTertiary }]}>
         {label}
       </Text>
-      <Text variant="headlineSmall" style={styles.value} numberOfLines={1}>
+      <Text variant="headlineSmall" style={[styles.value, { color: colors.textPrimary }]} numberOfLines={1}>
         {value}
       </Text>
     </Surface>
@@ -44,7 +47,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
   },
   iconContainer: {
     width: 48,
@@ -55,11 +57,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   label: {
-    color: '#6B7280',
     marginBottom: 4,
   },
   value: {
     fontWeight: '700',
-    color: '#111827',
   },
 })

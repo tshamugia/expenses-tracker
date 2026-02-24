@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native'
 import { Button, Dialog, Portal, Text, TextInput, HelperText } from 'react-native-paper'
 import { useCreateCategory, useUpdateCategory, useSnackbar } from '@/lib/hooks'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 const PRESET_COLORS = [
   '#6366F1',
@@ -30,6 +31,7 @@ export function CategoryFormDialog({
   onDismiss,
   initialValues,
 }: CategoryFormDialogProps) {
+  const { colors } = useAppTheme()
   const isEditMode = !!initialValues
   const { showSnackbar } = useSnackbar()
   const createCategory = useCreateCategory()
@@ -91,9 +93,9 @@ export function CategoryFormDialog({
       <Dialog
         visible={visible}
         onDismiss={isPending ? undefined : onDismiss}
-        style={styles.dialog}
+        style={[styles.dialog, { backgroundColor: colors.cardBackground }]}
       >
-        <Dialog.Title style={styles.dialogTitle}>
+        <Dialog.Title style={[styles.dialogTitle, { color: colors.textPrimary }]}>
           {isEditMode ? 'Edit Category' : 'New Category'}
         </Dialog.Title>
         <Dialog.Content>
@@ -106,8 +108,11 @@ export function CategoryFormDialog({
             }}
             mode="outlined"
             error={!!nameError}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
             outlineStyle={styles.inputOutline}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
+            textColor={colors.textPrimary}
             maxLength={50}
           />
           {nameError ? (
@@ -116,7 +121,7 @@ export function CategoryFormDialog({
             </HelperText>
           ) : null}
 
-          <Text variant="bodyMedium" style={styles.colorLabel}>
+          <Text variant="bodyMedium" style={[styles.colorLabel, { color: colors.textSecondary }]}>
             Color
           </Text>
           <View style={styles.colorRow}>
@@ -127,7 +132,7 @@ export function CategoryFormDialog({
                 style={[
                   styles.colorCircle,
                   { backgroundColor: c },
-                  color === c && styles.colorSelected,
+                  color === c && [styles.colorSelected, { borderColor: colors.textPrimary }],
                 ]}
               />
             ))}
@@ -138,7 +143,7 @@ export function CategoryFormDialog({
             mode="text"
             onPress={onDismiss}
             disabled={isPending}
-            textColor="#6B7280"
+            textColor={colors.textTertiary}
           >
             Cancel
           </Button>
@@ -147,7 +152,7 @@ export function CategoryFormDialog({
             onPress={handleSubmit}
             loading={isPending}
             disabled={isPending}
-            buttonColor="#6366F1"
+            buttonColor={colors.brandPrimary}
             style={styles.submitButton}
           >
             {isEditMode ? 'Update' : 'Create'}
@@ -161,20 +166,15 @@ export function CategoryFormDialog({
 const styles = StyleSheet.create({
   dialog: {
     borderRadius: 16,
-    backgroundColor: '#ffffff',
   },
   dialogTitle: {
     fontWeight: '600',
-    color: '#111827',
   },
-  input: {
-    backgroundColor: '#ffffff',
-  },
+  input: {},
   inputOutline: {
     borderRadius: 12,
   },
   colorLabel: {
-    color: '#374151',
     marginTop: 16,
     marginBottom: 8,
     fontWeight: '500',
@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
   },
   colorSelected: {
     borderWidth: 3,
-    borderColor: '#111827',
   },
   actions: {
     paddingHorizontal: 16,

@@ -1,14 +1,16 @@
-import { useState, useCallback, useMemo } from 'react'
-import { View, ScrollView, RefreshControl, StyleSheet } from 'react-native'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { View, ScrollView, RefreshControl, StyleSheet, Animated } from 'react-native'
 import { Text } from 'react-native-paper'
 import { useRouter } from 'expo-router'
 import { formatCurrency } from '@extracker/core'
 import { useDashboard } from '@/lib/hooks'
-import { ScreenLoading } from '@/components/screen-loading'
+import { DashboardSkeleton } from '@/components/skeletons'
 import { ScreenError } from '@/components/screen-error'
 import { EmptyState } from '@/components/empty-state'
 import { StatCard } from '@/components/stat-card'
 import { ExpenseCard } from '@/components/expense-card'
+import { useAppTheme } from '@/lib/theme/theme-context'
+import { AnimatedListItem } from '@/components/animated-list-item'
 import type { CategoryData } from '@extracker/types'
 
 const CATEGORY_COLORS = [
@@ -32,6 +34,7 @@ const CATEGORY_COLORS = [
  */
 export default function DashboardScreen() {
   const router = useRouter()
+  const { colors } = useAppTheme()
   const { data, isLoading, error, refetch } = useDashboard()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -51,7 +54,7 @@ export default function DashboardScreen() {
   }, [data?.categoryData])
 
   if (isLoading) {
-    return <ScreenLoading />
+    return <DashboardSkeleton />
   }
 
   if (error) {
@@ -66,21 +69,21 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView
-      style={styles.scrollView}
+      style={[styles.scrollView, { backgroundColor: colors.screenBackground }]}
       contentContainerStyle={styles.contentContainer}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
           onRefresh={onRefresh}
-          colors={['#6366F1']}
-          tintColor="#6366F1"
+          colors={[colors.refreshTint]}
+          tintColor={colors.refreshTint}
         />
       }
       showsVerticalScrollIndicator={false}
     >
       {/* Stats Grid */}
       <View style={styles.statsGrid}>
-        <View style={styles.statsRow}>
+        <FadeInView delay={0} style={styles.statsRow}>
           <StatCard
             icon="currency-usd"
             label="Total"
@@ -93,8 +96,8 @@ export default function DashboardScreen() {
             value={formatCurrency(stats.paid)}
             color="#16A34A"
           />
-        </View>
-        <View style={styles.statsRow}>
+        </FadeInView>
+        <FadeInView delay={100} style={styles.statsRow}>
           <StatCard
             icon="clock-outline"
             label="Pending"
@@ -107,22 +110,23 @@ export default function DashboardScreen() {
             value={formatCurrency(stats.overdue)}
             color="#DC2626"
           />
-        </View>
+        </FadeInView>
       </View>
 
       {/* Upcoming Expenses Section */}
-      <Text variant="titleMedium" style={styles.sectionHeader}>
+      <Text variant="titleMedium" style={[styles.sectionHeader, { color: colors.textPrimary }]}>
         Upcoming Expenses
       </Text>
 
       {upcomingExpenses.length > 0 ? (
         <View style={styles.expenseList}>
-          {upcomingExpenses.map((expense) => (
-            <ExpenseCard
-              key={expense.id}
-              expense={expense}
-              onPress={() => router.push(`/expense/${expense.id}`)}
-            />
+          {upcomingExpenses.map((expense, index) => (
+            <AnimatedListItem key={expense.id} index={index}>
+              <ExpenseCard
+                expense={expense}
+                onPress={() => router.push(`/expense/${expense.id}`)}
+              />
+            </AnimatedListItem>
           ))}
         </View>
       ) : (
@@ -134,7 +138,7 @@ export default function DashboardScreen() {
       )}
 
       {/* By Category Section */}
-      <Text variant="titleMedium" style={styles.sectionHeader}>
+      <Text variant="titleMedium" style={[styles.sectionHeader, { color: colors.textPrimary }]}>
         By Category
       </Text>
 
@@ -161,6 +165,43 @@ export default function DashboardScreen() {
 }
 
 // ---------------------------------------------------------------------------
+// Fade-in animation helper
+// ---------------------------------------------------------------------------
+
+interface FadeInViewProps {
+  delay: number
+  style?: object
+  children: React.ReactNode
+}
+
+function FadeInView({ delay, style, children }: FadeInViewProps) {
+  const opacity = useRef(new Animated.Value(0)).current
+  const translateY = useRef(new Animated.Value(-15)).current
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.spring(translateY, {
+        toValue: 0,
+        delay,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [opacity, translateY, delay])
+
+  return (
+    <Animated.View style={[style, { opacity, transform: [{ translateY }] }]}>
+      {children}
+    </Animated.View>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Category breakdown row
 // ---------------------------------------------------------------------------
 
@@ -171,6 +212,8 @@ interface CategoryRowProps {
 }
 
 function CategoryRow({ item, color, maxAmount }: CategoryRowProps) {
+  const { colors } = useAppTheme()
+
   // Bar fills proportionally relative to the largest category amount.
   // Clamp to a minimum of 8% so small values are still visible.
   const barPercent = maxAmount > 0
@@ -183,14 +226,14 @@ function CategoryRow({ item, color, maxAmount }: CategoryRowProps) {
         <View style={[styles.categoryDot, { backgroundColor: color }]} />
         <Text
           variant="bodyMedium"
-          style={styles.categoryName}
+          style={[styles.categoryName, { color: colors.textSecondary }]}
           numberOfLines={1}
         >
           {item.category}
         </Text>
       </View>
 
-      <View style={styles.categoryBarTrack}>
+      <View style={[styles.categoryBarTrack, { backgroundColor: colors.border }]}>
         <View
           style={[
             styles.categoryBarFill,
@@ -200,7 +243,7 @@ function CategoryRow({ item, color, maxAmount }: CategoryRowProps) {
       </View>
 
       <View style={styles.categoryRight}>
-        <Text variant="bodyMedium" style={styles.categoryAmount}>
+        <Text variant="bodyMedium" style={[styles.categoryAmount, { color: colors.textPrimary }]}>
           {formatCurrency(item.amount)}
         </Text>
         <View style={[styles.countBadge, { backgroundColor: `${color}1A` }]}>
@@ -220,7 +263,6 @@ function CategoryRow({ item, color, maxAmount }: CategoryRowProps) {
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   contentContainer: {
     padding: 16,
@@ -239,7 +281,6 @@ const styles = StyleSheet.create({
   // Section Headers
   sectionHeader: {
     fontWeight: '600',
-    color: '#111827',
     marginTop: 24,
     marginBottom: 12,
   },
@@ -271,12 +312,10 @@ const styles = StyleSheet.create({
   categoryName: {
     flex: 1,
     fontWeight: '500',
-    color: '#374151',
   },
   categoryBarTrack: {
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F3F4F6',
     overflow: 'hidden',
   },
   categoryBarFill: {
@@ -290,7 +329,6 @@ const styles = StyleSheet.create({
   },
   categoryAmount: {
     fontWeight: '600',
-    color: '#111827',
   },
   countBadge: {
     paddingHorizontal: 8,

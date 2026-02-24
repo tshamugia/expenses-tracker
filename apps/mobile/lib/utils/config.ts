@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 
 // LAN IP of the dev machine - update if your network changes
-const DEV_LAN_IP = "192.168.2.201";
+const DEV_LAN_IP = "192.168.1.7";
 
 export function getApiUrl(): string {
   const envUrl = process.env.EXPO_PUBLIC_API_URL;

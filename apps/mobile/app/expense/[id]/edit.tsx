@@ -5,7 +5,9 @@ import { ExpenseForm } from '@/components/form'
 import type { ExpenseFormValues } from '@/components/form'
 import { useExpense, useUpdateExpense } from '@/lib/hooks'
 import { useSnackbar } from '@/lib/hooks/use-snackbar'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { hapticSuccess, hapticError } from '@/lib/utils/haptics'
 import { ScreenLoading } from '@/components/screen-loading'
 import { ScreenError } from '@/components/screen-error'
 
@@ -40,6 +42,7 @@ export default function EditExpenseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const { showSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
 
   // Fetch existing expense data
   const { data: expense, isLoading, error, refetch } = useExpense(id!)
@@ -86,10 +89,12 @@ export default function EditExpenseScreen() {
       body as unknown as Parameters<typeof updateExpense.mutate>[0],
       {
         onSuccess: () => {
+          hapticSuccess()
           showSnackbar('Expense updated successfully', 'success')
           router.back()
         },
         onError: (err) => {
+          hapticError()
           showSnackbar(getApiErrorMessage(err), 'error')
         },
       },
@@ -102,7 +107,7 @@ export default function EditExpenseScreen() {
   if (!expense) return <ScreenError message="Expense not found" />
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackground }]}>
       <Stack.Screen options={{ title: 'Edit Expense' }} />
       <ExpenseForm
         initialValues={initialValues}
@@ -117,6 +122,5 @@ export default function EditExpenseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
 })

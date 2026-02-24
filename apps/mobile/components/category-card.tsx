@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, IconButton, Surface } from 'react-native-paper'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface CategoryCardProps {
   category: {
@@ -12,25 +13,27 @@ interface CategoryCardProps {
 }
 
 export function CategoryCard({ category, onEdit, onDelete }: CategoryCardProps) {
+  const { colors } = useAppTheme()
+
   return (
-    <Surface elevation={1} style={styles.card}>
+    <Surface elevation={1} style={[styles.card, { backgroundColor: colors.cardBackground }]}>
       <View
         style={[styles.colorDot, { backgroundColor: category.color }]}
       />
-      <Text variant="bodyLarge" style={styles.name} numberOfLines={1}>
+      <Text variant="bodyLarge" style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
         {category.categoryName}
       </Text>
       <IconButton
         icon="pencil-outline"
         size={20}
-        iconColor="#6B7280"
+        iconColor={colors.textTertiary}
         onPress={onEdit}
         style={styles.iconButton}
       />
       <IconButton
         icon="delete-outline"
         size={20}
-        iconColor="#EF4444"
+        iconColor={colors.error}
         onPress={onDelete}
         style={styles.iconButton}
       />
@@ -46,7 +49,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
   },
   colorDot: {
     width: 16,
@@ -57,7 +59,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     fontWeight: '500',
-    color: '#111827',
   },
   iconButton: {
     margin: 0,

@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, IconButton, Surface } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface PaymentCardCardProps {
   card: {
@@ -18,11 +19,12 @@ interface PaymentCardCardProps {
 }
 
 export function PaymentCardCard({ card, onEdit, onDelete }: PaymentCardCardProps) {
-  const displayName = card.nickname || `•••• ${card.lastFourDigits}`
+  const { colors } = useAppTheme()
+  const displayName = card.nickname || `\u2022\u2022\u2022\u2022 ${card.lastFourDigits}`
   const expiryDisplay = `${String(card.expiryMonth).padStart(2, '0')}/${card.expiryYear}`
 
   return (
-    <Surface elevation={1} style={styles.card}>
+    <Surface elevation={1} style={[styles.card, { backgroundColor: colors.cardBackground }]}>
       <View style={[styles.iconContainer, { backgroundColor: `${card.color}14` }]}>
         <MaterialCommunityIcons
           name="credit-card"
@@ -31,27 +33,27 @@ export function PaymentCardCard({ card, onEdit, onDelete }: PaymentCardCardProps
         />
       </View>
       <View style={styles.info}>
-        <Text variant="bodyLarge" style={styles.name} numberOfLines={1}>
+        <Text variant="bodyLarge" style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
           {displayName}
         </Text>
-        <Text variant="bodySmall" style={styles.meta}>
+        <Text variant="bodySmall" style={[styles.meta, { color: colors.textTertiary }]}>
           {card.cardBrand} · {expiryDisplay}
         </Text>
-        <Text variant="bodySmall" style={styles.holder} numberOfLines={1}>
+        <Text variant="bodySmall" style={[styles.holder, { color: colors.textMuted }]} numberOfLines={1}>
           {card.cardholderName}
         </Text>
       </View>
       <IconButton
         icon="pencil-outline"
         size={20}
-        iconColor="#6B7280"
+        iconColor={colors.textTertiary}
         onPress={onEdit}
         style={styles.iconButton}
       />
       <IconButton
         icon="delete-outline"
         size={20}
-        iconColor="#EF4444"
+        iconColor={colors.error}
         onPress={onDelete}
         style={styles.iconButton}
       />
@@ -67,7 +69,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
   },
   iconContainer: {
     width: 44,
@@ -82,14 +83,11 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: '600',
-    color: '#111827',
   },
   meta: {
-    color: '#6B7280',
     marginTop: 2,
   },
   holder: {
-    color: '#9CA3AF',
     marginTop: 1,
   },
   iconButton: {

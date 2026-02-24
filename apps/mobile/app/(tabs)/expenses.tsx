@@ -12,10 +12,12 @@ import { useRouter } from 'expo-router'
 import { useExpenses, useCategories } from '@/lib/hooks'
 import { useExpenseFilterStore } from '@/lib/stores/expense-filter-store'
 import type { ExpenseStatusFilter } from '@/lib/stores/expense-filter-store'
-import { ScreenLoading } from '@/components/screen-loading'
+import { ExpenseListSkeleton } from '@/components/skeletons'
 import { ScreenError } from '@/components/screen-error'
 import { EmptyState } from '@/components/empty-state'
 import { ExpenseCard } from '@/components/expense-card'
+import { AnimatedListItem } from '@/components/animated-list-item'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import type { ExpenseListItem } from '@extracker/types'
 
 // ---------------------------------------------------------------------------
@@ -55,6 +57,7 @@ function filterByStatus(
 
 export default function ExpensesScreen() {
   const router = useRouter()
+  const { colors } = useAppTheme()
 
   // Filter store
   const category = useExpenseFilterStore((s) => s.category)
@@ -111,11 +114,13 @@ export default function ExpensesScreen() {
 
   // Render helpers
   const renderItem = useCallback(
-    ({ item }: { item: ExpenseListItem }) => (
-      <ExpenseCard
-        expense={item}
-        onPress={() => router.push(`/expense/${item.id}`)}
-      />
+    ({ item, index }: { item: ExpenseListItem; index: number }) => (
+      <AnimatedListItem index={index}>
+        <ExpenseCard
+          expense={item}
+          onPress={() => router.push(`/expense/${item.id}`)}
+        />
+      </AnimatedListItem>
     ),
     [router],
   )
@@ -126,10 +131,10 @@ export default function ExpensesScreen() {
     if (!isFetchingNextPage) return null
     return (
       <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color="#6366F1" />
+        <ActivityIndicator size="small" color={colors.brandPrimary} />
       </View>
     )
-  }, [isFetchingNextPage])
+  }, [isFetchingNextPage, colors.brandPrimary])
 
   const renderEmpty = useCallback(() => {
     // Don't show empty state while the initial load is in progress
@@ -159,7 +164,7 @@ export default function ExpensesScreen() {
   // ---------------------------------------------------------------------------
 
   if (isLoading) {
-    return <ScreenLoading />
+    return <ExpenseListSkeleton />
   }
 
   if (error) {
@@ -173,9 +178,9 @@ export default function ExpensesScreen() {
   const categoryChipLabel = category ?? 'Category'
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackground }]}>
       {/* Filter chips row */}
-      <View style={styles.filterRow}>
+      <View style={[styles.filterRow, { borderBottomColor: colors.border }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -187,15 +192,17 @@ export default function ExpensesScreen() {
               key={filter.value}
               mode="flat"
               selected={status === filter.value}
-              selectedColor="#6366F1"
+              selectedColor={colors.chipSelectedText}
               onPress={() => setStatus(filter.value)}
               style={[
                 styles.chip,
-                status === filter.value && styles.chipSelected,
+                { backgroundColor: colors.chipBackground },
+                status === filter.value && { backgroundColor: colors.chipSelectedBackground },
               ]}
               textStyle={[
                 styles.chipText,
-                status === filter.value && styles.chipTextSelected,
+                { color: colors.chipText },
+                status === filter.value && { color: colors.chipSelectedText },
               ]}
               showSelectedOverlay={false}
             >
@@ -211,24 +218,26 @@ export default function ExpensesScreen() {
               <Chip
                 mode="flat"
                 selected={category !== null}
-                selectedColor="#6366F1"
+                selectedColor={colors.chipSelectedText}
                 onPress={() => setCategoryMenuVisible(true)}
                 closeIcon="chevron-down"
                 onClose={() => setCategoryMenuVisible(true)}
                 style={[
                   styles.chip,
-                  category !== null && styles.chipSelected,
+                  { backgroundColor: colors.chipBackground },
+                  category !== null && { backgroundColor: colors.chipSelectedBackground },
                 ]}
                 textStyle={[
                   styles.chipText,
-                  category !== null && styles.chipTextSelected,
+                  { color: colors.chipText },
+                  category !== null && { color: colors.chipSelectedText },
                 ]}
                 showSelectedOverlay={false}
               >
                 {categoryChipLabel}
               </Chip>
             }
-            contentStyle={styles.menuContent}
+            contentStyle={[styles.menuContent, { backgroundColor: colors.cardBackground }]}
           >
             <Menu.Item
               onPress={() => {
@@ -238,7 +247,7 @@ export default function ExpensesScreen() {
               title="All Categories"
               leadingIcon={category === null ? 'check' : undefined}
               titleStyle={
-                category === null ? styles.menuItemActive : undefined
+                category === null ? [styles.menuItemActive, { color: colors.brandPrimary }] : undefined
               }
             />
             {categories.length > 0 && <Divider />}
@@ -255,7 +264,7 @@ export default function ExpensesScreen() {
                 }
                 titleStyle={
                   category === cat.categoryName
-                    ? styles.menuItemActive
+                    ? [styles.menuItemActive, { color: colors.brandPrimary }]
                     : undefined
                 }
               />
@@ -279,8 +288,8 @@ export default function ExpensesScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#6366F1']}
-            tintColor="#6366F1"
+            colors={[colors.refreshTint]}
+            tintColor={colors.refreshTint}
           />
         }
         ListFooterComponent={renderFooter}
@@ -291,8 +300,8 @@ export default function ExpensesScreen() {
       {/* Floating action button */}
       <FAB
         icon="plus"
-        color="#ffffff"
-        style={styles.fab}
+        color={colors.fabText}
+        style={[styles.fab, { backgroundColor: colors.fabBackground }]}
         onPress={() => router.push('/expense/create')}
         accessibilityLabel="Add new expense"
         accessibilityRole="button"
@@ -308,14 +317,12 @@ export default function ExpensesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
 
   // Filter row
   filterRow: {
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
   },
   filterScrollContent: {
     paddingHorizontal: 16,
@@ -323,29 +330,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   chip: {
-    backgroundColor: '#F3F4F6',
     borderRadius: 20,
   },
-  chipSelected: {
-    backgroundColor: '#EEF2FF',
-  },
   chipText: {
-    color: '#6B7280',
     fontSize: 13,
     fontWeight: '500',
-  },
-  chipTextSelected: {
-    color: '#6366F1',
-    fontWeight: '600',
   },
 
   // Menu
   menuContent: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
   },
   menuItemActive: {
-    color: '#6366F1',
     fontWeight: '600',
   },
 
@@ -368,7 +364,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 16,
     right: 16,
-    backgroundColor: '#6366F1',
     borderRadius: 16,
   },
 })

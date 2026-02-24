@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, Pressable } from 'react-native'
 import { Button, Dialog, Portal, Text, TextInput, HelperText } from 'react-native-paper'
 import { useCreatePaymentCard, useUpdatePaymentCard, useSnackbar } from '@/lib/hooks'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 const PRESET_COLORS = [
   '#1E40AF',
@@ -50,6 +51,7 @@ export function PaymentCardFormDialog({
   onDismiss,
   initialValues,
 }: PaymentCardFormDialogProps) {
+  const { colors } = useAppTheme()
   const isEditMode = !!initialValues
   const { showSnackbar } = useSnackbar()
   const createCard = useCreatePaymentCard()
@@ -175,9 +177,9 @@ export function PaymentCardFormDialog({
       <Dialog
         visible={visible}
         onDismiss={isPending ? undefined : onDismiss}
-        style={styles.dialog}
+        style={[styles.dialog, { backgroundColor: colors.cardBackground }]}
       >
-        <Dialog.Title style={styles.dialogTitle}>
+        <Dialog.Title style={[styles.dialogTitle, { color: colors.textPrimary }]}>
           {isEditMode ? 'Edit Card' : 'Add Card'}
         </Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
@@ -192,8 +194,11 @@ export function PaymentCardFormDialog({
                 }}
                 mode="outlined"
                 error={!!errors.cardholderName}
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground }]}
                 outlineStyle={styles.inputOutline}
+                outlineColor={colors.inputBorder}
+                activeOutlineColor={colors.brandPrimary}
+                textColor={colors.textPrimary}
               />
               {errors.cardholderName ? (
                 <HelperText type="error" visible>
@@ -214,8 +219,11 @@ export function PaymentCardFormDialog({
                     error={!!errors.cardNumber}
                     keyboardType="numeric"
                     maxLength={19}
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.inputBackground }]}
                     outlineStyle={styles.inputOutline}
+                    outlineColor={colors.inputBorder}
+                    activeOutlineColor={colors.brandPrimary}
+                    textColor={colors.textPrimary}
                   />
                   {errors.cardNumber ? (
                     <HelperText type="error" visible>
@@ -239,8 +247,11 @@ export function PaymentCardFormDialog({
                     keyboardType="numeric"
                     maxLength={2}
                     placeholder="MM"
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.inputBackground }]}
                     outlineStyle={styles.inputOutline}
+                    outlineColor={colors.inputBorder}
+                    activeOutlineColor={colors.brandPrimary}
+                    textColor={colors.textPrimary}
                   />
                   {errors.expiryMonth ? (
                     <HelperText type="error" visible>
@@ -261,8 +272,11 @@ export function PaymentCardFormDialog({
                     keyboardType="numeric"
                     maxLength={4}
                     placeholder="YYYY"
-                    style={styles.input}
+                    style={[styles.input, { backgroundColor: colors.inputBackground }]}
                     outlineStyle={styles.inputOutline}
+                    outlineColor={colors.inputBorder}
+                    activeOutlineColor={colors.brandPrimary}
+                    textColor={colors.textPrimary}
                   />
                   {errors.expiryYear ? (
                     <HelperText type="error" visible>
@@ -277,11 +291,14 @@ export function PaymentCardFormDialog({
                 value={nickname}
                 onChangeText={setNickname}
                 mode="outlined"
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.inputBackground }]}
                 outlineStyle={styles.inputOutline}
+                outlineColor={colors.inputBorder}
+                activeOutlineColor={colors.brandPrimary}
+                textColor={colors.textPrimary}
               />
 
-              <Text variant="bodyMedium" style={styles.colorLabel}>
+              <Text variant="bodyMedium" style={[styles.colorLabel, { color: colors.textSecondary }]}>
                 Color
               </Text>
               <View style={styles.colorRow}>
@@ -292,7 +309,7 @@ export function PaymentCardFormDialog({
                     style={[
                       styles.colorCircle,
                       { backgroundColor: c },
-                      color === c && styles.colorSelected,
+                      color === c && [styles.colorSelected, { borderColor: colors.textPrimary }],
                     ]}
                   />
                 ))}
@@ -305,7 +322,7 @@ export function PaymentCardFormDialog({
             mode="text"
             onPress={onDismiss}
             disabled={isPending}
-            textColor="#6B7280"
+            textColor={colors.textTertiary}
           >
             Cancel
           </Button>
@@ -314,7 +331,7 @@ export function PaymentCardFormDialog({
             onPress={handleSubmit}
             loading={isPending}
             disabled={isPending}
-            buttonColor="#6366F1"
+            buttonColor={colors.brandPrimary}
             style={styles.submitButton}
           >
             {isEditMode ? 'Update' : 'Add Card'}
@@ -328,12 +345,10 @@ export function PaymentCardFormDialog({
 const styles = StyleSheet.create({
   dialog: {
     borderRadius: 16,
-    backgroundColor: '#ffffff',
     maxHeight: '80%',
   },
   dialogTitle: {
     fontWeight: '600',
-    color: '#111827',
   },
   scrollArea: {
     paddingHorizontal: 0,
@@ -343,7 +358,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   input: {
-    backgroundColor: '#ffffff',
     marginTop: 8,
   },
   inputOutline: {
@@ -357,7 +371,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   colorLabel: {
-    color: '#374151',
     marginTop: 16,
     marginBottom: 8,
     fontWeight: '500',
@@ -374,7 +387,6 @@ const styles = StyleSheet.create({
   },
   colorSelected: {
     borderWidth: 3,
-    borderColor: '#111827',
   },
   actions: {
     paddingHorizontal: 16,

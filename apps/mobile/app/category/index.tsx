@@ -5,7 +5,10 @@ import { ScreenLoading, ScreenError, EmptyState, ConfirmDialog } from '@/compone
 import { CategoryCard } from '@/components/category-card'
 import { CategoryFormDialog } from '@/components/form/category-form-dialog'
 import { useCategories, useDeleteCategory, useSnackbar } from '@/lib/hooks'
+import { useAppTheme } from '@/lib/theme/theme-context'
+import { AnimatedListItem } from '@/components/animated-list-item'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { hapticMedium, hapticError } from '@/lib/utils/haptics'
 
 interface EditTarget {
   id: string
@@ -15,6 +18,7 @@ interface EditTarget {
 
 export default function CategoriesScreen() {
   const { showSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
   const { data, isLoading, isError, error, refetch } = useCategories()
   const deleteCategory = useDeleteCategory()
 
@@ -43,10 +47,12 @@ export default function CategoriesScreen() {
     if (!deleteTarget) return
     deleteCategory.mutate(deleteTarget, {
       onSuccess: () => {
+        hapticMedium()
         showSnackbar('Category deleted', 'success')
         setDeleteTarget(null)
       },
       onError: (err) => {
+        hapticError()
         showSnackbar(getApiErrorMessage(err, 'Cannot delete — expenses still use this category'), 'error')
         setDeleteTarget(null)
       },
@@ -64,22 +70,24 @@ export default function CategoriesScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackgroundSecondary }]}>
       <FlatList
         data={categories}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <CategoryCard
-            category={item}
-            onEdit={() => handleEdit(item)}
-            onDelete={() => setDeleteTarget(item.id)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index}>
+            <CategoryCard
+              category={item}
+              onEdit={() => handleEdit(item)}
+              onDelete={() => setDeleteTarget(item.id)}
+            />
+          </AnimatedListItem>
         )}
         refreshControl={
           <RefreshControl
             refreshing={false}
             onRefresh={refetch}
-            colors={['#6366F1']}
+            colors={[colors.refreshTint]}
           />
         }
         contentContainerStyle={
@@ -98,8 +106,8 @@ export default function CategoriesScreen() {
 
       <FAB
         icon="plus"
-        style={styles.fab}
-        color="#ffffff"
+        style={[styles.fab, { backgroundColor: colors.fabBackground }]}
+        color={colors.fabText}
         onPress={handleCreate}
       />
 
@@ -126,7 +134,6 @@ export default function CategoriesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   listContent: {
     paddingTop: 12,
@@ -139,7 +146,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
-    backgroundColor: '#6366F1',
     borderRadius: 16,
   },
 })

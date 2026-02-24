@@ -9,11 +9,14 @@ import {
 import { TextInput, Button, HelperText } from 'react-native-paper'
 import { Stack, useRouter } from 'expo-router'
 import { useChangePassword, useSnackbar } from '@/lib/hooks'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { hapticSuccess, hapticError } from '@/lib/utils/haptics'
 
 export default function ChangePasswordScreen() {
   const router = useRouter()
   const { showSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
   const changePassword = useChangePassword()
 
   const [currentPassword, setCurrentPassword] = useState('')
@@ -62,10 +65,12 @@ export default function ChangePasswordScreen() {
       { currentPassword, newPassword },
       {
         onSuccess: () => {
+          hapticSuccess()
           showSnackbar('Password changed successfully', 'success')
           router.back()
         },
         onError: (err) => {
+          hapticError()
           const message = getApiErrorMessage(err)
           if (message.toLowerCase().includes('incorrect') || message.toLowerCase().includes('wrong')) {
             setErrors({ currentPassword: 'Current password is incorrect' })
@@ -82,13 +87,13 @@ export default function ChangePasswordScreen() {
       <Stack.Screen
         options={{
           title: 'Change Password',
-          headerStyle: { backgroundColor: '#6366F1' },
+          headerStyle: { backgroundColor: colors.headerBackground },
           headerTintColor: '#ffffff',
           headerTitleStyle: { fontWeight: '600' },
         }}
       />
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={[styles.flex, { backgroundColor: colors.screenBackground }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
@@ -105,7 +110,7 @@ export default function ChangePasswordScreen() {
             mode="outlined"
             secureTextEntry={!showCurrent}
             error={!!errors.currentPassword}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
             outlineStyle={styles.inputOutline}
             right={
               <TextInput.Icon
@@ -130,7 +135,7 @@ export default function ChangePasswordScreen() {
             mode="outlined"
             secureTextEntry={!showNew}
             error={!!errors.newPassword}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
             outlineStyle={styles.inputOutline}
             right={
               <TextInput.Icon
@@ -155,7 +160,7 @@ export default function ChangePasswordScreen() {
             mode="outlined"
             secureTextEntry={!showConfirm}
             error={!!errors.confirmPassword}
-            style={styles.input}
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
             outlineStyle={styles.inputOutline}
             right={
               <TextInput.Icon
@@ -175,7 +180,7 @@ export default function ChangePasswordScreen() {
             onPress={handleSubmit}
             loading={changePassword.isPending}
             disabled={changePassword.isPending}
-            buttonColor="#6366F1"
+            buttonColor={colors.brandPrimary}
             style={styles.submitButton}
             contentStyle={styles.submitContent}
           >
@@ -190,15 +195,12 @@ export default function ChangePasswordScreen() {
 const styles = StyleSheet.create({
   flex: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   scrollContent: {
     padding: 24,
     gap: 4,
   },
-  input: {
-    backgroundColor: '#ffffff',
-  },
+  input: {},
   inputOutline: {
     borderRadius: 12,
   },

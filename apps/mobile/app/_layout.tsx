@@ -2,28 +2,22 @@ import { useEffect, useRef } from 'react'
 import { ActivityIndicator, View, StyleSheet } from 'react-native'
 import { Slot, useRouter, useSegments } from 'expo-router'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { PaperProvider, Portal, Snackbar, MD3LightTheme } from 'react-native-paper'
+import { Portal, Snackbar } from 'react-native-paper'
 import { StatusBar } from 'expo-status-bar'
 import { useAuthStore } from '@/lib/stores/auth-store'
 import { createQueryClient } from '@/lib/api/query-client'
 import { useSnackbar } from '@/lib/hooks/use-snackbar'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { ThemeProvider, useAppTheme } from '@/lib/theme/theme-context'
 
 const queryClient = createQueryClient()
-
-const theme = {
-  ...MD3LightTheme,
-  colors: {
-    ...MD3LightTheme.colors,
-    primary: '#6366F1',
-    secondary: '#8B5CF6',
-  },
-}
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, initialize } = useAuthStore()
   const segments = useSegments()
   const router = useRouter()
   const initialized = useRef(false)
+  const { colors } = useAppTheme()
 
   useEffect(() => {
     if (!initialized.current) {
@@ -46,8 +40,8 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#6366F1" />
+      <View style={[styles.loading, { backgroundColor: colors.screenBackground }]}>
+        <ActivityIndicator size="large" color={colors.brandPrimary} />
       </View>
     )
   }
@@ -55,21 +49,22 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
-const SNACKBAR_COLORS: Record<string, string> = {
-  success: '#16A34A',
-  error: '#DC2626',
-  info: '#6366F1',
-}
-
 function GlobalSnackbar() {
   const { visible, message, type, hideSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
+
+  const snackbarColors: Record<string, string> = {
+    success: colors.success,
+    error: colors.error,
+    info: colors.brandPrimary,
+  }
 
   return (
     <Snackbar
       visible={visible}
       onDismiss={hideSnackbar}
       duration={3000}
-      style={{ backgroundColor: SNACKBAR_COLORS[type] || SNACKBAR_COLORS.info }}
+      style={{ backgroundColor: snackbarColors[type] || snackbarColors.info }}
       action={{ label: 'OK', textColor: '#ffffff', onPress: hideSnackbar }}
     >
       {message}
@@ -77,18 +72,25 @@ function GlobalSnackbar() {
   )
 }
 
+function ThemedStatusBar() {
+  const { isDark } = useAppTheme()
+  return <StatusBar style={isDark ? 'light' : 'dark'} />
+}
+
 export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={theme}>
-        <StatusBar style="auto" />
+      <ThemeProvider>
+        <ThemedStatusBar />
         <AuthGuard>
           <Portal.Host>
-            <Slot />
-            <GlobalSnackbar />
+            <ErrorBoundary>
+              <Slot />
+              <GlobalSnackbar />
+            </ErrorBoundary>
           </Portal.Host>
         </AuthGuard>
-      </PaperProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   )
 }
@@ -98,6 +100,5 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
   },
 })

@@ -1,5 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { Text } from 'react-native-paper'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface CategoryChipProps {
   name: string
@@ -11,10 +12,12 @@ interface CategoryChipProps {
  * Used within expense cards and filter displays.
  */
 export function CategoryChip({ name, color = '#6366F1' }: CategoryChipProps) {
+  const { colors } = useAppTheme()
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.chipBackground }]}>
       <View style={[styles.dot, { backgroundColor: color }]} />
-      <Text variant="bodySmall" style={styles.label} numberOfLines={1}>
+      <Text variant="bodySmall" style={[styles.label, { color: colors.textSecondary }]} numberOfLines={1}>
         {name}
       </Text>
     </View>
@@ -25,7 +28,6 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -38,7 +40,6 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   label: {
-    color: '#374151',
     lineHeight: 16,
   },
 })

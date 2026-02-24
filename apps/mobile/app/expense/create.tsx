@@ -4,7 +4,9 @@ import { ExpenseForm } from '@/components/form'
 import type { ExpenseFormValues } from '@/components/form'
 import { useCreateExpense } from '@/lib/hooks'
 import { useSnackbar } from '@/lib/hooks/use-snackbar'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { hapticSuccess, hapticError } from '@/lib/utils/haptics'
 
 /**
  * Screen for creating a new expense.
@@ -15,6 +17,7 @@ export default function CreateExpenseScreen() {
   const router = useRouter()
   const createExpense = useCreateExpense()
   const { showSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
 
   const handleSubmit = (values: ExpenseFormValues) => {
     // Build the request body, only including non-empty optional fields
@@ -33,17 +36,19 @@ export default function CreateExpenseScreen() {
 
     createExpense.mutate(body as unknown as Parameters<typeof createExpense.mutate>[0], {
       onSuccess: () => {
+        hapticSuccess()
         showSnackbar('Expense created successfully', 'success')
         router.back()
       },
       onError: (error) => {
+        hapticError()
         showSnackbar(getApiErrorMessage(error), 'error')
       },
     })
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackground }]}>
       <Stack.Screen options={{ title: 'New Expense' }} />
       <ExpenseForm
         onSubmit={handleSubmit}
@@ -57,6 +62,5 @@ export default function CreateExpenseScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
 })

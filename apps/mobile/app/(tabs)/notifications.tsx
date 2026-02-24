@@ -2,7 +2,8 @@ import { useState, useCallback } from 'react'
 import { View, FlatList, RefreshControl, StyleSheet } from 'react-native'
 import { Button, Text } from 'react-native-paper'
 import { Stack, useRouter } from 'expo-router'
-import { ScreenLoading, ScreenError, EmptyState } from '@/components'
+import { ScreenError, EmptyState } from '@/components'
+import { NotificationListSkeleton } from '@/components/skeletons'
 import { NotificationCard } from '@/components/notification-card'
 import {
   useNotifications,
@@ -13,9 +14,13 @@ import {
   useSnackbar,
 } from '@/lib/hooks'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { hapticLight, hapticError } from '@/lib/utils/haptics'
+import { useAppTheme } from '@/lib/theme/theme-context'
+import { AnimatedListItem } from '@/components/animated-list-item'
 
 export default function NotificationsScreen() {
   const router = useRouter()
+  const { colors } = useAppTheme()
   const { showSnackbar } = useSnackbar()
   const [page, setPage] = useState(1)
 
@@ -52,7 +57,10 @@ export default function NotificationsScreen() {
   const handleDelete = useCallback(
     (id: string) => {
       deleteOne.mutate(id, {
-        onError: (err) => showSnackbar(getApiErrorMessage(err), 'error'),
+        onError: (err) => {
+          hapticError()
+          showSnackbar(getApiErrorMessage(err), 'error')
+        },
       })
     },
     [deleteOne, showSnackbar],
@@ -60,19 +68,31 @@ export default function NotificationsScreen() {
 
   const handleMarkAllRead = useCallback(() => {
     markAllRead.mutate(undefined, {
-      onSuccess: () => showSnackbar('All notifications marked as read', 'success'),
-      onError: (err) => showSnackbar(getApiErrorMessage(err), 'error'),
+      onSuccess: () => {
+        hapticLight()
+        showSnackbar('All notifications marked as read', 'success')
+      },
+      onError: (err) => {
+        hapticError()
+        showSnackbar(getApiErrorMessage(err), 'error')
+      },
     })
   }, [markAllRead, showSnackbar])
 
   const handleDeleteRead = useCallback(() => {
     deleteRead.mutate(undefined, {
-      onSuccess: () => showSnackbar('Read notifications deleted', 'success'),
-      onError: (err) => showSnackbar(getApiErrorMessage(err), 'error'),
+      onSuccess: () => {
+        hapticLight()
+        showSnackbar('Read notifications deleted', 'success')
+      },
+      onError: (err) => {
+        hapticError()
+        showSnackbar(getApiErrorMessage(err), 'error')
+      },
     })
   }, [deleteRead, showSnackbar])
 
-  if (isLoading) return <ScreenLoading />
+  if (isLoading) return <NotificationListSkeleton />
   if (isError) {
     return (
       <ScreenError
@@ -83,7 +103,7 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackgroundSecondary }]}>
       <Stack.Screen
         options={{
           headerRight: () =>
@@ -103,18 +123,20 @@ export default function NotificationsScreen() {
       <FlatList
         data={notifications}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <NotificationCard
-            notification={item}
-            onPress={() => handlePress(item)}
-            onDelete={() => handleDelete(item.id)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index}>
+            <NotificationCard
+              notification={item}
+              onPress={() => handlePress(item)}
+              onDelete={() => handleDelete(item.id)}
+            />
+          </AnimatedListItem>
         )}
         refreshControl={
           <RefreshControl
             refreshing={false}
             onRefresh={handleRefresh}
-            colors={['#6366F1']}
+            colors={[colors.refreshTint]}
           />
         }
         contentContainerStyle={
@@ -133,8 +155,8 @@ export default function NotificationsScreen() {
               <Button
                 mode="outlined"
                 onPress={() => setPage((p) => p + 1)}
-                style={styles.loadMoreButton}
-                textColor="#6366F1"
+                style={[styles.loadMoreButton, { borderColor: colors.brandPrimary }]}
+                textColor={colors.brandPrimary}
               >
                 Load More
               </Button>
@@ -144,8 +166,8 @@ export default function NotificationsScreen() {
                 mode="outlined"
                 onPress={handleDeleteRead}
                 loading={deleteRead.isPending}
-                style={styles.deleteReadButton}
-                textColor="#EF4444"
+                style={[styles.deleteReadButton, { borderColor: colors.error }]}
+                textColor={colors.error}
               >
                 Delete All Read
               </Button>
@@ -160,7 +182,6 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   listContent: {
     paddingTop: 12,
@@ -175,11 +196,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   loadMoreButton: {
-    borderColor: '#6366F1',
     borderRadius: 12,
   },
   deleteReadButton: {
-    borderColor: '#EF4444',
     borderRadius: 12,
   },
 })

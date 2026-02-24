@@ -3,6 +3,7 @@ import { Text, Surface, TouchableRipple } from 'react-native-paper'
 import { formatCurrency } from '@extracker/core'
 import { formatRelativeDate } from '@extracker/core'
 import type { ExpenseListItem } from '@extracker/types'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import { StatusBadge } from './status-badge'
 import { CategoryChip } from './category-chip'
 
@@ -17,16 +18,18 @@ interface ExpenseCardProps {
  * formatted amount, and currency code.
  *
  * Amount color is determined by payment status:
- *  - Green (#16A34A) when paid
- *  - Red (#DC2626) when overdue
- *  - Default (#111827) when pending
+ *  - Green (colors.success) when paid
+ *  - Red (colors.error) when overdue
+ *  - Default (colors.textPrimary) when pending
  */
 export function ExpenseCard({ expense, onPress }: ExpenseCardProps) {
+  const { colors } = useAppTheme()
+
   const amountColor = expense.isPaid
-    ? '#16A34A'
+    ? colors.success
     : expense.isOverdue
-      ? '#DC2626'
-      : '#111827'
+      ? colors.error
+      : colors.textPrimary
 
   return (
     <TouchableRipple
@@ -35,13 +38,13 @@ export function ExpenseCard({ expense, onPress }: ExpenseCardProps) {
       style={styles.ripple}
       rippleColor="rgba(99, 102, 241, 0.08)"
     >
-      <Surface style={styles.surface} elevation={1}>
+      <Surface style={[styles.surface, { backgroundColor: colors.cardBackground }]} elevation={1}>
         <View style={styles.row}>
           {/* Left column: title, metadata, date */}
           <View style={styles.leftColumn}>
             <Text
               variant="bodyLarge"
-              style={styles.title}
+              style={[styles.title, { color: colors.textPrimary }]}
               numberOfLines={1}
             >
               {expense.title}
@@ -57,7 +60,7 @@ export function ExpenseCard({ expense, onPress }: ExpenseCardProps) {
               />
             </View>
 
-            <Text variant="bodySmall" style={styles.date}>
+            <Text variant="bodySmall" style={[styles.date, { color: colors.textMuted }]}>
               {formatRelativeDate(expense.nextDueDate)}
             </Text>
           </View>
@@ -71,7 +74,7 @@ export function ExpenseCard({ expense, onPress }: ExpenseCardProps) {
             >
               {formatCurrency(expense.amount, expense.currency)}
             </Text>
-            <Text variant="bodySmall" style={styles.currency}>
+            <Text variant="bodySmall" style={[styles.currency, { color: colors.textMuted }]}>
               {expense.currency}
             </Text>
           </View>
@@ -88,7 +91,6 @@ const styles = StyleSheet.create({
   surface: {
     borderRadius: 12,
     padding: 16,
-    backgroundColor: '#ffffff',
   },
   row: {
     flexDirection: 'row',
@@ -101,7 +103,6 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '600',
-    color: '#111827',
   },
   metaRow: {
     flexDirection: 'row',
@@ -109,9 +110,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  date: {
-    color: '#9CA3AF',
-  },
+  date: {},
   rightColumn: {
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
@@ -121,7 +120,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   currency: {
-    color: '#9CA3AF',
     marginTop: 2,
   },
 })

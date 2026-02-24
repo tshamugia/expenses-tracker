@@ -15,7 +15,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.extracker.mobile"
+      "bundleIdentifier": "com.extracker.mobile",
+      "splash": {
+        "dark": {
+          "backgroundColor": "#0F172A"
+        }
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +28,12 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.extracker.mobile",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "splash": {
+        "dark": {
+          "backgroundColor": "#0F172A"
+        }
+      }
     },
     "web": {
       "bundler": "metro",

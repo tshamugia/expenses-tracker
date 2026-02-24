@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native'
 import { Text, Button } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface ScreenErrorProps {
   message?: string
@@ -15,17 +16,19 @@ export function ScreenError({
   message = 'An unexpected error occurred. Please try again.',
   onRetry,
 }: ScreenErrorProps) {
+  const { colors } = useAppTheme()
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackground }]}>
       <MaterialCommunityIcons
         name="alert-circle-outline"
         size={48}
-        color="#EF4444"
+        color={colors.error}
       />
-      <Text variant="titleLarge" style={styles.title}>
+      <Text variant="titleLarge" style={[styles.title, { color: colors.textPrimary }]}>
         Something went wrong
       </Text>
-      <Text variant="bodyMedium" style={styles.message}>
+      <Text variant="bodyMedium" style={[styles.message, { color: colors.textTertiary }]}>
         {message}
       </Text>
       {onRetry && (
@@ -33,7 +36,7 @@ export function ScreenError({
           mode="contained"
           onPress={onRetry}
           style={styles.button}
-          buttonColor="#6366F1"
+          buttonColor={colors.brandPrimary}
         >
           Try Again
         </Button>
@@ -48,18 +51,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
-    backgroundColor: '#ffffff',
   },
   title: {
     fontWeight: '600',
     marginTop: 16,
     textAlign: 'center',
-    color: '#111827',
   },
   message: {
     marginTop: 8,
     textAlign: 'center',
-    color: '#6B7280',
     lineHeight: 22,
   },
   button: {

@@ -4,6 +4,7 @@ import { Stack } from 'expo-router'
 import { ScreenLoading, ScreenError } from '@/components'
 import { useSettings, useUpdateSettings, useSnackbar } from '@/lib/hooks'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { useAppTheme } from '@/lib/theme/theme-context'
 import type { Theme, Currency } from '@extracker/types'
 
 const THEMES: { label: string; value: Theme }[] = [
@@ -19,6 +20,7 @@ const CURRENCIES: { label: string; value: Currency }[] = [
 ]
 
 export default function SettingsScreen() {
+  const { colors } = useAppTheme()
   const { showSnackbar } = useSnackbar()
   const { data: settings, isLoading, isError, error, refetch } = useSettings()
   const updateSettings = useUpdateSettings()
@@ -46,25 +48,25 @@ export default function SettingsScreen() {
       <Stack.Screen
         options={{
           title: 'Settings',
-          headerStyle: { backgroundColor: '#6366F1' },
+          headerStyle: { backgroundColor: colors.headerBackground },
           headerTintColor: '#ffffff',
           headerTitleStyle: { fontWeight: '600' },
         }}
       />
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: colors.screenBackgroundSecondary }]}
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
             refreshing={false}
             onRefresh={refetch}
-            colors={['#6366F1']}
+            colors={[colors.refreshTint]}
           />
         }
       >
         {/* Appearance */}
-        <Surface elevation={1} style={styles.section}>
-          <Text variant="labelLarge" style={styles.sectionTitle}>
+        <Surface elevation={1} style={[styles.section, { backgroundColor: colors.cardBackground }]}>
+          <Text variant="labelLarge" style={[styles.sectionTitle, { color: colors.textMuted }]}>
             Appearance
           </Text>
           <View style={styles.chipRow}>
@@ -75,12 +77,13 @@ export default function SettingsScreen() {
                 onPress={() => handleUpdate({ theme: t.value })}
                 style={[
                   styles.chip,
-                  settings.theme === t.value && styles.chipSelected,
+                  { backgroundColor: colors.chipBackground },
+                  settings.theme === t.value && { backgroundColor: colors.brandPrimary },
                 ]}
                 textStyle={
                   settings.theme === t.value
                     ? styles.chipTextSelected
-                    : styles.chipText
+                    : [styles.chipText, { color: colors.textSecondary }]
                 }
                 showSelectedOverlay={false}
               >
@@ -91,8 +94,8 @@ export default function SettingsScreen() {
         </Surface>
 
         {/* Currency */}
-        <Surface elevation={1} style={styles.section}>
-          <Text variant="labelLarge" style={styles.sectionTitle}>
+        <Surface elevation={1} style={[styles.section, { backgroundColor: colors.cardBackground }]}>
+          <Text variant="labelLarge" style={[styles.sectionTitle, { color: colors.textMuted }]}>
             Default Currency
           </Text>
           <View style={styles.chipRow}>
@@ -103,12 +106,13 @@ export default function SettingsScreen() {
                 onPress={() => handleUpdate({ defaultCurrency: c.value })}
                 style={[
                   styles.chip,
-                  settings.defaultCurrency === c.value && styles.chipSelected,
+                  { backgroundColor: colors.chipBackground },
+                  settings.defaultCurrency === c.value && { backgroundColor: colors.brandPrimary },
                 ]}
                 textStyle={
                   settings.defaultCurrency === c.value
                     ? styles.chipTextSelected
-                    : styles.chipText
+                    : [styles.chipText, { color: colors.textSecondary }]
                 }
                 showSelectedOverlay={false}
               >
@@ -119,42 +123,42 @@ export default function SettingsScreen() {
         </Surface>
 
         {/* Notifications */}
-        <Surface elevation={1} style={styles.section}>
-          <Text variant="labelLarge" style={styles.sectionTitle}>
+        <Surface elevation={1} style={[styles.section, { backgroundColor: colors.cardBackground }]}>
+          <Text variant="labelLarge" style={[styles.sectionTitle, { color: colors.textMuted }]}>
             Notifications
           </Text>
           <View style={styles.switchRow}>
-            <Text variant="bodyLarge" style={styles.switchLabel}>
+            <Text variant="bodyLarge" style={[styles.switchLabel, { color: colors.textSecondary }]}>
               Email Notifications
             </Text>
             <Switch
               value={settings.emailEnabled}
               onValueChange={(val) => handleUpdate({ emailEnabled: val })}
-              color="#6366F1"
+              color={colors.brandPrimary}
             />
           </View>
           <View style={styles.switchRow}>
-            <Text variant="bodyLarge" style={styles.switchLabel}>
+            <Text variant="bodyLarge" style={[styles.switchLabel, { color: colors.textSecondary }]}>
               SMS Notifications
             </Text>
             <Switch
               value={settings.smsEnabled}
               onValueChange={(val) => handleUpdate({ smsEnabled: val })}
-              color="#6366F1"
+              color={colors.brandPrimary}
             />
           </View>
           <View style={styles.switchRow}>
-            <Text variant="bodyLarge" style={styles.switchLabel}>
+            <Text variant="bodyLarge" style={[styles.switchLabel, { color: colors.textSecondary }]}>
               Push Notifications
             </Text>
             <Switch
               value={settings.pushEnabled}
               onValueChange={(val) => handleUpdate({ pushEnabled: val })}
-              color="#6366F1"
+              color={colors.brandPrimary}
             />
           </View>
           <View style={styles.daysRow}>
-            <Text variant="bodyLarge" style={styles.switchLabel}>
+            <Text variant="bodyLarge" style={[styles.switchLabel, { color: colors.textSecondary }]}>
               Notify before (days)
             </Text>
             <TextInput
@@ -168,7 +172,7 @@ export default function SettingsScreen() {
               mode="outlined"
               keyboardType="numeric"
               maxLength={2}
-              style={styles.daysInput}
+              style={[styles.daysInput, { backgroundColor: colors.cardBackground }]}
               outlineStyle={styles.daysOutline}
               dense
             />
@@ -176,30 +180,30 @@ export default function SettingsScreen() {
         </Surface>
 
         {/* Subscription */}
-        <Surface elevation={1} style={styles.section}>
-          <Text variant="labelLarge" style={styles.sectionTitle}>
+        <Surface elevation={1} style={[styles.section, { backgroundColor: colors.cardBackground }]}>
+          <Text variant="labelLarge" style={[styles.sectionTitle, { color: colors.textMuted }]}>
             Subscription
           </Text>
           <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
+            <Text variant="bodyMedium" style={[styles.infoLabel, { color: colors.textTertiary }]}>
               Plan
             </Text>
-            <Text variant="bodyMedium" style={styles.infoValue}>
+            <Text variant="bodyMedium" style={[styles.infoValue, { color: colors.textPrimary }]}>
               {settings.subscriptionPlan.charAt(0).toUpperCase() +
                 settings.subscriptionPlan.slice(1)}
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Text variant="bodyMedium" style={styles.infoLabel}>
+            <Text variant="bodyMedium" style={[styles.infoLabel, { color: colors.textTertiary }]}>
               Status
             </Text>
             <Text
               variant="bodyMedium"
               style={[
                 styles.infoValue,
-                settings.subscriptionStatus === 'active'
-                  ? styles.statusActive
-                  : styles.statusInactive,
+                { color: settings.subscriptionStatus === 'active'
+                  ? colors.success
+                  : colors.error },
               ]}
             >
               {settings.subscriptionStatus.charAt(0).toUpperCase() +
@@ -215,7 +219,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   content: {
     padding: 16,
@@ -223,12 +226,10 @@ const styles = StyleSheet.create({
   },
   section: {
     borderRadius: 12,
-    backgroundColor: '#ffffff',
     marginBottom: 16,
     padding: 16,
   },
   sectionTitle: {
-    color: '#9CA3AF',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -240,13 +241,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   chip: {
-    backgroundColor: '#F3F4F6',
-  },
-  chipSelected: {
-    backgroundColor: '#6366F1',
   },
   chipText: {
-    color: '#374151',
   },
   chipTextSelected: {
     color: '#ffffff',
@@ -258,7 +254,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   switchLabel: {
-    color: '#374151',
     flex: 1,
   },
   daysRow: {
@@ -269,7 +264,6 @@ const styles = StyleSheet.create({
   },
   daysInput: {
     width: 64,
-    backgroundColor: '#ffffff',
     textAlign: 'center',
   },
   daysOutline: {
@@ -282,16 +276,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   infoLabel: {
-    color: '#6B7280',
   },
   infoValue: {
-    color: '#111827',
     fontWeight: '500',
-  },
-  statusActive: {
-    color: '#16A34A',
-  },
-  statusInactive: {
-    color: '#DC2626',
   },
 })

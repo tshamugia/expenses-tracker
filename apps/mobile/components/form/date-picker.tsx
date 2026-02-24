@@ -4,6 +4,7 @@ import { TextInput, Button, Surface, Text } from 'react-native-paper'
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface DatePickerProps {
   value: Date | null
@@ -25,6 +26,7 @@ export function DatePicker({
   label = 'Date',
   minimumDate,
 }: DatePickerProps) {
+  const { colors } = useAppTheme()
   const [showPicker, setShowPicker] = useState(false)
   // Hold a temporary date on iOS so the user can scroll before confirming
   const [tempDate, setTempDate] = useState<Date>(value ?? new Date())
@@ -84,10 +86,12 @@ export function DatePicker({
             value={displayValue}
             placeholder="Select date"
             editable={false}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
             outlineStyle={styles.outline}
-            right={<TextInput.Icon icon="calendar" color="#6B7280" />}
+            style={{ backgroundColor: colors.inputBackground }}
+            textColor={colors.textPrimary}
+            right={<TextInput.Icon icon="calendar" color={colors.textTertiary} />}
           />
         </View>
       </Pressable>
@@ -113,15 +117,15 @@ export function DatePicker({
         >
           <Pressable style={styles.modalOverlay} onPress={handleIOSCancel}>
             <Pressable style={styles.modalInner} onPress={undefined}>
-              <Surface style={styles.iosContainer} elevation={4}>
-                <View style={styles.iosHeader}>
-                  <Button mode="text" onPress={handleIOSCancel} textColor="#6B7280">
+              <Surface style={[styles.iosContainer, { backgroundColor: colors.cardBackground }]} elevation={4}>
+                <View style={[styles.iosHeader, { borderBottomColor: colors.divider }]}>
+                  <Button mode="text" onPress={handleIOSCancel} textColor={colors.textTertiary}>
                     Cancel
                   </Button>
-                  <Text variant="titleSmall" style={styles.iosTitle}>
+                  <Text variant="titleSmall" style={[styles.iosTitle, { color: colors.textPrimary }]}>
                     {label}
                   </Text>
-                  <Button mode="text" onPress={handleIOSDone} textColor="#6366F1">
+                  <Button mode="text" onPress={handleIOSDone} textColor={colors.brandPrimary}>
                     Done
                   </Button>
                 </View>
@@ -157,7 +161,6 @@ const styles = StyleSheet.create({
     /* Catches taps so they don't propagate to the overlay */
   },
   iosContainer: {
-    backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 24,
@@ -169,11 +172,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E7EB',
   },
   iosTitle: {
     fontWeight: '600',
-    color: '#111827',
   },
   iosPicker: {
     height: 200,

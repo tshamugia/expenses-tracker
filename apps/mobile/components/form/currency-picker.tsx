@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native'
 import { SegmentedButtons } from 'react-native-paper'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 const CURRENCIES = [
   { value: 'GEL', label: 'GEL' },
@@ -18,6 +19,8 @@ interface CurrencyPickerProps {
  * indigo primary color for the checked state.
  */
 export function CurrencyPicker({ value, onChange }: CurrencyPickerProps) {
+  const { colors } = useAppTheme()
+
   return (
     <SegmentedButtons
       value={value}
@@ -27,11 +30,16 @@ export function CurrencyPicker({ value, onChange }: CurrencyPickerProps) {
         label: c.label,
         style: [
           styles.button,
-          value === c.value ? styles.buttonChecked : styles.buttonUnchecked,
+          { borderColor: colors.inputBorder },
+          value === c.value
+            ? { backgroundColor: colors.brandPrimary, borderColor: colors.brandPrimary }
+            : { backgroundColor: colors.inputBackground },
         ],
-        labelStyle: value === c.value ? styles.labelChecked : styles.labelUnchecked,
+        labelStyle: value === c.value
+          ? styles.labelChecked
+          : [styles.labelUnchecked, { color: colors.textTertiary }],
         checkedColor: '#ffffff',
-        uncheckedColor: '#6B7280',
+        uncheckedColor: colors.textTertiary,
       }))}
       style={styles.container}
     />
@@ -44,21 +52,12 @@ const styles = StyleSheet.create({
   },
   button: {
     borderRadius: 12,
-    borderColor: '#D1D5DB',
-  },
-  buttonChecked: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
-  },
-  buttonUnchecked: {
-    backgroundColor: '#ffffff',
   },
   labelChecked: {
     color: '#ffffff',
     fontWeight: '600',
   },
   labelUnchecked: {
-    color: '#6B7280',
     fontWeight: '500',
   },
 })

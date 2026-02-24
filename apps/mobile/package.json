@@ -10,8 +10,16 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.2.0",
+    "@expo/vector-icons": "^15.0.2",
+    "@extracker/core": "workspace:*",
+    "@extracker/types": "workspace:*",
+    "@react-native-community/datetimepicker": "8.4.4",
+    "@tanstack/react-query": "^5.62.0",
     "expo": "~54.0.0",
     "expo-constants": "~18.0.7",
+    "@react-native-async-storage/async-storage": "^2.1.2",
+    "expo-haptics": "~15.0.8",
     "expo-linking": "~8.0.7",
     "expo-router": "~6.0.0",
     "expo-secure-store": "~15.0.6",
@@ -21,13 +29,7 @@
     "react-native-paper": "^5.13.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "@expo/vector-icons": "^15.0.2",
-    "@elysiajs/eden": "^1.2.0",
-    "@tanstack/react-query": "^5.62.0",
-    "zustand": "^5.0.0",
-    "@extracker/types": "workspace:*",
-    "@extracker/core": "workspace:*",
-    "@react-native-community/datetimepicker": "8.4.4"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "typescript": "~5.9.2"

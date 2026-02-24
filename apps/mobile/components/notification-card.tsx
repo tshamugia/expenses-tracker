@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { Text, IconButton, Surface, TouchableRipple } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { formatRelativeDate } from '@extracker/core'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface NotificationItem {
   id: string
@@ -42,6 +43,7 @@ export function NotificationCard({
   onPress,
   onDelete,
 }: NotificationCardProps) {
+  const { colors } = useAppTheme()
   const iconName = TYPE_ICONS[notification.type] || 'bell'
   const iconColor = TYPE_COLORS[notification.type] || '#6366F1'
   const isUnread = !notification.isRead
@@ -54,7 +56,11 @@ export function NotificationCard({
     >
       <Surface
         elevation={1}
-        style={[styles.card, isUnread && styles.unreadCard]}
+        style={[
+          styles.card,
+          { backgroundColor: colors.cardBackground },
+          isUnread && { borderLeftWidth: 4, borderLeftColor: colors.brandPrimary },
+        ]}
       >
         <View style={[styles.iconContainer, { backgroundColor: `${iconColor}14` }]}>
           <MaterialCommunityIcons
@@ -66,26 +72,29 @@ export function NotificationCard({
         <View style={styles.content}>
           <Text
             variant="bodyMedium"
-            style={[styles.title, isUnread && styles.unreadTitle]}
+            style={[
+              { color: colors.textSecondary },
+              isUnread && { fontWeight: '700', color: colors.textPrimary },
+            ]}
             numberOfLines={1}
           >
             {notification.title}
           </Text>
           <Text
             variant="bodySmall"
-            style={styles.message}
+            style={[styles.message, { color: colors.textTertiary }]}
             numberOfLines={2}
           >
             {notification.message}
           </Text>
-          <Text variant="labelSmall" style={styles.timestamp}>
+          <Text variant="labelSmall" style={{ color: colors.textMuted, marginTop: 4 }}>
             {formatRelativeDate(new Date(notification.createdAt))}
           </Text>
         </View>
         <IconButton
           icon="delete-outline"
           size={20}
-          iconColor="#9CA3AF"
+          iconColor={colors.textMuted}
           onPress={onDelete}
           style={styles.deleteButton}
         />
@@ -105,11 +114,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
-  },
-  unreadCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: '#6366F1',
   },
   iconContainer: {
     width: 40,
@@ -123,21 +127,9 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     marginRight: 4,
   },
-  title: {
-    color: '#374151',
-  },
-  unreadTitle: {
-    fontWeight: '700',
-    color: '#111827',
-  },
   message: {
-    color: '#6B7280',
     marginTop: 2,
     lineHeight: 18,
-  },
-  timestamp: {
-    color: '#9CA3AF',
-    marginTop: 4,
   },
   deleteButton: {
     margin: 0,

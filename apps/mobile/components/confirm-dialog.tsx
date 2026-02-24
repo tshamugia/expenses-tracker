@@ -1,5 +1,6 @@
 import { ActivityIndicator, StyleSheet } from 'react-native'
 import { Button, Dialog, Portal, Text } from 'react-native-paper'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface ConfirmDialogProps {
   visible: boolean
@@ -43,18 +44,21 @@ export function ConfirmDialog({
   loading = false,
   destructive = false,
 }: ConfirmDialogProps) {
-  const confirmColor = destructive ? '#EF4444' : '#6366F1'
+  const { colors } = useAppTheme()
+  const confirmColor = destructive ? colors.error : colors.brandPrimary
 
   return (
     <Portal>
       <Dialog
         visible={visible}
         onDismiss={loading ? undefined : onDismiss}
-        style={styles.dialog}
+        style={[styles.dialog, { backgroundColor: colors.cardBackground }]}
       >
-        <Dialog.Title style={styles.title}>{title}</Dialog.Title>
+        <Dialog.Title style={[styles.title, { color: colors.textPrimary }]}>
+          {title}
+        </Dialog.Title>
         <Dialog.Content>
-          <Text variant="bodyMedium" style={styles.message}>
+          <Text variant="bodyMedium" style={[styles.message, { color: colors.textTertiary }]}>
             {message}
           </Text>
         </Dialog.Content>
@@ -63,7 +67,7 @@ export function ConfirmDialog({
             mode="text"
             onPress={onDismiss}
             disabled={loading}
-            textColor="#6B7280"
+            textColor={colors.textTertiary}
           >
             {cancelLabel}
           </Button>
@@ -89,14 +93,11 @@ export function ConfirmDialog({
 const styles = StyleSheet.create({
   dialog: {
     borderRadius: 16,
-    backgroundColor: '#ffffff',
   },
   title: {
     fontWeight: '600',
-    color: '#111827',
   },
   message: {
-    color: '#6B7280',
     lineHeight: 22,
   },
   actions: {

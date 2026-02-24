@@ -10,6 +10,7 @@ import { Text, TextInput, Button, HelperText } from 'react-native-paper'
 import { Link } from 'expo-router'
 import { api } from '@/lib/api/client'
 import { useAuthStore } from '@/lib/stores/auth-store'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 export default function RegisterScreen() {
   const [name, setName] = useState('')
@@ -20,6 +21,7 @@ export default function RegisterScreen() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const login = useAuthStore((s) => s.login)
+  const { colors } = useAppTheme()
 
   function validate(): string | null {
     if (!email.trim()) return 'Email is required'
@@ -71,7 +73,7 @@ export default function RegisterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.screenBackground }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -79,10 +81,10 @@ export default function RegisterScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text variant="displaySmall" style={styles.title}>
+          <Text variant="displaySmall" style={[styles.title, { color: colors.brandPrimary }]}>
             ExTracker
           </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
+          <Text variant="bodyLarge" style={[styles.subtitle, { color: colors.textTertiary }]}>
             Create your account
           </Text>
         </View>
@@ -95,9 +97,9 @@ export default function RegisterScreen() {
             mode="outlined"
             autoCapitalize="words"
             autoComplete="name"
-            style={styles.input}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
           />
 
           <TextInput
@@ -108,9 +110,9 @@ export default function RegisterScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            style={styles.input}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
           />
 
           <TextInput
@@ -119,9 +121,9 @@ export default function RegisterScreen() {
             onChangeText={setPassword}
             mode="outlined"
             secureTextEntry={!showPassword}
-            style={styles.input}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
             right={
               <TextInput.Icon
                 icon={showPassword ? 'eye-off' : 'eye'}
@@ -136,9 +138,9 @@ export default function RegisterScreen() {
             onChangeText={setConfirmPassword}
             mode="outlined"
             secureTextEntry={!showPassword}
-            style={styles.input}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
           />
 
           {error ? (
@@ -153,17 +155,17 @@ export default function RegisterScreen() {
             loading={loading}
             disabled={loading}
             style={styles.button}
-            buttonColor="#6366F1"
+            buttonColor={colors.brandPrimary}
           >
             Create Account
           </Button>
 
           <View style={styles.footer}>
-            <Text variant="bodyMedium" style={styles.footerText}>
+            <Text variant="bodyMedium" style={[styles.footerText, { color: colors.textTertiary }]}>
               Already have an account?{' '}
             </Text>
             <Link href="/(auth)/login" asChild>
-              <Text variant="bodyMedium" style={styles.link}>
+              <Text variant="bodyMedium" style={[styles.link, { color: colors.brandPrimary }]}>
                 Sign In
               </Text>
             </Link>
@@ -177,7 +179,6 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
   },
   scrollContent: {
     flexGrow: 1,
@@ -190,18 +191,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '700',
-    color: '#6366F1',
     marginBottom: 8,
   },
-  subtitle: {
-    color: '#6B7280',
-  },
+  subtitle: {},
   form: {
     gap: 4,
   },
   input: {
     marginBottom: 8,
-    backgroundColor: '#ffffff',
   },
   button: {
     marginTop: 8,
@@ -212,11 +209,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
   },
-  footerText: {
-    color: '#6B7280',
-  },
+  footerText: {},
   link: {
-    color: '#6366F1',
     fontWeight: '600',
   },
 })

@@ -10,6 +10,7 @@ import { Text, TextInput, Button, HelperText } from "react-native-paper";
 import { Link } from "expo-router";
 import { api } from "@/lib/api/client";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { useAppTheme } from "@/lib/theme/theme-context";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -18,6 +19,7 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const login = useAuthStore((s) => s.login);
+  const { colors } = useAppTheme();
 
   async function handleLogin() {
     setError("");
@@ -74,7 +76,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.screenBackground }]}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
@@ -82,10 +84,10 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
-          <Text variant="displaySmall" style={styles.title}>
+          <Text variant="displaySmall" style={[styles.title, { color: colors.brandPrimary }]}>
             ExTracker
           </Text>
-          <Text variant="bodyLarge" style={styles.subtitle}>
+          <Text variant="bodyLarge" style={[styles.subtitle, { color: colors.textTertiary }]}>
             Sign in to your account
           </Text>
         </View>
@@ -99,9 +101,9 @@ export default function LoginScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            style={styles.input}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
           />
 
           <TextInput
@@ -110,9 +112,9 @@ export default function LoginScreen() {
             onChangeText={setPassword}
             mode="outlined"
             secureTextEntry={!showPassword}
-            style={styles.input}
-            outlineColor="#D1D5DB"
-            activeOutlineColor="#6366F1"
+            style={[styles.input, { backgroundColor: colors.inputBackground }]}
+            outlineColor={colors.inputBorder}
+            activeOutlineColor={colors.brandPrimary}
             right={
               <TextInput.Icon
                 icon={showPassword ? "eye-off" : "eye"}
@@ -133,7 +135,7 @@ export default function LoginScreen() {
             loading={loading}
             disabled={loading}
             style={styles.button}
-            buttonColor="#6366F1"
+            buttonColor={colors.brandPrimary}
           >
             Sign In
           </Button>
@@ -141,18 +143,18 @@ export default function LoginScreen() {
           <Button
             mode="outlined"
             disabled
-            style={styles.googleButton}
+            style={[styles.googleButton, { borderColor: colors.border }]}
             icon="google"
           >
             Continue with Google
           </Button>
 
           <View style={styles.footer}>
-            <Text variant="bodyMedium" style={styles.footerText}>
+            <Text variant="bodyMedium" style={[styles.footerText, { color: colors.textTertiary }]}>
               Don't have an account?{" "}
             </Text>
             <Link href="/(auth)/register" asChild>
-              <Text variant="bodyMedium" style={styles.link}>
+              <Text variant="bodyMedium" style={[styles.link, { color: colors.brandPrimary }]}>
                 Sign Up
               </Text>
             </Link>
@@ -166,7 +168,6 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ffffff",
   },
   scrollContent: {
     flexGrow: 1,
@@ -179,18 +180,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: "700",
-    color: "#6366F1",
     marginBottom: 8,
   },
-  subtitle: {
-    color: "#6B7280",
-  },
+  subtitle: {},
   form: {
     gap: 4,
   },
   input: {
     marginBottom: 8,
-    backgroundColor: "#ffffff",
   },
   button: {
     marginTop: 8,
@@ -198,7 +195,6 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     marginTop: 12,
-    borderColor: "#D1D5DB",
     paddingVertical: 4,
   },
   footer: {
@@ -206,11 +202,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 24,
   },
-  footerText: {
-    color: "#6B7280",
-  },
+  footerText: {},
   link: {
-    color: "#6366F1",
     fontWeight: "600",
   },
 });

@@ -5,7 +5,10 @@ import { ScreenLoading, ScreenError, EmptyState, ConfirmDialog } from '@/compone
 import { PaymentCardCard } from '@/components/payment-card-card'
 import { PaymentCardFormDialog } from '@/components/form/payment-card-form-dialog'
 import { usePaymentCards, useDeletePaymentCard, useSnackbar } from '@/lib/hooks'
+import { useAppTheme } from '@/lib/theme/theme-context'
+import { AnimatedListItem } from '@/components/animated-list-item'
 import { getApiErrorMessage } from '@/lib/utils/api-error'
+import { hapticMedium, hapticError } from '@/lib/utils/haptics'
 
 interface EditTarget {
   id: string
@@ -19,6 +22,7 @@ interface EditTarget {
 
 export default function PaymentCardsScreen() {
   const { showSnackbar } = useSnackbar()
+  const { colors } = useAppTheme()
   const { data, isLoading, isError, error, refetch } = usePaymentCards()
   const deleteCard = useDeletePaymentCard()
 
@@ -47,10 +51,12 @@ export default function PaymentCardsScreen() {
     if (!deleteTarget) return
     deleteCard.mutate(deleteTarget, {
       onSuccess: () => {
+        hapticMedium()
         showSnackbar('Payment card deleted', 'success')
         setDeleteTarget(null)
       },
       onError: (err) => {
+        hapticError()
         showSnackbar(getApiErrorMessage(err), 'error')
         setDeleteTarget(null)
       },
@@ -68,22 +74,24 @@ export default function PaymentCardsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.screenBackgroundSecondary }]}>
       <FlatList
         data={cards}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <PaymentCardCard
-            card={item}
-            onEdit={() => handleEdit(item)}
-            onDelete={() => setDeleteTarget(item.id)}
-          />
+        renderItem={({ item, index }) => (
+          <AnimatedListItem index={index}>
+            <PaymentCardCard
+              card={item}
+              onEdit={() => handleEdit(item)}
+              onDelete={() => setDeleteTarget(item.id)}
+            />
+          </AnimatedListItem>
         )}
         refreshControl={
           <RefreshControl
             refreshing={false}
             onRefresh={refetch}
-            colors={['#6366F1']}
+            colors={[colors.refreshTint]}
           />
         }
         contentContainerStyle={
@@ -102,8 +110,8 @@ export default function PaymentCardsScreen() {
 
       <FAB
         icon="plus"
-        style={styles.fab}
-        color="#ffffff"
+        style={[styles.fab, { backgroundColor: colors.fabBackground }]}
+        color={colors.fabText}
         onPress={handleCreate}
       />
 
@@ -130,7 +138,6 @@ export default function PaymentCardsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   listContent: {
     paddingTop: 12,
@@ -143,7 +150,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     bottom: 16,
-    backgroundColor: '#6366F1',
     borderRadius: 16,
   },
 })

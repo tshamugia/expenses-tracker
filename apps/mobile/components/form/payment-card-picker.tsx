@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native'
 import { TextInput, Menu, Text, ActivityIndicator } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { usePaymentCards } from '@/lib/hooks/use-payment-cards'
+import { useAppTheme } from '@/lib/theme/theme-context'
 
 interface PaymentCardPickerProps {
   value: string | null
@@ -18,6 +19,7 @@ interface PaymentCardPickerProps {
  * the selection.
  */
 export function PaymentCardPicker({ value, onChange }: PaymentCardPickerProps) {
+  const { colors } = useAppTheme()
   const [menuVisible, setMenuVisible] = useState(false)
   const { data, isLoading } = usePaymentCards()
 
@@ -66,24 +68,26 @@ export function PaymentCardPicker({ value, onChange }: PaymentCardPickerProps) {
                 value={displayText}
                 placeholder={placeholder}
                 editable={false}
-                outlineColor="#D1D5DB"
-                activeOutlineColor="#6366F1"
+                outlineColor={colors.inputBorder}
+                activeOutlineColor={colors.brandPrimary}
                 outlineStyle={styles.outline}
+                style={{ backgroundColor: colors.inputBackground }}
+                textColor={colors.textPrimary}
                 left={
                   selectedCard ? (
                     <TextInput.Icon
                       icon="credit-card-outline"
-                      color={selectedCard.color || '#6B7280'}
+                      color={selectedCard.color || colors.textTertiary}
                     />
                   ) : undefined
                 }
                 right={
                   isLoading ? (
-                    <TextInput.Icon icon={() => <ActivityIndicator size={18} color="#6366F1" />} />
+                    <TextInput.Icon icon={() => <ActivityIndicator size={18} color={colors.brandPrimary} />} />
                   ) : (
                     <TextInput.Icon
                       icon={menuVisible ? 'chevron-up' : 'chevron-down'}
-                      color="#6B7280"
+                      color={colors.textTertiary}
                     />
                   )
                 }
@@ -91,16 +95,16 @@ export function PaymentCardPicker({ value, onChange }: PaymentCardPickerProps) {
             </View>
           </Pressable>
         }
-        contentStyle={styles.menuContent}
+        contentStyle={[styles.menuContent, { backgroundColor: colors.cardBackground }]}
         style={styles.menu}
       >
         <Menu.Item
           onPress={() => handleSelect(null)}
           title="No Card"
           leadingIcon={() => (
-            <MaterialCommunityIcons name="close-circle-outline" size={18} color="#9CA3AF" />
+            <MaterialCommunityIcons name="close-circle-outline" size={18} color={colors.textMuted} />
           )}
-          titleStyle={styles.noCardTitle}
+          titleStyle={{ color: colors.textMuted }}
         />
 
         {cards.map((card) => (
@@ -112,19 +116,19 @@ export function PaymentCardPicker({ value, onChange }: PaymentCardPickerProps) {
               <MaterialCommunityIcons
                 name="credit-card-outline"
                 size={20}
-                color={card.color || '#6B7280'}
+                color={card.color || colors.textTertiary}
               />
             )}
             titleStyle={[
-              styles.menuItemTitle,
-              value === card.id && styles.menuItemTitleSelected,
+              { color: colors.textSecondary },
+              value === card.id && { color: colors.brandPrimary, fontWeight: '600' },
             ]}
           />
         ))}
 
         {cards.length === 0 && !isLoading && (
           <View style={styles.emptyContainer}>
-            <Text variant="bodySmall" style={styles.emptyText}>
+            <Text variant="bodySmall" style={{ color: colors.textMuted }}>
               No payment cards found
             </Text>
           </View>
@@ -142,25 +146,11 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   menuContent: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
-  },
-  noCardTitle: {
-    color: '#9CA3AF',
-  },
-  menuItemTitle: {
-    color: '#374151',
-  },
-  menuItemTitleSelected: {
-    color: '#6366F1',
-    fontWeight: '600',
   },
   emptyContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     alignItems: 'center',
-  },
-  emptyText: {
-    color: '#9CA3AF',
   },
 })
