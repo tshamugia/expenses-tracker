@@ -17,11 +17,22 @@
     "seed:notifications": "nx run web:seed:notifications",
     "api:dev": "nx run api:dev",
     "api:build": "nx run api:build",
-    "api:start": "nx run api:start"
+    "api:start": "nx run api:start",
+    "mobile:start": "nx run mobile:start",
+    "mobile:android": "nx run mobile:android",
+    "mobile:ios": "nx run mobile:ios"
   },
   "devDependencies": {
     "nx": "^20.4.0",
     "@nx/next": "^20.4.0",
     "@nx/workspace": "^20.4.0"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowAny": [
+        "react",
+        "react-dom"
+      ]
+    }
   }
 }

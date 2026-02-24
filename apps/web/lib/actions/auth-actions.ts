@@ -49,7 +49,7 @@ export async function setUserPassword(
 }
 
 /**
- * Sign in with email and password
+ * Sign in with email and password (server-side)
  */
 export async function signInWithCredentials(
   email: string,
@@ -76,9 +76,14 @@ export async function signInWithCredentials(
         default:
           return {
             success: false,
-            error: 'Something went wrong. Please try again.'
+            error: `Authentication error: ${error.type}`
           }
       }
+    }
+
+    // NEXT_REDIRECT errors from Auth.js should be re-thrown
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
     }
 
     return {
@@ -90,6 +95,7 @@ export async function signInWithCredentials(
 
 /**
  * Sign up with email and password
+ * NOTE: Does NOT sign in the user. The client should call signIn() after successful sign-up.
  */
 export async function signUpWithCredentials(
   email: string,
@@ -131,13 +137,6 @@ export async function signUpWithCredentials(
       },
     })
 
-    // Sign in the user
-    await signIn('credentials', {
-      email,
-      password,
-      redirect: false,
-    })
-
     return {
       success: true,
       data: { userId: user.id }
@@ -150,4 +149,3 @@ export async function signUpWithCredentials(
     }
   }
 }
-

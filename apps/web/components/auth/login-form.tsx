@@ -55,14 +55,28 @@ export function LoginForm() {
           return
         }
 
-        // Sign up flow
-        const result = await signUpWithCredentials(email, password, name)
+        // Sign up flow - create account first
+        const signUpResult = await signUpWithCredentials(email, password, name)
 
-        if (result.success) {
-          toast.success('Account created successfully!')
-          router.push('/dashboard')
+        if (signUpResult.success) {
+          // Account created - now sign in via client-side signIn
+          const signInResult = await signIn('credentials', {
+            email,
+            password,
+            redirect: false,
+          })
+
+          if (signInResult?.ok) {
+            toast.success('Account created successfully!')
+            router.refresh()
+            router.push('/dashboard')
+          } else {
+            // Account created but sign-in failed - redirect to login
+            toast.success('Account created! Please sign in.')
+            setIsSignUp(false)
+          }
         } else {
-          toast.error(result.error)
+          toast.error(signUpResult.error || 'Failed to create account')
         }
       } else {
         // Sign in flow
@@ -73,10 +87,19 @@ export function LoginForm() {
         })
 
         if (result?.error) {
-          toast.error('Invalid email or password')
-        } else {
+          // Show the actual error type for debugging
+          console.error('SignIn error:', result.error, result)
+          if (result.error === 'CredentialsSignin') {
+            toast.error('Invalid email or password')
+          } else {
+            toast.error(`Authentication failed: ${result.error}`)
+          }
+        } else if (result?.ok) {
           toast.success('Signed in successfully!')
+          router.refresh()
           router.push('/dashboard')
+        } else {
+          toast.error('Unexpected sign-in response. Please try again.')
         }
       }
     } catch (error) {

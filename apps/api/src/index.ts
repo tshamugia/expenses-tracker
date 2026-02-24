@@ -50,8 +50,8 @@ const app = new Elysia()
   .use(notificationRoutes)
   .use(expenseRoutes)
   .use(dashboardRoutes)
-  .listen(PORT)
+  .listen({ port: PORT, hostname: '0.0.0.0' })
 
-console.log(`ExtraTracker API running on http://localhost:${PORT}`)
+console.log(`ExtraTracker API running on http://0.0.0.0:${PORT}`)
 
 export type App = typeof app

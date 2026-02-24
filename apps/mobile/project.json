@@ -1,0 +1,26 @@
+{
+  "name": "mobile",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/mobile",
+  "projectType": "application",
+  "targets": {
+    "start": {
+      "command": "expo start",
+      "options": {
+        "cwd": "apps/mobile"
+      }
+    },
+    "android": {
+      "command": "expo start --android",
+      "options": {
+        "cwd": "apps/mobile"
+      }
+    },
+    "ios": {
+      "command": "expo start --ios",
+      "options": {
+        "cwd": "apps/mobile"
+      }
+    }
+  }
+}

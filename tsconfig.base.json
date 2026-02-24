@@ -12,12 +12,7 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "incremental": true,
-    "paths": {
-      "@extracker/types": ["packages/shared-types/src/index.ts"],
-      "@extracker/core": ["packages/core/src/index.ts"],
-      "@extracker/db": ["packages/db/src/index.ts"]
-    }
+    "incremental": true
   },
   "exclude": ["node_modules", "dist", ".next", "out", "build"]
 }

@@ -1,0 +1,27 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@extracker/types": [
+        "../../packages/shared-types/src/index.ts"
+      ],
+      "@extracker/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@extracker/api": [
+        "../api/src/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}

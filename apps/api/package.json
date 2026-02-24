@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "dotenv -e ../../.env.local -- bun run --watch src/index.ts",
-    "start": "dotenv -e ../../.env.local -- bun run src/index.ts",
-    "build": "dotenv -e ../../.env.local -- bun build src/index.ts --outdir dist --target bun",
-    "test": "dotenv -e ../../.env.local -- bun test",
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun --external @prisma/client --external @prisma/engines",
+    "test": "bun test",
     "test:ci": "bun test",
     "lint": "eslint src"
   },

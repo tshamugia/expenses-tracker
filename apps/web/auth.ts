@@ -1,11 +1,56 @@
 import NextAuth from 'next-auth'
+import Google from 'next-auth/providers/google'
+import Credentials from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import { authConfig } from './auth.config'
 import { prisma } from '@extracker/db'
+import { verifyCredentials } from '@/lib/auth/verify-credentials'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
+  providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          prompt: 'consent',
+          access_type: 'offline',
+          response_type: 'code',
+        },
+      },
+    }),
+    Credentials({
+      name: 'credentials',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          console.log('[authorize] Missing email or password in credentials')
+          return null
+        }
+
+        try {
+          const user = await verifyCredentials(
+            credentials.email as string,
+            credentials.password as string
+          )
+
+          if (!user) {
+            console.log('[authorize] verifyCredentials returned null')
+          }
+
+          return user
+        } catch (error) {
+          console.error('[authorize] Error during credential verification:', error)
+          throw error
+        }
+      },
+    }),
+  ],
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, user, account, trigger }) {

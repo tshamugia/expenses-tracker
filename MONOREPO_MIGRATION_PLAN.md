@@ -752,40 +752,40 @@ model RefreshToken {
 
 ---
 
-### Phase 3: React Native Mobile App — Foundation (Weeks 6-8) - PENDING
+### Phase 3: React Native Mobile App — Foundation (Weeks 6-8) - IN PROGRESS
 
 **Goal**: Build mobile app with core screens and navigation.
 
-#### Week 6: Project Setup & Auth
+#### Week 6: Project Setup & Auth - COMPLETED
 
-- [ ] **3.1** Scaffold Expo app — `npx create-expo-app@latest apps/mobile`
-- [ ] **3.2** Configure Expo Router — File-based navigation with auth guard
-- [ ] **3.3** Set up Eden Treaty client — Type-safe API client with token management
-- [ ] **3.4** Set up TanStack Query — QueryClient provider, default options
-- [ ] **3.5** Set up Zustand stores — Auth store (tokens, user), UI store
-- [ ] **3.6** Build login screen — Email/password form, Google Sign-In button
-- [ ] **3.7** Build register screen — Name, email, password form
-- [ ] **3.8** Implement auth flow — Login → store tokens → navigate to tabs
-- [ ] **3.9** Implement token refresh — Auto-refresh on 401, logout on refresh failure
-- [ ] **3.10** Build auth guard — Redirect to login if no token
+- [x] **3.1** Scaffold Expo app — Expo 54 + React Native 0.81.5 + Expo Router 6 in `apps/mobile`
+- [x] **3.2** Configure Expo Router — File-based navigation with `(auth)/` and `(tabs)/` groups, auth guard in root layout
+- [x] **3.3** Set up Eden Treaty client — Type-safe API client (`lib/api/client.ts`) with authenticated fetch wrapper
+- [x] **3.4** Set up TanStack Query — QueryClient with staleTime, gcTime, error caching (`lib/api/query-client.ts`)
+- [x] **3.5** Set up Zustand stores — Auth store (tokens, user, initialize, login, logout) + UI store
+- [x] **3.6** Build login screen — Email/password form, Google Sign-In button (disabled), validation, API integration
+- [x] **3.7** Build register screen — Name, email, password, confirm password with validation and auto-login on success
+- [x] **3.8** Implement auth flow — Login → store tokens in expo-secure-store → AuthGuard redirects to tabs
+- [x] **3.9** Implement token refresh — Singleton refresh pattern in `authenticated-fetch.ts`, auto-refresh on 401 with retry
+- [x] **3.10** Build auth guard — `AuthGuard` component in root `_layout.tsx`, redirects to login if unauthenticated
 
-#### Week 7: Core Screens
+#### Week 7: Core Screens - COMPLETED
 
-- [ ] **3.11** Build dashboard screen — Stats cards, upcoming expenses, category chart
-- [ ] **3.12** Build expense list screen — List with filters, pull-to-refresh, infinite scroll
-- [ ] **3.13** Build expense detail screen — Full expense info, payment history, mark paid
-- [ ] **3.14** Build create expense screen — Form with category picker, card picker, date picker
-- [ ] **3.15** Build edit expense screen — Pre-filled form, update mutation
-- [ ] **3.16** Delete expense — Swipe-to-delete or delete button with confirmation
+- [x] **3.11** Build dashboard screen — Stats cards (2x2 grid), upcoming expenses list, category breakdown with color bars
+- [x] **3.12** Build expense list screen — FlatList with infinite scroll, filter chips (All/Paid/Pending/Overdue), category dropdown, FAB for create
+- [x] **3.13** Build expense detail screen — Full expense info, payment history, mark paid button, delete with confirmation dialog
+- [x] **3.14** Build create expense screen — ExpenseForm with title, amount, currency picker, category picker, date picker, payment card picker, recurring toggle
+- [x] **3.15** Build edit expense screen — Pre-filled ExpenseForm, update mutation with snackbar feedback
+- [x] **3.16** Delete expense — Delete icon in detail header with ConfirmDialog, destructive styling, loading state
 
-#### Week 8: Secondary Screens
+#### Week 8: Secondary Screens - PENDING
 
-- [ ] **3.17** Build notification screen — Notification list with unread badge, mark read
+- [ ] **3.17** Build notification screen — Notification list with unread badge, mark read (currently placeholder stub)
 - [ ] **3.18** Build category management — List, create, edit, delete categories
 - [ ] **3.19** Build payment card screen — List, add, edit, delete payment cards
-- [ ] **3.20** Build profile screen — User info, change password
+- [ ] **3.20** Build profile screen — User info, change password (currently basic stub with logout only)
 - [ ] **3.21** Build settings screen — Theme, currency, notification preferences
-- [ ] **3.22** Tab navigation — Bottom tabs: Dashboard, Expenses, Notifications, Profile
+- [x] **3.22** Tab navigation — Bottom tabs: Dashboard, Expenses, Notifications, Profile with icons (MaterialCommunityIcons)
 
 **Deliverable**: Functional mobile app with all core screens.
 
@@ -1078,11 +1078,11 @@ CORS_ORIGINS=http://localhost:3000,exp://localhost:8081
 | Phase 0 | Week 1 | Nx monorepo setup, move web app | COMPLETED |
 | Phase 1 | Week 2 | Extract shared packages (@extracker/db, types, core) | COMPLETED |
 | Phase 2 | Weeks 3-5 | Build Elysia.js API (auth, CRUD, dashboard, docs) | COMPLETED |
-| Phase 3 | Weeks 6-8 | React Native mobile app (auth, core screens, navigation) | PENDING |
+| Phase 3 | Weeks 6-8 | React Native mobile app (auth, core screens, navigation) | IN PROGRESS (Weeks 6-7 done) |
 | Phase 4 | Weeks 9-10 | Mobile polish (push notifications, offline, biometrics) | PENDING |
 | Phase 5 | Weeks 11-12 | Testing, CI/CD, deployment | PENDING |
 | Phase 6 | Post-launch | Advanced features (OCR, widgets, analytics, i18n) | PENDING |
 
-**Progress: 3/7 phases completed (37/72 tasks done)**
+**Progress: 3/7 phases completed, Phase 3 in progress (54/72 tasks done)**
 
 **Total estimated timeline: 12 weeks to production-ready mobile app.**

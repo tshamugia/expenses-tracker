@@ -1,41 +1,11 @@
 import type { NextAuthConfig } from 'next-auth'
-import Google from 'next-auth/providers/google'
-import Credentials from 'next-auth/providers/credentials'
-import { verifyCredentials } from '@/lib/auth/verify-credentials'
 
+/**
+ * Auth.js configuration that is Edge-compatible (used by middleware).
+ * IMPORTANT: Do NOT import Prisma or any Node.js-only modules here.
+ * Providers that need DB access (Credentials) are added in auth.ts.
+ */
 export const authConfig = {
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      authorization: {
-        params: {
-          prompt: 'consent',
-          access_type: 'offline',
-          response_type: 'code',
-        },
-      },
-    }),
-    Credentials({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        const user = await verifyCredentials(
-          credentials.email as string,
-          credentials.password as string
-        )
-
-        return user
-      },
-    }),
-  ],
   pages: {
     signIn: '/login',
   },
@@ -76,6 +46,7 @@ export const authConfig = {
       return true
     },
   },
+  providers: [], // Providers added in auth.ts (Edge runtime can't use Prisma)
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
