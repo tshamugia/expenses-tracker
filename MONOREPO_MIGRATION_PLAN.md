@@ -752,7 +752,7 @@ model RefreshToken {
 
 ---
 
-### Phase 3: React Native Mobile App — Foundation (Weeks 6-8) - IN PROGRESS
+### Phase 3: React Native Mobile App — Foundation (Weeks 6-8) - COMPLETED
 
 **Goal**: Build mobile app with core screens and navigation.
 
@@ -778,33 +778,33 @@ model RefreshToken {
 - [x] **3.15** Build edit expense screen — Pre-filled ExpenseForm, update mutation with snackbar feedback
 - [x] **3.16** Delete expense — Delete icon in detail header with ConfirmDialog, destructive styling, loading state
 
-#### Week 8: Secondary Screens - PENDING
+#### Week 8: Secondary Screens - COMPLETED
 
-- [ ] **3.17** Build notification screen — Notification list with unread badge, mark read (currently placeholder stub)
-- [ ] **3.18** Build category management — List, create, edit, delete categories
-- [ ] **3.19** Build payment card screen — List, add, edit, delete payment cards
-- [ ] **3.20** Build profile screen — User info, change password (currently basic stub with logout only)
-- [ ] **3.21** Build settings screen — Theme, currency, notification preferences
+- [x] **3.17** Build notification screen — Notification list with unread badge, mark read, delete notifications (`(tabs)/notifications.tsx` ~180 lines)
+- [x] **3.18** Build category management — List, create, edit, delete categories (`category/index.tsx` ~145 lines + `category-form-dialog.tsx`, `category-card.tsx`)
+- [x] **3.19** Build payment card screen — List, add, edit, delete payment cards (`payment-card/index.tsx` ~150 lines + `payment-card-form-dialog.tsx`, `payment-card-card.tsx`)
+- [x] **3.20** Build profile screen — User info, change password, logout (`(tabs)/profile.tsx` ~170 lines + `change-password.tsx` ~200 lines)
+- [x] **3.21** Build settings screen — Theme, currency, notification preferences (`settings.tsx` ~300 lines with full preference management)
 - [x] **3.22** Tab navigation — Bottom tabs: Dashboard, Expenses, Notifications, Profile with icons (MaterialCommunityIcons)
 
 **Deliverable**: Functional mobile app with all core screens.
 
 ---
 
-### Phase 4: Mobile Polish & Features (Weeks 9-10) - PENDING
+### Phase 4: Mobile Polish & Features (Weeks 9-10) - IN PROGRESS
 
 **Goal**: Native mobile experience with platform-specific features.
 
-- [ ] **4.1** Push notifications — Expo Notifications + backend integration
-- [ ] **4.2** Offline support — TanStack Query offline persistence
-- [ ] **4.3** Biometric auth — Face ID / fingerprint to unlock app
-- [ ] **4.4** Pull-to-refresh — On all list screens
-- [ ] **4.5** Haptic feedback — On mark-paid, delete, create actions
-- [ ] **4.6** Dark mode — Sync with system theme or user preference
-- [ ] **4.7** App icon & splash screen — Branded assets
-- [ ] **4.8** Loading skeletons — Skeleton screens while data loads
-- [ ] **4.9** Error boundaries — Graceful error handling with retry
-- [ ] **4.10** Animations — Screen transitions, list item animations
+- [ ] **4.1** Push notifications — Expo Notifications + backend integration *(deferred — requires EAS setup + backend schema change)*
+- [ ] **4.2** Offline support — TanStack Query offline persistence *(deferred)*
+- [ ] **4.3** Biometric auth — Face ID / fingerprint to unlock app *(deferred — expo-local-authentication)*
+- [x] **4.4** Pull-to-refresh — On all list screens
+- [x] **4.5** Haptic feedback — On mark-paid, delete, create actions (`expo-haptics`)
+- [x] **4.6** Dark mode — Sync with system theme or user preference (ThemeProvider + 37 files refactored)
+- [ ] **4.7** App icon & splash screen — Branded assets *(deferred — asset creation)*
+- [x] **4.8** Loading skeletons — Skeleton screens while data loads (dashboard, expenses, notifications, expense detail)
+- [x] **4.9** Error boundaries — Graceful error handling with retry (root + tab level)
+- [x] **4.10** Animations — Screen transitions, list item animations (`react-native-reanimated`)
 
 **Deliverable**: Polished mobile app ready for internal testing.
 
@@ -1078,11 +1078,11 @@ CORS_ORIGINS=http://localhost:3000,exp://localhost:8081
 | Phase 0 | Week 1 | Nx monorepo setup, move web app | COMPLETED |
 | Phase 1 | Week 2 | Extract shared packages (@extracker/db, types, core) | COMPLETED |
 | Phase 2 | Weeks 3-5 | Build Elysia.js API (auth, CRUD, dashboard, docs) | COMPLETED |
-| Phase 3 | Weeks 6-8 | React Native mobile app (auth, core screens, navigation) | IN PROGRESS (Weeks 6-7 done) |
-| Phase 4 | Weeks 9-10 | Mobile polish (push notifications, offline, biometrics) | PENDING |
+| Phase 3 | Weeks 6-8 | React Native mobile app (auth, core screens, navigation) | COMPLETED |
+| Phase 4 | Weeks 9-10 | Mobile polish (push notifications, offline, biometrics) | IN PROGRESS (6/10 done) |
 | Phase 5 | Weeks 11-12 | Testing, CI/CD, deployment | PENDING |
 | Phase 6 | Post-launch | Advanced features (OCR, widgets, analytics, i18n) | PENDING |
 
-**Progress: 3/7 phases completed, Phase 3 in progress (54/72 tasks done)**
+**Progress: 4/7 phases completed (59/72 tasks done)**
 
 **Total estimated timeline: 12 weeks to production-ready mobile app.**

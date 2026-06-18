@@ -62,7 +62,9 @@
       "Bash(grep:*)",
       "Bash(cd /d/GITHUB/extracker/packages/db && dotenv -e ../../.env.local -- tsx scripts/debug-auth.ts 2>&1)",
       "Bash(cd /d/GITHUB/extracker/packages/db && npx dotenv -e ../../.env.local -- tsx scripts/debug-auth.ts 2>&1)",
-      "Bash(cd /d/GITHUB/extracker/packages/db && npx dotenv -e ../../.env.local -- tsx scripts/test-login.ts 2>&1)"
+      "Bash(cd /d/GITHUB/extracker/packages/db && npx dotenv -e ../../.env.local -- tsx scripts/test-login.ts 2>&1)",
+      "Bash(cd /d/GITHUB/extracker && rm -rf node_modules && pnpm install --no-frozen-lockfile 2>&1)",
+      "Bash(cd D:/GITHUB/extracker/apps/mobile && npx expo install expo-haptics 2>&1)"
     ],
     "deny": [],
     "ask": []
