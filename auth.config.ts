@@ -4,6 +4,10 @@ import Credentials from 'next-auth/providers/credentials'
 import { verifyCredentials } from '@/lib/auth/verify-credentials'
 
 export const authConfig = {
+  // Required for self-hosted / non-Vercel production (next start, Docker).
+  // Without this, Auth.js refuses to infer the host in production and every
+  // auth request fails with a "problem with the server configuration" error.
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID,
