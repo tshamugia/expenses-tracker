@@ -27,6 +27,7 @@ model User {
   paymentCards   PaymentCard[]
   notifications  Notification[]
   notificationPreferences NotificationPreference?
+  pushSubscriptions PushSubscription[]
   accounts       Account[]
   sessions       Session[]
 }
@@ -132,6 +133,19 @@ model NotificationPreference {
   subscriptionStatus String @default("active") // 'active', 'canceled', 'expired'
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  endpoint  String   @unique // Browser push endpoint URL (unique per device/browser)
+  p256dh    String   // Client public key for payload encryption
+  auth      String   // Client auth secret for payload encryption
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // Optimize lookups when sending to a user's devices
 }
 
 model Category {

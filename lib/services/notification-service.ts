@@ -7,6 +7,7 @@
 
 import prisma from '@/lib/db/prisma'
 import { sendPaymentReminderEmail } from './email'
+import { sendPushToUser } from './push-service'
 
 export interface NotificationResult {
   success: boolean
@@ -162,6 +163,13 @@ export async function sendUpcomingPaymentNotifications(): Promise<NotificationRe
 
           console.log(`  ✓ In-app notification created`)
 
+          // Best-effort web push (no-op if push disabled / no subscriptions)
+          await sendPushToUser(user.id, {
+            title: notificationTitle,
+            body: messageText,
+            url: '/expenses',
+          })
+
           // ALWAYS send email (regardless of emailEnabled preference)
           const emailResult = await sendPaymentReminderEmail({
             email: user.email,
@@ -288,6 +296,13 @@ export async function notifyPastOrOverdueExpense(
     })
 
     console.log(`  ✓ In-app notification created`)
+
+    // Best-effort web push (no-op if push disabled / no subscriptions)
+    await sendPushToUser(userId, {
+      title: notificationTitle,
+      body: messageText,
+      url: '/expenses',
+    })
 
     // ALWAYS send email (regardless of emailEnabled preference)
     const emailResult = await sendPaymentReminderEmail({
@@ -437,6 +452,13 @@ export async function sendUserPaymentNotifications(
             daysUntilDue,
           }),
         },
+      })
+
+      // Best-effort web push (no-op if push disabled / no subscriptions)
+      await sendPushToUser(userId, {
+        title: notificationTitle,
+        body: messageText,
+        url: '/expenses',
       })
 
       // ALWAYS send email
