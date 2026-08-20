@@ -25,3 +25,14 @@ export const DASHBOARD_RECENT_LIMIT = 10
 // Date Formats
 export const DATE_FORMAT = 'MMM dd, yyyy'
 export const DATE_TIME_FORMAT = 'MMM dd, yyyy HH:mm'
+
+// Authentication
+export const MIN_PASSWORD_LENGTH = 8
+export const PASSWORD_RESET_TOKEN_EXPIRY_MINUTES = 15
+export const EMAIL_VERIFICATION_TOKEN_EXPIRY_MINUTES = 15
+
+// Rate Limiting (windows in milliseconds)
+export const RATE_LIMIT_LOGIN = { limit: 10, windowMs: 15 * 60 * 1000 } // 10 / 15 min
+export const RATE_LIMIT_SIGNUP = { limit: 5, windowMs: 60 * 60 * 1000 } // 5 / hour
+export const RATE_LIMIT_RESET = { limit: 3, windowMs: 60 * 60 * 1000 } // 3 / hour
+export const RATE_LIMIT_VERIFY = { limit: 10, windowMs: 15 * 60 * 1000 } // 10 / 15 min

@@ -63,6 +63,99 @@ export function formatRelativeDate(date: Date | null): string {
 }
 
 /**
+ * Supported recurrence frequencies (parsed from an RRULE string)
+ */
+export type RecurrenceFrequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+
+/**
+ * Parse a recurrence rule string (e.g. "RRULE:FREQ=MONTHLY;INTERVAL=1")
+ * Returns null if the rule is missing or unrecognized.
+ */
+export function parseRecurrenceRule(
+  rule: string | null | undefined
+): { frequency: RecurrenceFrequency; interval: number } | null {
+  if (!rule) return null
+
+  const freqMatch = rule.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/i)
+  if (!freqMatch) return null
+
+  const frequency = freqMatch[1].toUpperCase() as RecurrenceFrequency
+
+  const intervalMatch = rule.match(/INTERVAL=(\d+)/i)
+  const interval = intervalMatch ? Math.max(1, parseInt(intervalMatch[1], 10)) : 1
+
+  return { frequency, interval }
+}
+
+/**
+ * Build an RRULE string from a frequency and interval.
+ */
+export function buildRecurrenceRule(
+  frequency: RecurrenceFrequency,
+  interval: number = 1
+): string {
+  return `RRULE:FREQ=${frequency};INTERVAL=${Math.max(1, interval)}`
+}
+
+/**
+ * Compute the next due date for a recurring expense.
+ * Advances `currentDueDate` by one recurrence interval.
+ *
+ * Handles month-length edge cases: a payment due on the 31st that rolls into a
+ * shorter month is clamped to that month's last day (e.g. Jan 31 → Feb 28/29)
+ * instead of overflowing into the following month.
+ *
+ * Returns null if the rule cannot be parsed (caller should treat as non-recurring).
+ */
+export function getNextDueDate(
+  currentDueDate: Date,
+  recurrenceRule: string | null | undefined
+): Date | null {
+  const parsed = parseRecurrenceRule(recurrenceRule)
+  if (!parsed) return null
+
+  const { frequency, interval } = parsed
+  const next = new Date(currentDueDate)
+
+  switch (frequency) {
+    case 'DAILY':
+      next.setDate(next.getDate() + interval)
+      break
+    case 'WEEKLY':
+      next.setDate(next.getDate() + 7 * interval)
+      break
+    case 'MONTHLY': {
+      const targetDay = currentDueDate.getDate()
+      // Move to the first of the target month to avoid setMonth overflow,
+      // then clamp the day to the target month's length.
+      next.setDate(1)
+      next.setMonth(next.getMonth() + interval)
+      const daysInMonth = new Date(
+        next.getFullYear(),
+        next.getMonth() + 1,
+        0
+      ).getDate()
+      next.setDate(Math.min(targetDay, daysInMonth))
+      break
+    }
+    case 'YEARLY': {
+      const targetDay = currentDueDate.getDate()
+      next.setDate(1)
+      next.setFullYear(next.getFullYear() + interval)
+      const daysInMonth = new Date(
+        next.getFullYear(),
+        next.getMonth() + 1,
+        0
+      ).getDate()
+      next.setDate(Math.min(targetDay, daysInMonth))
+      break
+    }
+  }
+
+  return next
+}
+
+/**
  * Get start of day for consistent date comparisons
  */
 export function startOfDay(date: Date): Date {

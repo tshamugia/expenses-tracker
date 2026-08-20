@@ -21,6 +21,7 @@ import {
   deleteExpense,
   markExpensePaid,
 } from '@/lib/actions/expense-actions'
+import { buildRecurrenceRule, type RecurrenceFrequency } from '@/lib/utils/date-helpers'
 import { toast } from 'sonner'
 
 interface ExpensesClientProps {
@@ -49,7 +50,9 @@ function transformExpense(expense: SerializedExpenseWithPayments): ExpenseListIt
     amount: expense.amount, // Already serialized as number
     currency: expense.currency,
     category: expense.category || null,
+    icon: (expense as any).icon ?? null,
     isRecurring: expense.isRecurring,
+    recurrenceRule: expense.recurrenceRule ?? null,
     nextDueDate: nextDueDate || null,
     isPaid,
     isOverdue,
@@ -62,6 +65,20 @@ function transformExpense(expense: SerializedExpenseWithPayments): ExpenseListIt
           color: (expense as any).paymentCard.color,
         }
       : null,
+  }
+}
+
+// Convert the form's recurrence option into the fields the server action expects
+function resolveRecurrence(recurrence: ExpenseFormData['recurrence']): {
+  isRecurring: boolean
+  recurrenceRule?: string
+} {
+  if (!recurrence || recurrence === 'none') {
+    return { isRecurring: false }
+  }
+  return {
+    isRecurring: true,
+    recurrenceRule: buildRecurrenceRule(recurrence as RecurrenceFrequency),
   }
 }
 
@@ -97,6 +114,8 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
    */
   const handleCreateExpense = async (data: ExpenseFormData) => {
     try {
+      const { isRecurring, recurrenceRule } = resolveRecurrence(data.recurrence)
+
       // Create optimistic expense
       const optimisticExpense: ExpenseListItem = {
         id: `temp-${Date.now()}`,
@@ -104,7 +123,9 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
         amount: data.amount,
         currency: data.currency || 'GEL',
         category: data.category,
-        isRecurring: false,
+        icon: data.icon ?? null,
+        isRecurring,
+        recurrenceRule: recurrenceRule ?? null,
         nextDueDate: new Date(data.date),
         isPaid: false,
         isOverdue: false,
@@ -122,9 +143,12 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
           amount: data.amount,
           currency: data.currency,
           category: data.category,
+          icon: data.icon ?? null,
           description: data.notes,
           paymentCardId: data.paymentCardId === 'none' ? undefined : data.paymentCardId,
           nextDueDate: new Date(data.date),
+          isRecurring,
+          recurrenceRule,
         })
 
         if (result.success && result.data) {
@@ -161,12 +185,17 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
       const original = expenses.find((e) => e.id === id)
       if (!original) return
 
+      const { isRecurring, recurrenceRule } = resolveRecurrence(data.recurrence)
+
       // Optimistic update
       optimisticUpdate(id, {
         title: data.title,
         amount: data.amount,
         currency: data.currency || original.currency,
         category: data.category,
+        icon: data.icon ?? null,
+        isRecurring,
+        recurrenceRule: recurrenceRule ?? null,
         nextDueDate: new Date(data.date),
       })
 
@@ -177,9 +206,12 @@ export function ExpensesClient({ initialExpenses, categories, error, userId, def
           amount: data.amount,
           currency: data.currency,
           category: data.category,
+          icon: data.icon ?? null,
           description: data.notes,
           paymentCardId: data.paymentCardId === 'none' ? undefined : data.paymentCardId,
           nextDueDate: new Date(data.date),
+          isRecurring,
+          recurrenceRule,
         })
 
         if (result.success && result.data) {

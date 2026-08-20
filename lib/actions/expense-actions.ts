@@ -18,7 +18,7 @@ import {
   findOverdueExpenses,
   findExpenseCategories,
 } from '@/lib/db/expense-queries'
-import { isOverdue } from '@/lib/utils/date-helpers'
+import { isOverdue, getNextDueDate } from '@/lib/utils/date-helpers'
 import type {
   DashboardData,
   ExpenseListItem,
@@ -51,10 +51,12 @@ export const getDashboardData = cache(
           amount: Number(expense.amount),
           currency: expense.currency,
           category: expense.category,
+          icon: expense.icon,
           nextDueDate,
           isOverdue: !isPaid && overdueStatus,
           isPaid,
           isRecurring: expense.isRecurring,
+          recurrenceRule: expense.recurrenceRule,
           paymentCard: expense.paymentCard
             ? {
                 id: expense.paymentCard.id,
@@ -269,6 +271,7 @@ export interface CreateExpenseInput {
   currency?: string
   description?: string
   category?: string
+  icon?: string | null
   paymentCardId?: string
   isRecurring?: boolean
   recurrenceRule?: string
@@ -282,6 +285,7 @@ export interface UpdateExpenseInput {
   currency?: string
   description?: string
   category?: string
+  icon?: string | null
   paymentCardId?: string
   isRecurring?: boolean
   recurrenceRule?: string
@@ -308,6 +312,7 @@ export async function createExpense(
         currency: input.currency || 'USD',
         description: input.description,
         category: input.category,
+        icon: input.icon ?? null,
         paymentCardId: input.paymentCardId || null,
         isRecurring: input.isRecurring || false,
         recurrenceRule: input.recurrenceRule,
@@ -417,9 +422,13 @@ export async function updateExpense(
         currency: input.currency,
         description: input.description,
         category: input.category,
+        // undefined = leave unchanged, null = clear the icon
+        icon: input.icon,
         paymentCardId: input.paymentCardId || null,
         isRecurring: input.isRecurring,
-        recurrenceRule: input.recurrenceRule,
+        // Clear the stored rule when recurrence is explicitly turned off
+        recurrenceRule:
+          input.isRecurring === false ? null : input.recurrenceRule,
         startDate: input.startDate,
         nextDueDate: input.nextDueDate,
       },
@@ -542,6 +551,43 @@ export async function markExpensePaid(
         paidAt: new Date(),
       },
     })
+
+    // Business logic: For recurring expenses, roll the schedule forward.
+    // Advance the expense's nextDueDate by one recurrence interval and create
+    // the next unpaid payment so the cycle continues automatically.
+    if (expense.isRecurring) {
+      const baseDate = payment.dueDate ?? expense.nextDueDate
+      const nextDueDate = baseDate
+        ? getNextDueDate(baseDate, expense.recurrenceRule)
+        : null
+
+      if (nextDueDate) {
+        // Guard against duplicate future payments (e.g. double-clicks)
+        const existingNext = await prisma.payment.findFirst({
+          where: {
+            expenseId,
+            paid: false,
+            dueDate: nextDueDate,
+          },
+        })
+
+        if (!existingNext) {
+          await prisma.payment.create({
+            data: {
+              expenseId,
+              dueDate: nextDueDate,
+              amount: expense.amount,
+              paid: false,
+            },
+          })
+        }
+
+        await prisma.expense.update({
+          where: { id: expenseId },
+          data: { nextDueDate },
+        })
+      }
+    }
 
     // Fetch updated expense
     const expenseWithPayments = await prisma.expense.findUnique({

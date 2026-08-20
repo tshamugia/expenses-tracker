@@ -3,17 +3,17 @@
 import { hash } from 'bcryptjs'
 import prisma from '@/lib/db/prisma'
 import { sendPasswordResetEmail } from '@/lib/services/email'
+import { validatePassword } from '@/lib/utils/password-validation'
+import { checkRateLimit, getClientIp } from '@/lib/utils/rate-limit'
+import { generateSixDigitCode } from '@/lib/utils/token'
+import {
+  PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+  RATE_LIMIT_RESET,
+} from '@/lib/constants/app-config'
 
 export type ActionResult<T = void> =
   | { success: true; data: T }
   | { success: false; error: string }
-
-/**
- * Generate a 6-digit code
- */
-function generateResetCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
 
 /**
  * Request password reset - sends email with code
@@ -22,6 +22,17 @@ export async function requestPasswordReset(
   email: string
 ): Promise<ActionResult<{ message: string }>> {
   try {
+    // Rate limit reset requests per IP + email
+    const ip = await getClientIp()
+    const rate = checkRateLimit(
+      `reset-request:${ip}:${email}`,
+      RATE_LIMIT_RESET.limit,
+      RATE_LIMIT_RESET.windowMs
+    )
+    if (!rate.allowed) {
+      return { success: false, error: 'Too many attempts. Please try again later.' }
+    }
+
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email },
@@ -37,10 +48,12 @@ export async function requestPasswordReset(
     }
 
     // Generate 6-digit code
-    const code = generateResetCode()
+    const code = generateSixDigitCode()
 
-    // Set expiration to 15 minutes from now
-    const expires = new Date(Date.now() + 15 * 60 * 1000)
+    // Set expiration window
+    const expires = new Date(
+      Date.now() + PASSWORD_RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000
+    )
 
     // Invalidate any existing unused tokens for this email
     await prisma.passwordResetToken.updateMany({
@@ -96,6 +109,17 @@ export async function verifyResetCode(
   code: string
 ): Promise<ActionResult<{ valid: boolean }>> {
   try {
+    // Rate limit code verification per IP + email
+    const ip = await getClientIp()
+    const rate = checkRateLimit(
+      `reset-verify:${ip}:${email}`,
+      RATE_LIMIT_RESET.limit,
+      RATE_LIMIT_RESET.windowMs
+    )
+    if (!rate.allowed) {
+      return { success: false, error: 'Too many attempts. Please try again later.' }
+    }
+
     const resetToken = await prisma.passwordResetToken.findFirst({
       where: {
         email,
@@ -136,12 +160,10 @@ export async function resetPasswordWithCode(
   newPassword: string
 ): Promise<ActionResult> {
   try {
-    // Validate password
-    if (newPassword.length < 8) {
-      return {
-        success: false,
-        error: 'Password must be at least 8 characters long',
-      }
+    // Validate password strength
+    const validation = validatePassword(newPassword)
+    if (!validation.isValid) {
+      return { success: false, error: validation.error! }
     }
 
     // Find valid reset token
@@ -166,12 +188,23 @@ export async function resetPasswordWithCode(
     // Hash new password
     const hashedPassword = await hash(newPassword, 12)
 
-    // Update user password and mark as having set password
+    // Look up whether the email is already verified so we don't overwrite
+    // an existing verification timestamp.
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { emailVerified: true },
+    })
+
+    // Update user password and mark as having set password.
+    // Receiving the reset code proves ownership of the email, so mark the
+    // email verified too — otherwise sign-in would keep bouncing the user
+    // back to the verification page after a successful reset.
     await prisma.user.update({
       where: { email },
       data: {
         password: hashedPassword,
         hasSetPassword: true,
+        emailVerified: existing?.emailVerified ?? new Date(),
       },
     })
 
@@ -200,12 +233,10 @@ export async function changePassword(
   newPassword: string
 ): Promise<ActionResult> {
   try {
-    // Validate new password
-    if (newPassword.length < 8) {
-      return {
-        success: false,
-        error: 'Password must be at least 8 characters long',
-      }
+    // Validate new password strength
+    const validation = validatePassword(newPassword)
+    if (!validation.isValid) {
+      return { success: false, error: validation.error! }
     }
 
     // Get user with current password

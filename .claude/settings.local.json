@@ -16,7 +16,8 @@
       "Bash(dir:*)",
       "Bash(npm install:*)",
       "Bash(del middleware.ts)",
-      "Bash(del /F \"d:\\GITHUB\\extracker\\node_modules\\.prisma\\client\\query_engine-windows.dll.node\")"
+      "Bash(del /F \"d:\\GITHUB\\extracker\\node_modules\\.prisma\\client\\query_engine-windows.dll.node\")",
+      "Bash(git ls-tree *)"
     ],
     "deny": [],
     "ask": []

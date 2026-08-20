@@ -334,7 +334,15 @@ RESEND_API_KEY=re_your_api_key_here           # Optional: emails logged to conso
 
 # Cron Job Security (Production)
 CRON_SECRET=your-cron-secret-here              # Generate with: openssl rand -base64 32
+
+# Web Push (PWA notifications)
+VAPID_PUBLIC_KEY=your-vapid-public-key         # Generate with: npx web-push generate-vapid-keys
+VAPID_PRIVATE_KEY=your-vapid-private-key       # Keep secret (server-only)
+VAPID_SUBJECT=mailto:you@example.com           # Contact URI required by the Web Push spec
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key  # Same as VAPID_PUBLIC_KEY, exposed to the client for subscribe()
 ```
+
+If VAPID keys are not set, web push is a no-op (in-app + email notifications still work). The `PushSubscription` table is created via `npm run db:add-push` (kept separate from `prisma db push` to avoid dropping the out-of-schema `RefreshToken` table on the live DB).
 
 See `.env.example` for the full template.
 

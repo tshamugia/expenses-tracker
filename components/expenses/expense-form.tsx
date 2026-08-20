@@ -23,6 +23,7 @@ import { getUserCategories, createCategory } from '@/lib/actions/category-action
 import { getUserPaymentCards, createPaymentCard } from '@/lib/actions/payment-card-actions'
 import { CategoryForm, type CategoryFormData } from '@/components/categories/category-form'
 import { PaymentCardForm, type PaymentCardFormData } from '@/components/payments/payment-card-form'
+import { IconPicker, ExpenseIcon } from './expense-icons'
 import { toast } from 'sonner'
 
 interface ExpenseFormProps {
@@ -34,14 +35,27 @@ interface ExpenseFormProps {
   userId: string
 }
 
+export type RecurrenceOption = 'none' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+
 export interface ExpenseFormData {
   title: string
   amount: number
   currency?: string
   category: string
+  icon?: string | null
   date: string
   notes?: string
   paymentCardId?: string
+  recurrence?: RecurrenceOption
+}
+
+// Map a stored RRULE string to the form's recurrence option
+function recurrenceFromRule(rule: string | null | undefined): RecurrenceOption {
+  if (!rule) return 'none'
+  if (/FREQ=WEEKLY/i.test(rule)) return 'WEEKLY'
+  if (/FREQ=MONTHLY/i.test(rule)) return 'MONTHLY'
+  if (/FREQ=YEARLY/i.test(rule)) return 'YEARLY'
+  return 'none'
 }
 
 export function ExpenseForm({
@@ -57,9 +71,11 @@ export function ExpenseForm({
     amount: 0,
     currency: 'GEL',
     category: '',
+    icon: null,
     date: new Date().toISOString().split('T')[0],
     notes: '',
     paymentCardId: 'none',
+    recurrence: 'none',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -124,9 +140,11 @@ export function ExpenseForm({
           amount: initialData.amount || 0,
           currency: initialData.currency || 'GEL',
           category: initialData.category || '',
+          icon: initialData.icon ?? null,
           date: formattedDate,
           notes: '',
           paymentCardId: initialData.paymentCard?.id || 'none',
+          recurrence: recurrenceFromRule(initialData.recurrenceRule),
         })
       } else {
         // Create mode - reset to defaults
@@ -135,9 +153,11 @@ export function ExpenseForm({
           amount: 0,
           currency: 'GEL',
           category: '',
+          icon: null,
           date: new Date().toISOString().split('T')[0],
           notes: '',
           paymentCardId: 'none',
+          recurrence: 'none',
         })
       }
       // Reset errors and touched when modal opens
@@ -191,9 +211,11 @@ export function ExpenseForm({
       amount: 0,
       currency: 'GEL',
       category: '',
+      icon: null,
       date: new Date().toISOString().split('T')[0],
       notes: '',
       paymentCardId: 'none',
+      recurrence: 'none',
     })
     setErrors({})
     setTouched({})
@@ -548,6 +570,30 @@ export function ExpenseForm({
                     )}
                   </motion.div>
 
+                  {/* Icon / Logo */}
+                  <motion.div
+                    variants={formFieldEntry}
+                    initial="initial"
+                    animate="animate"
+                    transition={{ delay: 0.24 }}
+                    className="group"
+                  >
+                    <div className="mb-2.5 flex items-center gap-2">
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+                        Icon <span className="text-slate-400">(Optional)</span>
+                      </label>
+                      {formData.icon && <ExpenseIcon slug={formData.icon} size={24} />}
+                    </div>
+                    <div className="max-h-56 overflow-y-auto rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 p-3">
+                      <IconPicker
+                        value={formData.icon}
+                        onChange={(slug) =>
+                          setFormData((prev) => ({ ...prev, icon: slug }))
+                        }
+                      />
+                    </div>
+                  </motion.div>
+
                   {/* Payment Card */}
                   <motion.div
                     variants={formFieldEntry}
@@ -660,6 +706,38 @@ export function ExpenseForm({
                       >
                         {errors.date}
                       </motion.p>
+                    )}
+                  </motion.div>
+
+                  {/* Repeat / Recurrence */}
+                  <motion.div
+                    variants={formFieldEntry}
+                    initial="initial"
+                    animate="animate"
+                    transition={{ delay: 0.275 }}
+                    className="group"
+                  >
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                      Repeat
+                    </label>
+                    <Select
+                      value={formData.recurrence || 'none'}
+                      onValueChange={(value) => handleFieldChange('recurrence', value)}
+                    >
+                      <SelectTrigger className="w-full rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50 focus:border-blue-500 focus:ring-blue-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Does not repeat</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                        <SelectItem value="YEARLY">Yearly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formData.recurrence && formData.recurrence !== 'none' && (
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        After you mark it paid, the next payment is scheduled automatically.
+                      </p>
                     )}
                   </motion.div>
 

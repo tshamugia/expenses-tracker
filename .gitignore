@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# nx
+/.nx/
+
+# crash dumps
+*.stackdump
+
+# monorepo build artifacts / deps
+apps/**/node_modules/
+apps/**/.next/
+apps/**/dist/
+packages/**/node_modules/
+packages/**/dist/

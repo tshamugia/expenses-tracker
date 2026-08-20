@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { NotificationBell } from './notification-bell'
 import { ThemeToggle } from './theme-toggle'
+import { InstallPrompt } from '@/components/pwa/install-prompt'
 import { useSession, signOut } from 'next-auth/react'
 
 interface HeaderProps {
@@ -59,6 +60,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2">
+          {/* Install PWA */}
+          <InstallPrompt />
+
           {/* Theme Toggle */}
           <ThemeToggle />
 

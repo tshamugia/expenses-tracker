@@ -32,6 +32,12 @@ export interface SendPasswordResetEmailParams {
   userName?: string
 }
 
+export interface SendVerificationEmailParams {
+  email: string
+  code: string
+  userName?: string
+}
+
 export interface SendPaymentReminderEmailParams {
   email: string
   userName?: string
@@ -147,6 +153,118 @@ export async function sendPasswordResetEmail({
     return { success: true }
   } catch (error) {
     console.error('Error sending password reset email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send email',
+    }
+  }
+}
+
+/**
+ * Send email verification email with 6-digit code
+ */
+export async function sendVerificationEmail({
+  email,
+  code,
+  userName,
+}: SendVerificationEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    // If no API key configured, log to console (development fallback)
+    if (!process.env.RESEND_API_KEY) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📧 EMAIL VERIFICATION (Development Mode)')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`To: ${email}`)
+      console.log(`Name: ${userName || 'User'}`)
+      console.log(`Verification Code: ${code}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      return { success: true }
+    }
+
+    const { error } = await resend.emails.send({
+      from: 'ExtraTracker <onboarding@resend.dev>',
+      to: [email],
+      subject: 'Verify Your Email - ExtraTracker',
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verify Your Email</title>
+          </head>
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+              <tr>
+                <td align="center">
+                  <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <!-- Header -->
+                    <tr>
+                      <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;">
+                        <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700;">Verify Your Email</h1>
+                      </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                      <td style="padding: 40px;">
+                        <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 24px;">
+                          Hi ${userName || 'there'},
+                        </p>
+                        <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 24px;">
+                          Welcome to ExtraTracker! Please confirm your email address using the code below to activate your account:
+                        </p>
+
+                        <!-- Verification Code -->
+                        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                          <tr>
+                            <td align="center" style="background-color: #f9fafb; border: 2px dashed #d1d5db; border-radius: 8px; padding: 30px;">
+                              <div style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #667eea; font-family: 'Courier New', monospace;">
+                                ${code}
+                              </div>
+                            </td>
+                          </tr>
+                        </table>
+
+                        <p style="margin: 0 0 20px; color: #374151; font-size: 16px; line-height: 24px;">
+                          This code will expire in <strong>15 minutes</strong>.
+                        </p>
+
+                        <p style="margin: 0 0 20px; color: #6b7280; font-size: 14px; line-height: 20px;">
+                          If you didn't create an ExtraTracker account, you can safely ignore this email.
+                        </p>
+                      </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                      <td style="padding: 30px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;">
+                        <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 20px;">
+                          © ${new Date().getFullYear()} ExtraTracker. All rights reserved.
+                        </p>
+                        <p style="margin: 10px 0 0; color: #9ca3af; font-size: 12px; line-height: 18px;">
+                          This is an automated message, please do not reply.
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `,
+    })
+
+    if (error) {
+      console.error('Error sending verification email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending verification email:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send email',
