@@ -7,6 +7,7 @@ import { Edit2, Trash2, CheckCircle } from 'lucide-react'
 import type { ExpenseListItem } from '@/types/expense-types'
 import type { Currency } from '@/types/settings-types'
 import { PaymentCardDisplay } from './payment-card-display'
+import { ExpenseIcon } from './expense-icons'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
 import { formatCurrencyWithConversion, convertCurrency } from '@/lib/utils/currency-conversion'
 import { formatExpenseDate } from '@/lib/utils/date-helpers'
@@ -86,7 +87,11 @@ export function ExpenseCard({
       <Card className="group overflow-hidden transition-all hover:shadow-lg">
         <div className="p-4">
           <div className="flex items-start justify-between">
-            <div className="flex-1 pr-4">
+            <div className="flex flex-1 items-start gap-3 pr-4">
+              {/* Icon / Logo */}
+              <ExpenseIcon slug={expense.icon} size={44} className="mt-0.5" />
+
+              <div className="min-w-0 flex-1">
               {/* Title and Badge */}
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-slate-900 dark:text-white">
@@ -134,6 +139,7 @@ export function ExpenseCard({
                   Due: {formatExpenseDate(expense.nextDueDate)}
                 </p>
               )}
+              </div>
             </div>
 
             {/* Action Buttons */}

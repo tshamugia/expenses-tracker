@@ -10,7 +10,8 @@ import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { signUpWithCredentials } from '@/lib/actions/auth-actions'
+import { signUpWithCredentials, signInWithCredentials } from '@/lib/actions/auth-actions'
+import { validatePassword } from '@/lib/utils/password-validation'
 
 export function LoginForm() {
   const router = useRouter()
@@ -55,28 +56,39 @@ export function LoginForm() {
           return
         }
 
-        // Sign up flow
+        // Validate password strength client-side (server re-validates)
+        const validation = validatePassword(password)
+        if (!validation.isValid) {
+          toast.error(validation.error)
+          setIsLoading(false)
+          return
+        }
+
+        // Sign up flow - account is created unverified, then user verifies via code
         const result = await signUpWithCredentials(email, password, name)
 
         if (result.success) {
-          toast.success('Account created successfully!')
-          router.push('/dashboard')
+          toast.success('Account created!', {
+            description: 'Check your email for a 6-digit verification code.',
+          })
+          router.push(`/verify-email?email=${encodeURIComponent(email)}`)
         } else {
           toast.error(result.error)
         }
       } else {
-        // Sign in flow
-        const result = await signIn('credentials', {
-          email,
-          password,
-          redirect: false,
-        })
+        // Sign in flow - server action blocks unverified accounts
+        const result = await signInWithCredentials(email, password)
 
-        if (result?.error) {
-          toast.error('Invalid email or password')
-        } else {
+        if (result.success) {
           toast.success('Signed in successfully!')
           router.push('/dashboard')
+        } else if (result.code === 'EMAIL_NOT_VERIFIED') {
+          toast.error(result.error, {
+            description: 'We\'ll take you to the verification page.',
+          })
+          router.push(`/verify-email?email=${encodeURIComponent(email)}`)
+        } else {
+          toast.error(result.error)
         }
       }
     } catch (error) {

@@ -82,6 +82,18 @@ model PasswordResetToken {
   @@index([token])
 }
 
+model EmailVerificationToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String
+  token     String   @unique // 6-digit code
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+}
+
 model Expense {
   id            String    @id @default(uuid()) @db.Uuid
   userId        String    @db.Uuid
@@ -91,6 +103,7 @@ model Expense {
   currency      String    @default("GEL")
   description   String?
   category      String?
+  icon          String?   // Brand/category logo slug (e.g. "spotify", "anthropic")
   isRecurring   Boolean   @default(false)
   recurrenceRule String?  // e.g., "RRULE:FREQ=MONTHLY;INTERVAL=1"
   startDate     DateTime?

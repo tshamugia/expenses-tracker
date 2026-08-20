@@ -49,7 +49,7 @@ export const authConfig = {
       const pathname = nextUrl.pathname
 
       // Public routes - always allow access
-      const publicRoutes = ['/', '/login', '/forgot-password', '/reset-password']
+      const publicRoutes = ['/', '/login', '/forgot-password', '/reset-password', '/verify-email']
       if (publicRoutes.some(route => pathname.startsWith(route))) {
         return true
       }

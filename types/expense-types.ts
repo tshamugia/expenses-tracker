@@ -49,10 +49,12 @@ export interface ExpenseListItem {
   amount: number
   currency: string
   category: string | null
+  icon: string | null
   nextDueDate: Date | null
   isOverdue: boolean
   isPaid: boolean
   isRecurring: boolean
+  recurrenceRule: string | null
   paymentCard: PaymentCardInfo | null
 }
 

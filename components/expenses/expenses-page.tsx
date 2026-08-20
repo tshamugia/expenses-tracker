@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ExpenseCard } from './expense-card'
+import { ExpenseRow } from './expense-row'
 import { ExpenseForm, type ExpenseFormData } from './expense-form'
 import { DeleteConfirmation } from './delete-confirmation'
 import { Input } from '@/components/ui/input'
@@ -13,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Search, Loader2 } from 'lucide-react'
+import { Plus, Search, Loader2, LayoutGrid, List } from 'lucide-react'
 import { listContainer, fadeIn } from '@/lib/animations/variants'
 import type { ExpenseListItem } from '@/types/expense-types'
 import type { SerializedCategory } from '@/types/category-types'
@@ -57,6 +58,20 @@ export function ExpensesPage({
   const [deleteExpenseId, setDeleteExpenseId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards')
+
+  // Restore the last chosen view mode
+  useEffect(() => {
+    const saved = localStorage.getItem('expenses-view-mode')
+    if (saved === 'cards' || saved === 'list') {
+      setViewMode(saved)
+    }
+  }, [])
+
+  const handleViewModeChange = (mode: 'cards' | 'list') => {
+    setViewMode(mode)
+    localStorage.setItem('expenses-view-mode', mode)
+  }
 
   // Filter and search expenses
   const filteredExpenses = useMemo(() => {
@@ -322,6 +337,38 @@ export function ExpensesPage({
             <SelectItem value="overdue">Overdue</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* View Toggle */}
+        <div className="inline-flex shrink-0 items-center rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
+          <button
+            type="button"
+            onClick={() => handleViewModeChange('cards')}
+            aria-pressed={viewMode === 'cards'}
+            title="Card view"
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'cards'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
+            }`}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            <span className="hidden sm:inline">Cards</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewModeChange('list')}
+            aria-pressed={viewMode === 'list'}
+            title="List view"
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              viewMode === 'list'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700'
+            }`}
+          >
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">List</span>
+          </button>
+        </div>
       </motion.div>
 
       {/* Expenses List */}
@@ -362,10 +409,24 @@ export function ExpensesPage({
                 </motion.button>
               )}
             </motion.div>
-          ) : (
-            <div className="space-y-4">
+          ) : viewMode === 'cards' ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {filteredExpenses.map((expense) => (
                 <ExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  onEdit={handleEditExpense}
+                  onDelete={(id) => setDeleteExpenseId(id)}
+                  onMarkPaid={handleMarkPaid}
+                  defaultCurrency={defaultCurrency}
+                  currencyRates={currencyRates}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredExpenses.map((expense) => (
+                <ExpenseRow
                   key={expense.id}
                   expense={expense}
                   onEdit={handleEditExpense}
