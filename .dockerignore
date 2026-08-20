@@ -64,6 +64,11 @@ components.json
 .github
 .gitlab-ci.yml
 
+# Stray/abandoned monorepo experiment + NX cache (not part of the app,
+# untracked by git — keep them out of the Docker build context)
+apps
+.nx
+
 # Docker
 Dockerfile*
 docker-compose*.yml
