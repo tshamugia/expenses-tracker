@@ -1,20 +1,23 @@
 'use client'
 
-import { DollarSign, Receipt, CreditCard } from 'lucide-react'
+import { DollarSign, Euro, Coins, Receipt, CreditCard, type LucideIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatCurrency } from '@/lib/utils/currency-helpers'
 import type { UserStats } from '@/types/user-types'
 
 interface ProfileStatsProps {
   stats: UserStats
 }
 
+// Match the amount icon to the user's selected display currency
+const CURRENCY_ICONS: Record<UserStats['currency'], LucideIcon> = {
+  USD: DollarSign,
+  EUR: Euro,
+  GEL: Coins,
+}
+
 export function ProfileStats({ stats }: ProfileStatsProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'GEL',
-    }).format(amount)
-  }
+  const AmountIcon = CURRENCY_ICONS[stats.currency] ?? Coins
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -34,11 +37,11 @@ export function ProfileStats({ stats }: ProfileStatsProps) {
       <Card className="border-green-500/20 bg-gradient-to-br from-green-500/5 to-green-500/10">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-          <DollarSign className="h-4 w-4 text-green-500" />
+          <AmountIcon className="h-4 w-4 text-green-500" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(stats.totalAmount)}
+            {formatCurrency(stats.totalAmount, stats.currency)}
           </div>
           <p className="text-xs text-muted-foreground">Total value of expenses</p>
         </CardContent>

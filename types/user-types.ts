@@ -28,6 +28,7 @@ export interface UserStats {
   totalExpenses: number
   totalAmount: number
   totalCards: number
+  currency: 'GEL' | 'USD' | 'EUR'
 }
 
 export type ActionResult<T> =
