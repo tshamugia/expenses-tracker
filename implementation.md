@@ -30,8 +30,14 @@ push to main ─▶ GitHub Actions ─▶ build Docker image ─▶ push to GHCR
 - **builder** → `prisma generate` + `next build`. Takes build-arg `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
   (the only client-inlined public var; safe to expose).
 - **runner** → `node:22-alpine`, non-root `nextjs` user, `openssl` (Prisma engines), Next standalone
-  output, and the **Prisma CLI + engines + migrations** so migrations can run at deploy time.
-  Honors `PORT` (Railway injects it), `EXPOSE 3000`, `CMD ["node","server.js"]`.
+  output, plus the **full `node_modules` from the builder** so the Prisma CLI can run migrations at
+  deploy time. (Copying Prisma piecemeal fails — the CLI needs its whole transitive tree, e.g.
+  `effect` via `@prisma/config`, and the migration engine.) Honors `PORT` (Railway injects it),
+  `EXPOSE 3000`, `CMD ["node","server.js"]`.
+
+The Railway **pre-deploy command** invokes the CLI by its real path (not the `.bin/prisma` shim,
+whose wasm resolution breaks when Docker dereferences the symlink):
+`node node_modules/prisma/build/index.js migrate deploy`.
 
 `.dockerignore` keeps `prisma/` (needed for migrations) and drops `.env*` (except `.env.example`),
 `.git`, `scripts`, docs, etc.
@@ -39,7 +45,7 @@ push to main ─▶ GitHub Actions ─▶ build Docker image ─▶ push to GHCR
 Local sanity check:
 ```bash
 docker build --build-arg NEXT_PUBLIC_VAPID_PUBLIC_KEY=dummy -t extracker:local .
-docker run --rm extracker:local ./node_modules/.bin/prisma -v   # prints Prisma version
+docker run --rm extracker:local node node_modules/prisma/build/index.js -v   # prints Prisma version
 ```
 
 ## 2. GitHub Actions → GHCR
@@ -76,8 +82,9 @@ Provisioned via the Railway CLI / MCP (not the dashboard):
 - Project **Extracker**.
 - **Postgres** service (Railway PostgreSQL template).
 - **extracker** app service, **source = image** `ghcr.io/tshamugia/extracker:latest`.
-- **Pre-deploy command:** `npx prisma migrate deploy` (runs once per deploy, before the new version
-  starts — not per replica; Prisma also takes a DB advisory lock as a backstop).
+- **Pre-deploy command:** `node node_modules/prisma/build/index.js migrate deploy` (runs once per
+  deploy, before the new version starts — not per replica; Prisma also takes a DB advisory lock as a
+  backstop). Uses the CLI's real path, not the `.bin/prisma` shim (see §1).
 - **Health check path:** `/api/health` (already implemented — returns app status + a `SELECT 1` DB check).
 
 ### Migrations
@@ -133,7 +140,7 @@ After setting the Google vars, add the production callback URL in Google Cloud C
 3. Confirm on Railway:
    ```bash
    railway status
-   railway logs --service extracker      # look for "prisma migrate deploy" applying migrations
+   railway logs --service extracker      # look for migrations applying in the pre-deploy step
    ```
 4. Hit the health endpoint:
    ```bash
