@@ -12,6 +12,8 @@
 import { revalidatePath } from 'next/cache'
 import prisma from '@/lib/db/prisma'
 import { getAuthUserId } from '@/lib/auth/get-session'
+import { getMainCurrencyRates } from '@/lib/services/currency'
+import { convertCurrency, type Currency } from '@/lib/utils/currency-conversion'
 import type {
   UserProfile,
   UpdateProfileInput,
@@ -253,26 +255,42 @@ export async function getUserStats(): Promise<ActionResult<UserStats>> {
   try {
     const userId = await getCurrentUserId()
 
-    // Get total expenses count and sum
-    const expensesData = await prisma.expense.aggregate({
+    // Resolve the user's preferred display currency (no hardcoded default here)
+    const preference = await prisma.notificationPreference.findUnique({
       where: { userId },
-      _count: true,
-      _sum: {
-        amount: true,
-      },
+      select: { defaultCurrency: true },
     })
+    const displayCurrency = (preference?.defaultCurrency || 'GEL') as Currency
 
-    // Get total payment cards count
-    const cardsCount = await prisma.paymentCard.count({
-      where: { userId },
-    })
+    // Fetch each expense's amount + currency (can't SUM across mixed currencies in SQL)
+    const [expenses, cardsCount, rates] = await Promise.all([
+      prisma.expense.findMany({
+        where: { userId },
+        select: { amount: true, currency: true },
+      }),
+      prisma.paymentCard.count({ where: { userId } }),
+      getMainCurrencyRates(),
+    ])
+
+    // Convert every expense into the display currency, then sum
+    const totalAmount = expenses.reduce((sum, expense) => {
+      const converted = convertCurrency(
+        Number(expense.amount),
+        (expense.currency || 'GEL') as Currency,
+        displayCurrency,
+        rates.usd,
+        rates.eur
+      )
+      return sum + converted
+    }, 0)
 
     return {
       success: true,
       data: {
-        totalExpenses: expensesData._count,
-        totalAmount: Number(expensesData._sum.amount || 0),
+        totalExpenses: expenses.length,
+        totalAmount,
         totalCards: cardsCount,
+        currency: displayCurrency,
       },
     }
   } catch (error) {
