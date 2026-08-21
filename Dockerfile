@@ -48,15 +48,16 @@ RUN chown nextjs:nodejs .next
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Prisma schema + migrations and the generated client for runtime
+# Copy Prisma schema + migrations for the pre-deploy migration step.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-# Copy the Prisma CLI + engines so the Railway pre-deploy command can run
-# `prisma migrate deploy` against the database before the app starts.
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+# Copy the FULL node_modules from the builder (it already contains the generated
+# Prisma client from `prisma generate`). The standalone output above ships a
+# trimmed node_modules that lacks the Prisma CLI and its transitive deps
+# (e.g. `effect` via @prisma/config), so the Railway pre-deploy command
+# `node node_modules/prisma/build/index.js migrate deploy` needs the complete
+# tree. This overlays (superset) the trimmed one the app runtime uses.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 
