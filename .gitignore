@@ -47,9 +47,6 @@ next-env.d.ts
 # crash dumps
 *.stackdump
 
-# monorepo build artifacts / deps
-apps/**/node_modules/
-apps/**/.next/
-apps/**/dist/
-packages/**/node_modules/
-packages/**/dist/
+# abandoned monorepo scaffold (removed 2026-08-22, single Next.js app)
+/apps/
+/packages/
