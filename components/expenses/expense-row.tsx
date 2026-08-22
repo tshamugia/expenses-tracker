@@ -74,10 +74,10 @@ export function ExpenseRow({
       animate="animate"
       exit="exit"
       layout
-      className="group flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 transition-all hover:shadow-md dark:border-slate-700 dark:bg-slate-800"
+      className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 transition-all hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600 sm:px-4"
     >
       {/* Icon / Logo */}
-      <ExpenseIcon slug={expense.icon} size={36} />
+      <ExpenseIcon slug={expense.icon} size={40} />
 
       {/* Title + meta */}
       <div className="min-w-0 flex-1">
@@ -86,19 +86,21 @@ export function ExpenseRow({
             {expense.title}
           </h3>
           {expense.isRecurring && (
-            <Badge variant="outline" className="hidden text-xs sm:inline-flex">
+            <Badge variant="outline" className="hidden shrink-0 text-xs sm:inline-flex">
               Recurring
             </Badge>
           )}
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 dark:text-slate-400">
-          {expense.category && <span>{expense.category}</span>}
-          {expense.category && expense.nextDueDate && <span>•</span>}
-          {expense.nextDueDate && <span>Due {formatExpenseDate(expense.nextDueDate)}</span>}
+          {expense.category && <span className="truncate">{expense.category}</span>}
+          {expense.category && expense.nextDueDate && <span className="hidden sm:inline">•</span>}
+          {expense.nextDueDate && (
+            <span className="hidden sm:inline">Due {formatExpenseDate(expense.nextDueDate)}</span>
+          )}
           {expense.paymentCard && (
             <>
-              <span>•</span>
-              <span className="inline-flex items-center gap-1">
+              <span className="hidden sm:inline">•</span>
+              <span className="hidden items-center gap-1 sm:inline-flex">
                 <CreditCard className="h-3 w-3" />
                 {expense.paymentCard.nickname || `•••• ${expense.paymentCard.lastFourDigits}`}
               </span>
@@ -109,17 +111,31 @@ export function ExpenseRow({
 
       {/* Amount — always visible, key info on mobile */}
       <div className="flex shrink-0 flex-col items-end">
-        <p className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">{displayAmount}</p>
+        <p className="whitespace-nowrap text-sm font-bold text-slate-900 dark:text-white sm:text-base">
+          {displayAmount}
+        </p>
         {conversionText && (
-          <p className="text-xs text-slate-500 dark:text-slate-400">{conversionText}</p>
+          <p className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+            {conversionText}
+          </p>
         )}
       </div>
 
-      {/* Status — hidden on the narrowest screens to save room */}
+      {/* Status — full badge on larger screens, colour dot on mobile */}
       <div className="hidden shrink-0 sm:block">{getStatusBadge(expense)}</div>
+      <span
+        className={`h-2.5 w-2.5 shrink-0 rounded-full sm:hidden ${
+          expense.isPaid
+            ? 'bg-green-500'
+            : expense.isOverdue
+            ? 'bg-red-500'
+            : 'bg-slate-400'
+        }`}
+        aria-hidden
+      />
 
       {/* Actions */}
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
         {!expense.isPaid && onMarkPaid && (
           <button
             onClick={() => onMarkPaid(expense.id)}

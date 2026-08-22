@@ -299,14 +299,14 @@ export function CategoryForm({
                     initial="initial"
                     animate="animate"
                     transition={{ delay: 0.2 }}
-                    className="flex gap-3 pt-6"
+                    className="flex flex-col-reverse gap-3 pt-6 sm:flex-row"
                   >
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleClose}
                       disabled={isLoading}
-                      className="flex-1 rounded-lg border-2 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
+                      className="h-11 flex-1 rounded-lg border-2 font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
                     >
                       Cancel
                     </Button>
@@ -315,13 +315,13 @@ export function CategoryForm({
                       whileTap={{ scale: 0.98 }}
                       type="submit"
                       disabled={isLoading}
-                      className="flex-1 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed py-2.5 flex items-center justify-center gap-2"
+                      className="inline-flex h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 sm:text-base"
                       style={{
                         backgroundColor: formData.color,
                         color: 'white',
                       }}
                     >
-                      <FolderKanban className="h-4 w-4" />
+                      <FolderKanban className="h-4 w-4 shrink-0" />
                       {isLoading
                         ? 'Saving...'
                         : initialData

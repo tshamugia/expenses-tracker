@@ -445,14 +445,14 @@ export function PaymentCardForm({
                     initial="initial"
                     animate="animate"
                     transition={{ delay: 0.35 }}
-                    className="flex gap-3 pt-6"
+                    className="flex flex-col-reverse gap-3 pt-6 sm:flex-row"
                   >
                     <Button
                       type="button"
                       variant="outline"
                       onClick={handleClose}
                       disabled={isLoading}
-                      className="flex-1 rounded-lg border-2 font-semibold"
+                      className="h-11 flex-1 rounded-lg border-2 font-semibold"
                     >
                       Cancel
                     </Button>
@@ -461,7 +461,7 @@ export function PaymentCardForm({
                       whileTap={{ scale: 0.98 }}
                       type="submit"
                       disabled={isLoading}
-                      className="flex-1 rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 py-2.5"
+                      className="inline-flex h-11 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-blue-600 hover:shadow-xl disabled:opacity-50 sm:text-base"
                     >
                       {isLoading ? 'Saving...' : initialData ? 'Update Card' : 'Add Card'}
                     </motion.button>
