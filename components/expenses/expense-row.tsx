@@ -107,15 +107,15 @@ export function ExpenseRow({
         </div>
       </div>
 
-      {/* Amount */}
-      <div className="hidden shrink-0 flex-col items-end sm:flex">
-        <p className="font-bold text-slate-900 dark:text-white">{displayAmount}</p>
+      {/* Amount — always visible, key info on mobile */}
+      <div className="flex shrink-0 flex-col items-end">
+        <p className="text-sm font-bold text-slate-900 dark:text-white sm:text-base">{displayAmount}</p>
         {conversionText && (
           <p className="text-xs text-slate-500 dark:text-slate-400">{conversionText}</p>
         )}
       </div>
 
-      {/* Status */}
+      {/* Status — hidden on the narrowest screens to save room */}
       <div className="hidden shrink-0 sm:block">{getStatusBadge(expense)}</div>
 
       {/* Actions */}

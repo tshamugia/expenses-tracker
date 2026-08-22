@@ -61,7 +61,7 @@ const navigation = [
   },
 ]
 
-function SidebarContent() {
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
 
   return (
@@ -85,6 +85,7 @@ function SidebarContent() {
               <Link
                 key={item.name}
                 href={item.href}
+                onClick={onNavigate}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                   isActive
@@ -140,7 +141,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <X className="h-5 w-5" />
               </Button>
             </div>
-            <SidebarContent />
+            <SidebarContent onNavigate={onClose} />
           </div>
         </SheetContent>
       </Sheet>

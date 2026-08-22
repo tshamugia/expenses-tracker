@@ -129,14 +129,14 @@ function NotificationsSkeleton() {
 
 export default function NotificationsPage() {
   return (
-    <div className="container mx-auto p-6 max-w-7xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6">
       {/* Page Header */}
       <div className="flex items-center gap-3 pb-2">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-          <Bell className="h-6 w-6 text-primary" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-12 sm:w-12">
+          <Bell className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Notifications</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Notifications</h1>
           <p className="text-muted-foreground">
             Stay updated with your expenses and payments
           </p>

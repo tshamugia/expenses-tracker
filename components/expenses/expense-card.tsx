@@ -114,7 +114,7 @@ export function ExpenseCard({
               {/* Amount and Status */}
               <div className="mt-3 flex items-center gap-4">
                 <div className="flex flex-col">
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white">
+                  <p className="text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
                     {displayAmount}
                   </p>
                   {conversionText && (

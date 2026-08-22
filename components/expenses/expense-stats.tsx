@@ -18,7 +18,7 @@ export function ExpenseStats({ data, currency = 'GEL' }: ExpenseStatsProps) {
   const { total, paid, pending, overdue, count } = data
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-5">
       {/* Total Count Card - New */}
       <StatCard
         title="Total Count"

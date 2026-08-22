@@ -78,7 +78,7 @@ export function ThemeSettings({ settings }: ThemeSettingsProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {themes.map(({ value, label, icon: Icon }) => {
             const isActive = currentTheme === value
             return (

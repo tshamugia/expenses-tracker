@@ -13,16 +13,16 @@ export function HeroSection() {
   return (
     <section className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-teal-50 flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20 relative">
       {/* Login & Register buttons in top-right corner */}
-      <div className="absolute top-6 right-6 flex items-center gap-3">
+      <div className="absolute top-4 right-4 flex items-center gap-2 sm:top-6 sm:right-6 sm:gap-3">
         <Link
           href="/login"
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:border-teal-600 hover:text-teal-600 hover:shadow-md transition-all duration-300"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-white border-2 border-gray-200 text-gray-700 font-semibold rounded-lg hover:border-teal-600 hover:text-teal-600 hover:shadow-md transition-all duration-300 sm:px-6 sm:py-2.5 sm:text-base"
         >
           Login
         </Link>
         <Link
           href="/login?mode=signup"
-          className="inline-flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-teal-600 to-cyan-600 text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-300 sm:px-6 sm:py-2.5 sm:text-base"
         >
           Register
         </Link>
@@ -46,7 +46,7 @@ export function HeroSection() {
           {/* Main Heading */}
           <motion.h1
             variants={fadeInUp}
-            className="text-5xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight"
+            className="text-4xl sm:text-6xl lg:text-7xl font-bold text-gray-900 mb-6 leading-tight"
           >
             Take Control of Your{' '}
             <span className="bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
@@ -57,7 +57,7 @@ export function HeroSection() {
           {/* Subtitle */}
           <motion.p
             variants={fadeInUp}
-            className="text-xl sm:text-2xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed"
+            className="text-lg sm:text-2xl text-gray-600 mb-8 max-w-2xl mx-auto leading-relaxed"
           >
             Track your expenses, set budgets, and gain insights into your spending habits. Smart financial management made simple.
           </motion.p>

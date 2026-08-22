@@ -26,7 +26,7 @@ export default function LoginPage() {
 
       {/* Main content */}
       <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
-        <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
+        <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center gap-8 lg:gap-24">
           {/* Left side - Branding */}
           <div className="flex-1 space-y-6 text-center lg:text-left">
             <div className="inline-block">

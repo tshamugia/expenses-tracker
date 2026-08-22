@@ -141,19 +141,19 @@ export function PaymentsPage({ cards: initialCards, userId }: PaymentsPageProps)
       {/* Header with Stats */}
       <div className="space-y-6">
         {/* Title and Add Button */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white sm:text-3xl">
               Payment Cards
             </h1>
-            <p className="mt-2 text-slate-600 dark:text-slate-400">
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 sm:text-base">
               Manage your credit and debit cards for expense tracking
             </p>
           </div>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
             <Button
               onClick={() => setIsFormOpen(true)}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all sm:w-auto"
             >
               <Plus className="mr-2 h-4 w-4" />
               Add Card

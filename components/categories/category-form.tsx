@@ -181,7 +181,7 @@ export function CategoryForm({
                 damping: 30,
                 mass: 0.5,
               }}
-              className="relative w-full max-w-md rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50"
+              className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative background elements */}
@@ -189,7 +189,7 @@ export function CategoryForm({
               <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl dark:bg-purple-500/5" />
 
               {/* Content wrapper with padding */}
-              <div className="relative p-8">
+              <div className="relative p-5 sm:p-8">
                 {/* Header */}
                 <div className="mb-8 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -265,7 +265,7 @@ export function CategoryForm({
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
                       Color <span className="text-red-500">*</span>
                     </label>
-                    <div className="grid grid-cols-8 gap-2">
+                    <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
                       {COLOR_PALETTE.map((color) => (
                         <motion.button
                           key={color}
@@ -273,7 +273,7 @@ export function CategoryForm({
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => handleFieldChange('color', color)}
-                          className={`h-10 w-10 rounded-lg transition-all ${
+                          className={`aspect-square w-full rounded-lg transition-all ${
                             formData.color === color
                               ? 'ring-2 ring-offset-2 ring-slate-900 dark:ring-slate-100 ring-offset-white dark:ring-offset-slate-900'
                               : 'hover:ring-2 hover:ring-slate-300 dark:hover:ring-slate-600'

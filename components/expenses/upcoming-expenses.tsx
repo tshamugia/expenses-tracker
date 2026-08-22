@@ -67,8 +67,8 @@ export function UpcomingExpenses({
               className="flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
             >
               <div className="flex items-center justify-between">
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-medium">{expense.title}</h3>
                     {expense.category && (
                       <Badge variant="outline" className="text-xs">

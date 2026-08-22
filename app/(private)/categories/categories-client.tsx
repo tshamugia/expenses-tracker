@@ -127,8 +127,8 @@ export function CategoriesClient({ initialCategories, userId }: CategoriesClient
         className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Categories</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Manage your expense categories. Create custom categories with colors to organize
             your expenses.
           </p>
@@ -138,7 +138,7 @@ export function CategoriesClient({ initialCategories, userId }: CategoriesClient
             setEditingCategory(null)
             setIsFormOpen(true)
           }}
-          className="shadow-lg"
+          className="w-full shadow-lg sm:w-auto"
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Category
