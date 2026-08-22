@@ -86,7 +86,7 @@ export function SubscriptionPlans({ settings, plans }: SubscriptionPlansProps) {
       </CardHeader>
       <CardContent>
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -98,9 +98,9 @@ export function SubscriptionPlans({ settings, plans }: SubscriptionPlansProps) {
             return (
               <motion.div
                 key={plan.name}
-                className={`relative rounded-lg p-8 transition-all ${
+                className={`relative rounded-lg p-6 transition-all sm:p-8 ${
                   plan.highlighted
-                    ? 'bg-blue-600 text-white shadow-2xl scale-105'
+                    ? 'bg-blue-600 text-white shadow-2xl md:scale-105'
                     : 'bg-slate-50 text-slate-900 shadow-lg hover:shadow-xl'
                 } ${isCurrentPlan ? 'ring-2 ring-green-500' : ''}`}
                 variants={cardVariants}

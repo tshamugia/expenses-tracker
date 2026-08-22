@@ -23,13 +23,13 @@ export function StatCard({
   colorClass = 'text-primary',
 }: StatCardProps) {
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <Icon className={cn('h-5 w-5', colorClass)} />
+    <Card className="p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate text-xs font-medium text-muted-foreground sm:text-sm">{title}</p>
+        <Icon className={cn('h-4 w-4 shrink-0 sm:h-5 sm:w-5', colorClass)} />
       </div>
-      <div className="mt-3">
-        <p className="text-2xl font-bold">{value}</p>
+      <div className="mt-2 sm:mt-3">
+        <p className="truncate text-xl font-bold sm:text-2xl">{value}</p>
         {description && (
           <p className="mt-1 text-xs text-muted-foreground">{description}</p>
         )}

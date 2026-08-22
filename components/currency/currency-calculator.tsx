@@ -102,7 +102,7 @@ export function CurrencyCalculator({ usd, eur }: CurrencyCalculatorProps) {
         <div className="space-y-2">
           <Label htmlFor="from-amount">From</Label>
           <div className="flex gap-2">
-            <div className="flex-1 relative">
+            <div className="relative min-w-0 flex-1">
               <Input
                 id="from-amount"
                 type="number"
@@ -121,7 +121,7 @@ export function CurrencyCalculator({ usd, eur }: CurrencyCalculatorProps) {
               value={fromCurrency}
               onValueChange={(value) => setFromCurrency(value as CurrencyCode)}
             >
-              <SelectTrigger className="w-[100px]">
+              <SelectTrigger className="w-20 shrink-0 sm:w-[100px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -149,7 +149,7 @@ export function CurrencyCalculator({ usd, eur }: CurrencyCalculatorProps) {
         <div className="space-y-2">
           <Label htmlFor="to-amount">To</Label>
           <div className="flex gap-2">
-            <div className="flex-1 relative">
+            <div className="relative min-w-0 flex-1">
               <Input
                 id="to-amount"
                 type="text"
@@ -165,7 +165,7 @@ export function CurrencyCalculator({ usd, eur }: CurrencyCalculatorProps) {
               value={toCurrency}
               onValueChange={(value) => setToCurrency(value as CurrencyCode)}
             >
-              <SelectTrigger className="w-[100px]">
+              <SelectTrigger className="w-20 shrink-0 sm:w-[100px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

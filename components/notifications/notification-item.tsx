@@ -110,7 +110,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
         isDeleting && 'opacity-50'
       )}
     >
-      <div className="flex gap-4 p-4">
+      <div className="flex gap-3 p-4 sm:gap-4">
         {/* Icon */}
         <div
           className={cn(

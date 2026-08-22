@@ -72,7 +72,7 @@ export function AvatarUpload({
       >
         <div
           className={cn(
-            'relative h-32 w-32 rounded-full overflow-hidden border-4 border-border bg-muted',
+            'relative h-24 w-24 rounded-full overflow-hidden border-4 border-border bg-muted sm:h-32 sm:w-32',
             'transition-all duration-200',
             isHovering && 'ring-4 ring-primary/20'
           )}

@@ -59,7 +59,7 @@ export function DeleteConfirmation({
                 stiffness: 300,
                 damping: 30,
               }}
-              className="relative w-full max-w-sm rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50 p-8"
+              className="relative w-full max-w-sm rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50 p-6 sm:p-8"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative background */}

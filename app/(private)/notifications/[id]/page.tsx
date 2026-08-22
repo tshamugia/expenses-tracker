@@ -303,7 +303,7 @@ export default async function NotificationDetailPage({
   const { id } = await params
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
+    <div className="mx-auto max-w-7xl">
       <Suspense fallback={<NotificationDetailSkeleton />}>
         <NotificationDetailContent id={id} />
       </Suspense>

@@ -347,7 +347,7 @@ export function ExpenseForm({
                 damping: 30,
                 mass: 0.5,
               }}
-              className="relative w-full max-w-md rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50"
+              className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Decorative background elements */}
@@ -355,14 +355,14 @@ export function ExpenseForm({
               <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl dark:bg-purple-500/5" />
 
               {/* Content wrapper with padding */}
-              <div className="relative p-8">
+              <div className="relative p-5 sm:p-8">
                 {/* Header */}
-                <div className="mb-8 flex items-center justify-between">
+                <div className="mb-6 flex items-center justify-between sm:mb-8">
                   <div className="flex items-center gap-3">
                     <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
                       <Plus className="h-5 w-5" />
                     </div>
-                    <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
+                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 sm:text-2xl">
                       {initialData ? 'Edit Expense' : 'Add Expense'}
                     </h2>
                   </div>

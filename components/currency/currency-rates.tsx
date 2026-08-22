@@ -51,19 +51,19 @@ export function CurrencyRates({ usd, eur, date }: CurrencyRatesProps) {
     const TrendIcon = isPositive ? TrendingUp : TrendingDown
 
     return (
-      <div className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-full bg-primary/10">
+      <div className="flex items-center justify-between gap-2 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors sm:p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="p-2 rounded-full bg-primary/10 shrink-0">
             <Icon className="h-5 w-5 text-primary" />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-medium text-muted-foreground">
               1 {currency}
             </p>
-            <p className="text-2xl font-bold">{rate.rateFormated} ₾</p>
+            <p className="truncate text-xl font-bold sm:text-2xl">{rate.rateFormated} ₾</p>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right shrink-0">
           <div
             className={`flex items-center gap-1 ${
               isPositive ? 'text-green-600' : 'text-red-600'

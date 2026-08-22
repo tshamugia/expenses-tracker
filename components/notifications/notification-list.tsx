@@ -78,10 +78,10 @@ export function NotificationList({ notifications }: NotificationListProps) {
       {/* Actions Bar */}
       <Card>
         <CardContent className="flex flex-wrap items-center gap-4 py-4">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
             <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter notifications" />
               </SelectTrigger>
               <SelectContent>
