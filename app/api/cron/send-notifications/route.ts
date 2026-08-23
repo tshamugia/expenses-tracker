@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { accrueStableIncomeForAllUsers } from '@/lib/services/income-accrual'
-import { sendUpcomingPaymentNotifications } from '@/lib/services/notification-service'
+import {
+  sendUpcomingDebtNotifications,
+  sendUpcomingPaymentNotifications,
+} from '@/lib/services/notification-service'
 
 /**
  * Cron endpoint to send payment reminder notifications
@@ -45,20 +48,25 @@ export async function GET(request: NextRequest) {
 
     const result = await sendUpcomingPaymentNotifications()
 
+    // Debt installment reminders (Phase 2): upcoming + overdue, deduped per event
+    const debtResult = await sendUpcomingDebtNotifications()
+
     const duration = Date.now() - startTime
+    const sentCount = result.sentCount + debtResult.sentCount
+    const errors = [...result.errors, ...debtResult.errors]
     console.log(`Payment notification job completed in ${duration}ms`)
-    console.log(`Sent: ${result.sentCount} emails`)
-    if (result.errors.length > 0) {
-      console.log(`Errors: ${result.errors.length}`)
-      result.errors.forEach((error) => console.error(`  - ${error}`))
+    console.log(`Sent: ${sentCount} emails (${debtResult.sentCount} debt)`)
+    if (errors.length > 0) {
+      console.log(`Errors: ${errors.length}`)
+      errors.forEach((error) => console.error(`  - ${error}`))
     }
 
     return NextResponse.json({
-      success: result.success,
+      success: result.success && debtResult.success,
       accruedCount,
-      sentCount: result.sentCount,
-      errorCount: result.errors.length,
-      errors: result.errors,
+      sentCount,
+      errorCount: errors.length,
+      errors,
       duration,
       timestamp: new Date().toISOString(),
     })

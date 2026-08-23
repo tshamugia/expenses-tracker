@@ -499,6 +499,194 @@ export async function sendUserPaymentNotifications(
 }
 
 /**
+ * Debt milestone (Phase 2): the final installment closed the debt.
+ * In-app + best-effort push. Called from recordDebtPayment.
+ */
+export async function notifyDebtPaidOff(
+  userId: string,
+  debtName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('DebtNotifications')
+    const title = t('paidOffTitle')
+    const message = t('paidOffMessage', { debt: debtName })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'success',
+        actionUrl: '/debts',
+        metadata: JSON.stringify({ kind: 'debt-paid-off', debtName }),
+      },
+    })
+
+    await sendPushToUser(userId, { title, body: message, url: '/debts' })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyDebtPaidOff:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Debt installment reminders (Phase 2), for the daily cron.
+ * Triggers, deduped once per installment per event via a metadata marker:
+ * - upcoming: due within the user's notifyBeforeDays window (incl. today)
+ * - overdue: past due and unpaid
+ * Sends in-app + email + best-effort push. Archived / paid-off debts skipped.
+ */
+export async function sendUpcomingDebtNotifications(): Promise<NotificationResult> {
+  const errors: string[] = []
+  let sentCount = 0
+
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        notificationPreferences: { select: { notifyBeforeDays: true } },
+      },
+    })
+
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+
+    const t = await getServerTranslator('DebtNotifications')
+
+    for (const user of users) {
+      try {
+        const notifyBeforeDays =
+          user.notificationPreferences?.notifyBeforeDays ?? 3
+        const windowEnd = new Date(now)
+        windowEnd.setDate(now.getDate() + notifyBeforeDays)
+        windowEnd.setHours(23, 59, 59, 999)
+
+        const items = await prisma.debtScheduleItem.findMany({
+          where: {
+            paid: false,
+            debt: { userId: user.id, status: 'ACTIVE' },
+            dueDate: { lte: windowEnd },
+          },
+          include: {
+            debt: { select: { id: true, name: true, currency: true } },
+          },
+          orderBy: { dueDate: 'asc' },
+        })
+
+        for (const item of items) {
+          const due = new Date(item.dueDate)
+          due.setHours(0, 0, 0, 0)
+          const daysUntilDue = Math.ceil(
+            (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          )
+          const kind = daysUntilDue < 0 ? 'overdue' : 'upcoming'
+          const debtKey = `debt:${item.id}:${kind}`
+
+          // Dedup: at most one notification per installment per event
+          const existing = await prisma.notification.findFirst({
+            where: {
+              userId: user.id,
+              metadata: { contains: `"debtKey":"${debtKey}"` },
+            },
+            select: { id: true },
+          })
+          if (existing) continue
+
+          const amount = Number(item.payment)
+          const title =
+            kind === 'overdue' ? t('overdueTitle') : t('upcomingTitle')
+          const message =
+            kind === 'overdue'
+              ? t('overdueMessage', {
+                  debt: item.debt.name,
+                  amount: amount.toFixed(2),
+                  currency: item.debt.currency,
+                })
+              : daysUntilDue === 0
+                ? t('dueTodayMessage', {
+                    debt: item.debt.name,
+                    amount: amount.toFixed(2),
+                    currency: item.debt.currency,
+                  })
+                : t('upcomingMessage', {
+                    debt: item.debt.name,
+                    amount: amount.toFixed(2),
+                    currency: item.debt.currency,
+                    days: daysUntilDue,
+                  })
+
+          await prisma.notification.create({
+            data: {
+              userId: user.id,
+              title,
+              message,
+              type: kind === 'overdue' ? 'error' : 'payment',
+              actionUrl: `/debts/${item.debt.id}`,
+              metadata: JSON.stringify({
+                kind: 'debt',
+                debtKey,
+                debtId: item.debt.id,
+                scheduleItemId: item.id,
+                dueDate: item.dueDate,
+                amount,
+                daysUntilDue,
+              }),
+            },
+          })
+
+          await sendPushToUser(user.id, {
+            title,
+            body: message,
+            url: `/debts/${item.debt.id}`,
+          })
+
+          const emailResult = await sendPaymentReminderEmail({
+            email: user.email,
+            userName: user.name || undefined,
+            expenseTitle: item.debt.name,
+            amount,
+            currency: item.debt.currency,
+            dueDate: new Date(item.dueDate),
+            daysUntilDue,
+          })
+
+          if (emailResult.success) {
+            sentCount++
+          } else {
+            errors.push(
+              `Failed to send debt email to ${user.email} for ${item.debt.name}: ${emailResult.error}`
+            )
+          }
+        }
+      } catch (error) {
+        errors.push(
+          `Error processing debt notifications for user ${user.email}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      }
+    }
+
+    return { success: true, sentCount, errors }
+  } catch (error) {
+    console.error('Error in sendUpcomingDebtNotifications:', error)
+    return {
+      success: false,
+      sentCount,
+      errors: [
+        ...errors,
+        error instanceof Error ? error.message : 'Unknown error occurred',
+      ],
+    }
+  }
+}
+
+/**
  * Category soft-limit warning (Phase 1).
  * Fires when the current-month spend crosses 80% or 100% of the category's
  * monthly limit. Max ONE notification per threshold per category per month —
