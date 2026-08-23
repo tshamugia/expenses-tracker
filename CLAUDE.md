@@ -25,13 +25,40 @@ npm run lint             # Run ESLint
 npm run db:test          # Test database connection
 npm run db:verify        # Verify database connection
 npm run prisma:generate  # Generate Prisma Client
-npm run prisma:push      # Push schema changes to database
+npm run db:migrate:dev   # Create + apply a migration on the Supabase dev DB (the ONLY way to change schema)
 npm run prisma:studio    # Open Prisma Studio GUI
 npm run prisma:seed      # Seed database with demo data
 npm run seed:notifications # Seed notification data for testing
 ```
 
 All database commands automatically use `.env.local` via `dotenv-cli`.
+
+**DEPRECATED**: `npm run prisma:push` (`prisma db push`) must NOT be used for schema changes — it bypasses migration history and can apply destructive diffs silently. Schema changes go through the migration flow (see "Schema Change & PR Workflow" below).
+
+### Schema Change & PR Workflow (Phase 0)
+
+Full rules: `docs/phases/phase-0-workflow-ci.md`.
+
+- **Schema changes**: only via `npm run db:migrate:dev` against the Supabase dev DB. The generated SQL in `prisma/migrations/` is committed, reviewed in the PR diff, and applied to production (Railway Postgres) exclusively by the Railway pre-deploy command `prisma migrate deploy` after merge. There is no local connection to the production DB, and none should be created.
+- **Destructive SQL** (`DROP TABLE`/`DROP COLUMN`, `TRUNCATE`, `DELETE FROM`, type narrowing, renames) is blocked in CI by the migration guard in `pr-checks.yml`. It only passes with the explicit PR label `migration:destructive-approved`; prefer the expand–contract procedure (phase 0 §5.2).
+- **Before opening a PR**: `npm run build` and `npm run test` must both be green locally; new/changed logic has tests.
+- **CI gates**: `.github/workflows/pr-checks.yml` runs lint (non-blocking) → typecheck → test → build → migration guard on every PR to `main`; branch protection blocks merging on red. `build-and-publish.yml` re-runs typecheck + tests before building the Docker image on `main`.
+
+## Testing (MANDATORY)
+
+**RULE: Every implementation (feature, bug fix, refactor) MUST be covered with tests before it is considered done.** No phase step, PR, or task is complete without its tests passing.
+
+- **Framework**: Vitest (bootstrapped in Phase 0 — `vitest.config.mts`, `@/` alias works in tests) + React Testing Library for components (full RTL setup is Phase 1 §8 — see `docs/phases/phase-1-income-expenses.md`).
+- **Commands**: `npm run test` (run once), `npm run test:watch` (watch mode). Run `npm run test` together with `npm run build` before finishing any task.
+- **File convention**: tests live next to the code they test — `lib/services/amortization.ts` → `lib/services/amortization.test.ts`; components → `component-name.test.tsx`. Import fixtures from a local `__fixtures__/` folder.
+- **What to test, by layer**:
+  - **Financial engines** (`lib/services/`, `lib/utils/` pure functions — amortization, forecast, plan waterfall, verdict, etc.): near-100% coverage, including edge cases (zero rate, rounding, empty history, month-end dates). A bug here means a wrong money number for the user.
+  - **Server Actions**: auth rejection, input validation errors, happy path, and atomicity of multi-write operations (`$transaction`).
+  - **Components**: only behavior-critical ones — forms with validation, dialogs with confirmation flows, state-dependent rendering (ok/warning/over, forward/back).
+- **Design for testability**: keep business logic in pure functions with no DB/auth/Date.now dependencies; Server Actions only orchestrate (auth → fetch → engine → persist → revalidate). If logic is hard to test, extract it first.
+- Existing untested legacy code does not need retroactive tests, but **any code you touch** gets tests for the changed behavior.
+
+Detailed per-phase test cases are specified in each `docs/phases/phase-*.md` file under the "ტესტირება" section — they are part of that phase's Definition of Done.
 
 ## Architecture
 

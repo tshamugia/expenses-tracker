@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:test": "dotenv -e .env.local -- tsx scripts/test-db-connection.ts",
     "db:verify": "dotenv -e .env.local -- tsx scripts/verify-db-connection.ts",
     "prisma:generate": "dotenv -e .env.local -- prisma generate",
@@ -76,6 +78,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.20.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

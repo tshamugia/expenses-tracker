@@ -70,7 +70,7 @@ export async function sendPasswordResetEmail({
       return { success: true }
     }
 
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: 'ExtraTracker <onboarding@resend.dev>',
       to: [email],
       subject: 'Reset Your Password - ExtraTracker',
@@ -316,7 +316,7 @@ export async function sendPaymentReminderEmail({
     const urgencyColor = daysUntilDue <= 1 ? '#dc2626' : daysUntilDue <= 3 ? '#f59e0b' : '#3b82f6'
     const urgencyText = daysUntilDue === 0 ? 'Due Today!' : daysUntilDue === 1 ? 'Due Tomorrow!' : `Due in ${daysUntilDue} days`
 
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: 'ExtraTracker <onboarding@resend.dev>',
       to: [email],
       subject: `Payment Reminder: ${expenseTitle} - ${urgencyText}`,

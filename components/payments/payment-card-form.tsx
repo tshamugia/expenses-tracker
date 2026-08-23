@@ -1,12 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+/**
+ * PaymentCardForm Component
+ * Modal form for adding and editing payment cards
+ *
+ * The inner form is keyed by the edited card, so opening the modal
+ * (or switching between create/edit) remounts it with fresh state —
+ * no prop-to-state syncing effects needed.
+ */
+
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { X, CreditCard } from 'lucide-react'
 import { modalBackdrop, formFieldEntry } from '@/lib/animations/variants'
-import { validateCardNumber, formatCardNumber, detectCardBrand } from '@/lib/utils/card-validation'
+import { validateCardNumber, detectCardBrand } from '@/lib/utils/card-validation'
 import type { PaymentCardListItem } from '@/types/payment-card-types'
 
 interface PaymentCardFormProps {
@@ -45,60 +54,49 @@ export function PaymentCardForm({
   initialData,
   isLoading = false,
 }: PaymentCardFormProps) {
+  return (
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <PaymentCardFormContent
+          key={initialData?.id ?? 'new'}
+          onClose={onClose}
+          onSubmit={onSubmit}
+          initialData={initialData}
+          isLoading={isLoading}
+        />
+      )}
+    </AnimatePresence>
+  )
+}
+
+function PaymentCardFormContent({
+  onClose,
+  onSubmit,
+  initialData,
+  isLoading,
+}: Omit<PaymentCardFormProps, 'isOpen'>) {
   const currentYear = new Date().getFullYear()
 
-  const [formData, setFormData] = useState<PaymentCardFormData>({
-    cardholderName: '',
-    cardNumber: '',
-    expiryMonth: new Date().getMonth() + 1,
-    expiryYear: currentYear,
-    nickname: '',
-    color: '#1e40af',
-  })
+  const [formData, setFormData] = useState<PaymentCardFormData>(() => ({
+    cardholderName: initialData?.cardholderName ?? '',
+    // Only last 4 digits are available when editing
+    cardNumber: initialData?.lastFourDigits ?? '',
+    expiryMonth: initialData?.expiryMonth ?? new Date().getMonth() + 1,
+    expiryYear: initialData?.expiryYear ?? currentYear,
+    nickname: initialData?.nickname ?? '',
+    color: initialData?.color ?? '#1e40af',
+  }))
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
-  const [cardBrand, setCardBrand] = useState<string>('Unknown')
 
-  // Update form data when initialData changes (for editing)
-  useEffect(() => {
-    if (isOpen && initialData) {
-      // Editing mode - pre-fill with card data
-      setFormData({
-        cardholderName: initialData.cardholderName || '',
-        cardNumber: initialData.lastFourDigits, // Only last 4 for editing
-        expiryMonth: initialData.expiryMonth || new Date().getMonth() + 1,
-        expiryYear: initialData.expiryYear || currentYear,
-        nickname: initialData.nickname || '',
-        color: initialData.color || '#1e40af',
-      })
-      setCardBrand(initialData.cardBrand)
-    } else if (isOpen && !initialData) {
-      // Create mode - reset to defaults
-      setFormData({
-        cardholderName: '',
-        cardNumber: '',
-        expiryMonth: new Date().getMonth() + 1,
-        expiryYear: currentYear,
-        nickname: '',
-        color: '#1e40af',
-      })
-      setCardBrand('Unknown')
-    }
-    // Reset errors and touched when modal opens
-    setErrors({})
-    setTouched({})
-  }, [isOpen, initialData, currentYear])
-
-  // Detect card brand as user types
-  useEffect(() => {
-    if (formData.cardNumber.length >= 2) {
-      const brand = detectCardBrand(formData.cardNumber)
-      setCardBrand(brand)
-    } else {
-      setCardBrand('Unknown')
-    }
-  }, [formData.cardNumber])
+  // In edit mode the card number input is disabled, so the brand comes from
+  // the stored card; in create mode it is derived from what the user types.
+  const cardBrand = initialData
+    ? initialData.cardBrand
+    : formData.cardNumber.length >= 2
+    ? detectCardBrand(formData.cardNumber)
+    : 'Unknown'
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -144,25 +142,10 @@ export function PaymentCardForm({
 
     try {
       await onSubmit(formData)
-      handleReset()
       onClose()
     } catch (error) {
       console.error('Form submission error:', error)
     }
-  }
-
-  const handleReset = () => {
-    setFormData({
-      cardholderName: '',
-      cardNumber: '',
-      expiryMonth: new Date().getMonth() + 1,
-      expiryYear: currentYear,
-      nickname: '',
-      color: '#1e40af',
-    })
-    setErrors({})
-    setTouched({})
-    setCardBrand('Unknown')
   }
 
   const handleFieldChange = (field: keyof PaymentCardFormData, value: string | number) => {
@@ -187,11 +170,6 @@ export function PaymentCardForm({
     }))
   }
 
-  const handleClose = () => {
-    handleReset()
-    onClose()
-  }
-
   const handleCardNumberInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     // Remove all non-digits
     const value = e.target.value.replace(/\D/g, '')
@@ -201,277 +179,273 @@ export function PaymentCardForm({
   }
 
   return (
-    <AnimatePresence mode="wait">
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            key="backdrop"
-            variants={modalBackdrop}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xl"
-            onClick={handleClose}
-          />
+    <>
+      {/* Backdrop */}
+      <motion.div
+        key="backdrop"
+        variants={modalBackdrop}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xl"
+        onClick={onClose}
+      />
 
-          {/* Modal Container */}
-          <motion.div
-            key="modal-container"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            onClick={handleClose}
-          >
-            {/* Modal Content */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              transition={{
-                type: 'spring',
-                stiffness: 300,
-                damping: 30,
-                mass: 0.5,
-              }}
-              className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Decorative background */}
-              <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-400/10 rounded-full blur-3xl dark:bg-blue-500/5" />
-              <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl dark:bg-purple-500/5" />
+      {/* Modal Container */}
+      <motion.div
+        key="modal-container"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        onClick={onClose}
+      >
+        {/* Modal Content */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{
+            type: 'spring',
+            stiffness: 300,
+            damping: 30,
+            mass: 0.5,
+          }}
+          className="relative max-h-[90dvh] w-full max-w-md overflow-y-auto overflow-x-hidden rounded-2xl bg-gradient-to-br from-white to-slate-50 shadow-2xl dark:from-slate-800 dark:to-slate-900 border border-white/20 dark:border-slate-700/50"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Decorative background */}
+          <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-400/10 rounded-full blur-3xl dark:bg-blue-500/5" />
+          <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-purple-400/10 rounded-full blur-3xl dark:bg-purple-500/5" />
 
-              {/* Content wrapper */}
-              <div className="relative p-5 sm:p-8">
-                {/* Header */}
-                <div className="mb-6 flex items-center justify-between sm:mb-8">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
-                      <CreditCard className="h-5 w-5" />
-                    </div>
-                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 sm:text-2xl">
-                      {initialData ? 'Edit Card' : 'Add Card'}
-                    </h2>
-                  </div>
-                  <motion.button
-                    whileHover={{ rotate: 90, scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleClose}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                  >
-                    <X className="h-5 w-5" />
-                  </motion.button>
+          {/* Content wrapper */}
+          <div className="relative p-5 sm:p-8">
+            {/* Header */}
+            <div className="mb-6 flex items-center justify-between sm:mb-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
+                  <CreditCard className="h-5 w-5" />
                 </div>
-
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  {/* Card Number */}
-                  <motion.div
-                    variants={formFieldEntry}
-                    initial="initial"
-                    animate="animate"
-                    transition={{ delay: 0.1 }}
-                  >
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
-                      Card Number <span className="text-red-500">*</span>
-                      {cardBrand !== 'Unknown' && (
-                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                          {cardBrand} detected
-                        </span>
-                      )}
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder={initialData ? 'Last 4 digits' : '1234 5678 9012 3456'}
-                      value={formData.cardNumber}
-                      onChange={handleCardNumberInput}
-                      onBlur={() => handleFieldBlur('cardNumber')}
-                      maxLength={initialData ? 4 : 19}
-                      disabled={!!initialData}
-                      className={`w-full rounded-lg border-2 transition-all duration-200 ${
-                        touched.cardNumber && errors.cardNumber
-                          ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
-                          : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
-                      }`}
-                    />
-                    {touched.cardNumber && errors.cardNumber && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 text-sm font-medium text-red-500"
-                      >
-                        {errors.cardNumber}
-                      </motion.p>
-                    )}
-                  </motion.div>
-
-                  {/* Cardholder Name */}
-                  <motion.div
-                    variants={formFieldEntry}
-                    initial="initial"
-                    animate="animate"
-                    transition={{ delay: 0.15 }}
-                  >
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
-                      Cardholder Name <span className="text-red-500">*</span>
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="John Doe"
-                      value={formData.cardholderName}
-                      onChange={(e) => handleFieldChange('cardholderName', e.target.value)}
-                      onBlur={() => handleFieldBlur('cardholderName')}
-                      className={`w-full rounded-lg border-2 transition-all duration-200 ${
-                        touched.cardholderName && errors.cardholderName
-                          ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
-                          : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
-                      }`}
-                    />
-                    {touched.cardholderName && errors.cardholderName && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 text-sm font-medium text-red-500"
-                      >
-                        {errors.cardholderName}
-                      </motion.p>
-                    )}
-                  </motion.div>
-
-                  {/* Expiry Date */}
-                  <motion.div
-                    variants={formFieldEntry}
-                    initial="initial"
-                    animate="animate"
-                    transition={{ delay: 0.2 }}
-                  >
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
-                      Expiry Date <span className="text-red-500">*</span>
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <Input
-                          type="number"
-                          placeholder="MM"
-                          min="1"
-                          max="12"
-                          value={formData.expiryMonth}
-                          onChange={(e) => handleFieldChange('expiryMonth', parseInt(e.target.value) || 1)}
-                          className={`w-full rounded-lg border-2 transition-all duration-200 ${
-                            errors.expiryDate
-                              ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
-                              : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <Input
-                          type="number"
-                          placeholder="YYYY"
-                          min={currentYear}
-                          max={currentYear + 20}
-                          value={formData.expiryYear}
-                          onChange={(e) => handleFieldChange('expiryYear', parseInt(e.target.value) || currentYear)}
-                          className={`w-full rounded-lg border-2 transition-all duration-200 ${
-                            errors.expiryDate
-                              ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
-                              : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
-                          }`}
-                        />
-                      </div>
-                    </div>
-                    {errors.expiryDate && (
-                      <motion.p
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-2 text-sm font-medium text-red-500"
-                      >
-                        {errors.expiryDate}
-                      </motion.p>
-                    )}
-                  </motion.div>
-
-                  {/* Nickname */}
-                  <motion.div
-                    variants={formFieldEntry}
-                    initial="initial"
-                    animate="animate"
-                    transition={{ delay: 0.25 }}
-                  >
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
-                      Nickname <span className="text-slate-400">(Optional)</span>
-                    </label>
-                    <Input
-                      type="text"
-                      placeholder="e.g., Personal Card, Work Card"
-                      value={formData.nickname || ''}
-                      onChange={(e) => handleFieldChange('nickname', e.target.value)}
-                      className="w-full rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50"
-                    />
-                  </motion.div>
-
-                  {/* Card Color */}
-                  <motion.div
-                    variants={formFieldEntry}
-                    initial="initial"
-                    animate="animate"
-                    transition={{ delay: 0.3 }}
-                  >
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
-                      Card Color
-                    </label>
-                    <div className="grid grid-cols-5 gap-2">
-                      {CARD_COLORS.map((colorOption) => (
-                        <button
-                          key={colorOption.value}
-                          type="button"
-                          onClick={() => handleFieldChange('color', colorOption.value)}
-                          className={`h-10 rounded-lg transition-all ${
-                            formData.color === colorOption.value
-                              ? 'ring-4 ring-blue-500 ring-offset-2 scale-110'
-                              : 'hover:scale-105'
-                          }`}
-                          style={{ backgroundColor: colorOption.value }}
-                          aria-label={colorOption.name}
-                        />
-                      ))}
-                    </div>
-                  </motion.div>
-
-                  {/* Actions */}
-                  <motion.div
-                    variants={formFieldEntry}
-                    initial="initial"
-                    animate="animate"
-                    transition={{ delay: 0.35 }}
-                    className="flex flex-col-reverse gap-3 pt-6 sm:flex-row"
-                  >
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleClose}
-                      disabled={isLoading}
-                      className="h-11 flex-1 rounded-lg border-2 font-semibold"
-                    >
-                      Cancel
-                    </Button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      type="submit"
-                      disabled={isLoading}
-                      className="inline-flex h-11 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-blue-600 hover:shadow-xl disabled:opacity-50 sm:text-base"
-                    >
-                      {isLoading ? 'Saving...' : initialData ? 'Update Card' : 'Add Card'}
-                    </motion.button>
-                  </motion.div>
-                </form>
+                <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 sm:text-2xl">
+                  {initialData ? 'Edit Card' : 'Add Card'}
+                </h2>
               </div>
-            </motion.div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+              <motion.button
+                whileHover={{ rotate: 90, scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onClose}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </motion.button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Card Number */}
+              <motion.div
+                variants={formFieldEntry}
+                initial="initial"
+                animate="animate"
+                transition={{ delay: 0.1 }}
+              >
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                  Card Number <span className="text-red-500">*</span>
+                  {cardBrand !== 'Unknown' && (
+                    <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
+                      {cardBrand} detected
+                    </span>
+                  )}
+                </label>
+                <Input
+                  type="text"
+                  placeholder={initialData ? 'Last 4 digits' : '1234 5678 9012 3456'}
+                  value={formData.cardNumber}
+                  onChange={handleCardNumberInput}
+                  onBlur={() => handleFieldBlur('cardNumber')}
+                  maxLength={initialData ? 4 : 19}
+                  disabled={!!initialData}
+                  className={`w-full rounded-lg border-2 transition-all duration-200 ${
+                    touched.cardNumber && errors.cardNumber
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
+                      : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
+                  }`}
+                />
+                {touched.cardNumber && errors.cardNumber && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-sm font-medium text-red-500"
+                  >
+                    {errors.cardNumber}
+                  </motion.p>
+                )}
+              </motion.div>
+
+              {/* Cardholder Name */}
+              <motion.div
+                variants={formFieldEntry}
+                initial="initial"
+                animate="animate"
+                transition={{ delay: 0.15 }}
+              >
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                  Cardholder Name <span className="text-red-500">*</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="John Doe"
+                  value={formData.cardholderName}
+                  onChange={(e) => handleFieldChange('cardholderName', e.target.value)}
+                  onBlur={() => handleFieldBlur('cardholderName')}
+                  className={`w-full rounded-lg border-2 transition-all duration-200 ${
+                    touched.cardholderName && errors.cardholderName
+                      ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
+                      : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
+                  }`}
+                />
+                {touched.cardholderName && errors.cardholderName && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-sm font-medium text-red-500"
+                  >
+                    {errors.cardholderName}
+                  </motion.p>
+                )}
+              </motion.div>
+
+              {/* Expiry Date */}
+              <motion.div
+                variants={formFieldEntry}
+                initial="initial"
+                animate="animate"
+                transition={{ delay: 0.2 }}
+              >
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                  Expiry Date <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="MM"
+                      min="1"
+                      max="12"
+                      value={formData.expiryMonth}
+                      onChange={(e) => handleFieldChange('expiryMonth', parseInt(e.target.value) || 1)}
+                      className={`w-full rounded-lg border-2 transition-all duration-200 ${
+                        errors.expiryDate
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
+                          : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <Input
+                      type="number"
+                      placeholder="YYYY"
+                      min={currentYear}
+                      max={currentYear + 20}
+                      value={formData.expiryYear}
+                      onChange={(e) => handleFieldChange('expiryYear', parseInt(e.target.value) || currentYear)}
+                      className={`w-full rounded-lg border-2 transition-all duration-200 ${
+                        errors.expiryDate
+                          ? 'border-red-500 bg-red-50 dark:bg-red-900/10'
+                          : 'border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50'
+                      }`}
+                    />
+                  </div>
+                </div>
+                {errors.expiryDate && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-sm font-medium text-red-500"
+                  >
+                    {errors.expiryDate}
+                  </motion.p>
+                )}
+              </motion.div>
+
+              {/* Nickname */}
+              <motion.div
+                variants={formFieldEntry}
+                initial="initial"
+                animate="animate"
+                transition={{ delay: 0.25 }}
+              >
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                  Nickname <span className="text-slate-400">(Optional)</span>
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g., Personal Card, Work Card"
+                  value={formData.nickname || ''}
+                  onChange={(e) => handleFieldChange('nickname', e.target.value)}
+                  className="w-full rounded-lg border-2 border-slate-200 dark:border-slate-600 bg-white/50 dark:bg-slate-700/50"
+                />
+              </motion.div>
+
+              {/* Card Color */}
+              <motion.div
+                variants={formFieldEntry}
+                initial="initial"
+                animate="animate"
+                transition={{ delay: 0.3 }}
+              >
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2.5">
+                  Card Color
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {CARD_COLORS.map((colorOption) => (
+                    <button
+                      key={colorOption.value}
+                      type="button"
+                      onClick={() => handleFieldChange('color', colorOption.value)}
+                      className={`h-10 rounded-lg transition-all ${
+                        formData.color === colorOption.value
+                          ? 'ring-4 ring-blue-500 ring-offset-2 scale-110'
+                          : 'hover:scale-105'
+                      }`}
+                      style={{ backgroundColor: colorOption.value }}
+                      aria-label={colorOption.name}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* Actions */}
+              <motion.div
+                variants={formFieldEntry}
+                initial="initial"
+                animate="animate"
+                transition={{ delay: 0.35 }}
+                className="flex flex-col-reverse gap-3 pt-6 sm:flex-row"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={isLoading}
+                  className="h-11 flex-1 rounded-lg border-2 font-semibold"
+                >
+                  Cancel
+                </Button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  type="submit"
+                  disabled={isLoading}
+                  className="inline-flex h-11 flex-1 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 px-4 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-blue-600 hover:shadow-xl disabled:opacity-50 sm:text-base"
+                >
+                  {isLoading ? 'Saving...' : initialData ? 'Update Card' : 'Add Card'}
+                </motion.button>
+              </motion.div>
+            </form>
+          </div>
+        </motion.div>
+      </motion.div>
+    </>
   )
 }

@@ -25,6 +25,7 @@ import type {
   ExpenseFilters,
   ExpenseWithPayments,
   SerializedExpenseWithPayments,
+  SerializedExpenseWithRelations,
   CategoryData,
 } from '@/types/expense-types'
 
@@ -322,7 +323,6 @@ export async function createExpense(
     })
 
     // Business logic: Create initial payment if nextDueDate is provided
-    let paymentId: string | undefined
     if (input.nextDueDate) {
       const payment = await prisma.payment.create({
         data: {
@@ -332,7 +332,6 @@ export async function createExpense(
           paid: false,
         },
       })
-      paymentId = payment.id
 
       // Check if the expense is past due or due today and send immediate notification
       const now = new Date()
@@ -624,7 +623,7 @@ export async function markExpensePaid(
  */
 export async function getExpenses(
   userId: string
-): Promise<ActionResult<SerializedExpenseWithPayments[]>> {
+): Promise<ActionResult<SerializedExpenseWithRelations[]>> {
   try {
     const expenses = await prisma.expense.findMany({
       where: { userId },
@@ -642,7 +641,7 @@ export async function getExpenses(
     })
 
     // Convert Decimal to number for client components
-    const serializedExpenses: SerializedExpenseWithPayments[] = expenses.map((expense) => ({
+    const serializedExpenses: SerializedExpenseWithRelations[] = expenses.map((expense) => ({
       ...expense,
       amount: Number(expense.amount),
       payments: expense.payments.map((payment) => ({

@@ -12,7 +12,7 @@ import { useEffect, useTransition } from 'react'
 import { useExpenseStore } from '@/lib/stores/expense-store'
 import { ExpensesPage as ExpensesUI } from '@/components/expenses/expenses-page'
 import type { ExpenseFormData } from '@/components/expenses/expense-form'
-import type { ExpenseListItem, SerializedExpenseWithPayments } from '@/types/expense-types'
+import type { ExpenseListItem, SerializedExpenseWithRelations } from '@/types/expense-types'
 import type { SerializedCategory } from '@/types/category-types'
 import type { Currency } from '@/types/settings-types'
 import {
@@ -25,7 +25,7 @@ import { buildRecurrenceRule, type RecurrenceFrequency } from '@/lib/utils/date-
 import { toast } from 'sonner'
 
 interface ExpensesClientProps {
-  initialExpenses: SerializedExpenseWithPayments[]
+  initialExpenses: SerializedExpenseWithRelations[]
   categories: SerializedCategory[]
   error: string | null
   userId: string
@@ -38,7 +38,7 @@ interface ExpensesClientProps {
 }
 
 // Transform Prisma expense to UI expense
-function transformExpense(expense: SerializedExpenseWithPayments): ExpenseListItem {
+function transformExpense(expense: SerializedExpenseWithRelations): ExpenseListItem {
   const latestPayment = expense.payments?.[0]
   const nextDueDate = expense.nextDueDate
   const isPaid = latestPayment?.paid ?? false
@@ -50,19 +50,19 @@ function transformExpense(expense: SerializedExpenseWithPayments): ExpenseListIt
     amount: expense.amount, // Already serialized as number
     currency: expense.currency,
     category: expense.category || null,
-    icon: (expense as any).icon ?? null,
+    icon: expense.icon ?? null,
     isRecurring: expense.isRecurring,
     recurrenceRule: expense.recurrenceRule ?? null,
     nextDueDate: nextDueDate || null,
     isPaid,
     isOverdue,
-    paymentCard: (expense as any).paymentCard
+    paymentCard: expense.paymentCard
       ? {
-          id: (expense as any).paymentCard.id,
-          nickname: (expense as any).paymentCard.nickname,
-          lastFourDigits: (expense as any).paymentCard.lastFourDigits,
-          cardBrand: (expense as any).paymentCard.cardBrand,
-          color: (expense as any).paymentCard.color,
+          id: expense.paymentCard.id,
+          nickname: expense.paymentCard.nickname,
+          lastFourDigits: expense.paymentCard.lastFourDigits,
+          cardBrand: expense.paymentCard.cardBrand,
+          color: expense.paymentCard.color,
         }
       : null,
   }

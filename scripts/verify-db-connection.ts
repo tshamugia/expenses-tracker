@@ -43,13 +43,13 @@ async function testConnection() {
       .select('table_name')
       .eq('table_schema', 'public')
       .in('table_name', ['User', 'Expense', 'Payment', 'NotificationPreference'])
-    
+
+    if (tableError) throw tableError
     console.log('\n✅ Database connection verified!')
     console.log('📋 Tables confirmed in Expense Tracker database:')
-    console.log('   - User ✓')
-    console.log('   - Expense ✓')
-    console.log('   - Payment ✓')
-    console.log('   - NotificationPreference ✓')
+    for (const table of tables ?? []) {
+      console.log(`   - ${table.table_name} ✓`)
+    }
     
     console.log('\n🎉 All tests passed! Database is ready.')
     
