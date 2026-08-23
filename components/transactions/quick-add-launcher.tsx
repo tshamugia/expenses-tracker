@@ -11,6 +11,7 @@
 
 import { useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ interface QuickAddLauncherProps {
 }
 
 export function QuickAddLauncher({ variant }: QuickAddLauncherProps) {
+  const t = useTranslations('QuickAdd')
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [categories, setCategories] = useState<QuickAddCategory[]>([])
@@ -94,20 +96,26 @@ export function QuickAddLauncher({ variant }: QuickAddLauncherProps) {
       const status = result.data.categoryStatus
       const symbol = getCurrencySymbol(result.data.defaultCurrency as Currency)
       if (status && status.limit !== null && status.ratio !== null && status.level !== 'ok') {
-        const message = `${status.categoryName}: ${status.spent.toFixed(0)}/${status.limit.toFixed(0)}${symbol} — ორიენტირის ${Math.round(status.ratio * 100)}%`
+        const message = t('limitStatus', {
+          category: status.categoryName,
+          spent: status.spent.toFixed(0),
+          limit: status.limit.toFixed(0),
+          symbol,
+          percent: Math.round(status.ratio * 100),
+        })
         if (status.level === 'over') {
-          toast.error('ხარჯი დამატებულია', { description: message })
+          toast.error(t('added'), { description: message })
         } else {
-          toast.warning('ხარჯი დამატებულია', { description: message })
+          toast.warning(t('added'), { description: message })
         }
       } else {
-        toast.success('ხარჯი დამატებულია')
+        toast.success(t('added'))
       }
 
       router.refresh()
     } else {
       optimisticRemove(tempId)
-      toast.error('ხარჯის დამატება ვერ მოხერხდა', {
+      toast.error(t('addFailed'), {
         description: result.error,
       })
     }
@@ -121,16 +129,16 @@ export function QuickAddLauncher({ variant }: QuickAddLauncherProps) {
           size="sm"
           onClick={handleOpen}
           className="gap-1"
-          aria-label="ხარჯის სწრაფი დამატება"
+          aria-label={t('buttonAria')}
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">ხარჯი</span>
+          <span className="hidden sm:inline">{t('buttonLabel')}</span>
         </Button>
       ) : (
         <Button
           size="icon"
           onClick={handleOpen}
-          aria-label="ხარჯის სწრაფი დამატება"
+          aria-label={t('buttonAria')}
           className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg md:hidden"
         >
           <Plus className="h-6 w-6" />

@@ -34,7 +34,19 @@
       "PowerShell(npm run *)",
       "PowerShell(gh auth *)",
       "PowerShell(gh label *)",
-      "PowerShell(Set-Content *)"
+      "PowerShell(Set-Content *)",
+      "PowerShell(git push *)",
+      "Bash(gh pr *)",
+      "Bash(npm i *)",
+      "Bash(node *)",
+      "Bash(npm run *)",
+      "Bash(npx dotenv *)",
+      "Bash(powershell -c \"\\(Get-Content 'C:\\\\Users\\\\TengoShamugia\\\\.claude\\\\projects\\\\D--GITHUB-extracker\\\\memory\\\\MEMORY.md'\\) -replace 'implementation not started', 'Phase 1 done \\(PR #7\\)' | Set-Content 'C:\\\\Users\\\\TengoShamugia\\\\.claude\\\\projects\\\\D--GITHUB-extracker\\\\memory\\\\MEMORY.md'\")",
+      "mcp__claude_ai_Context7__resolve-library-id",
+      "mcp__claude_ai_Context7__query-docs",
+      "PowerShell(npx dotenv-cli -e .env.local -- prisma migrate dev --name add_auto_entry_source)",
+      "PowerShell(npx prisma generate)",
+      "PowerShell(Get-Process *)"
     ],
     "deny": [],
     "ask": []

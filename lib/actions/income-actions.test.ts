@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockAuth, mockPrisma, mockContext } = vi.hoisted(() => ({
+const { mockAuth, mockPrisma, mockContext, mockAccrue } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
+  mockAccrue: vi.fn(),
   mockPrisma: {
     incomeSource: {
       create: vi.fn(),
@@ -23,6 +24,9 @@ vi.mock('@/lib/db/prisma', () => ({ default: mockPrisma }))
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 vi.mock('@/lib/services/spend-status-service', () => ({
   getCurrencyContext: mockContext,
+}))
+vi.mock('@/lib/services/income-accrual', () => ({
+  accrueStableIncomeForUser: mockAccrue,
 }))
 
 import {
@@ -52,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockAuth.mockResolvedValue({ user: { id: USER_ID } })
   mockContext.mockResolvedValue({ defaultCurrency: 'GEL', usdRate: null, eurRate: null })
+  mockAccrue.mockResolvedValue(0)
 })
 
 describe('createIncomeSource', () => {
@@ -191,6 +196,16 @@ describe('recordIncome', () => {
     expect(result.success).toBe(false)
     expect(mockPrisma.transaction.create).not.toHaveBeenCalled()
   })
+
+  it('rejects manual entries for a STABLE source (it accrues automatically)', async () => {
+    mockPrisma.incomeSource.findFirst.mockResolvedValue(makeSource({ type: 'STABLE' }))
+
+    const result = await recordIncome({ amount: 3500, incomeSourceId: 'src-1' })
+
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/automatically/i)
+    expect(mockPrisma.transaction.create).not.toHaveBeenCalled()
+  })
 })
 
 describe('getIncomeOverview', () => {
@@ -213,6 +228,27 @@ describe('getIncomeOverview', () => {
     })
     expect(result.data?.monthTotal).toBe(0)
     expect(result.data?.sources).toHaveLength(1)
+  })
+
+  it('accrues due stable income before building the overview', async () => {
+    mockPrisma.incomeSource.findMany.mockResolvedValue([makeSource()])
+    mockPrisma.transaction.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+    mockPrisma.transaction.count.mockResolvedValue(0)
+
+    await getIncomeOverview()
+
+    expect(mockAccrue).toHaveBeenCalledWith(USER_ID, expect.any(Date))
+  })
+
+  it('still returns the overview when accrual fails', async () => {
+    mockAccrue.mockRejectedValue(new Error('db down'))
+    mockPrisma.incomeSource.findMany.mockResolvedValue([makeSource()])
+    mockPrisma.transaction.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+    mockPrisma.transaction.count.mockResolvedValue(0)
+
+    const result = await getIncomeOverview()
+
+    expect(result.success).toBe(true)
   })
 
   it('ignores inactive stable sources in the forecast', async () => {

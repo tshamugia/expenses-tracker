@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState, useTransition } from 'react'
+import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -41,6 +42,7 @@ export function TransactionList({
   categories,
   pageSize = 20,
 }: TransactionListProps) {
+  const t = useTranslations('TransactionList')
   const { transactions, setTransactions, appendTransactions, optimisticRemove, optimisticAdd } =
     useTransactionStore()
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
@@ -94,11 +96,11 @@ export function TransactionList({
     startTransition(async () => {
       const result = await deleteTransaction(transaction.id)
       if (result.success) {
-        toast.success('ჩანაწერი წაიშალა')
-        setFetchedTotal((t) => (t ?? totalCount) - 1)
+        toast.success(t('deleted'))
+        setFetchedTotal((prev) => (prev ?? totalCount) - 1)
       } else {
         optimisticAdd(transaction)
-        toast.error('წაშლა ვერ მოხერხდა', { description: result.error })
+        toast.error(t('deleteFailed'), { description: result.error })
       }
     })
   }
@@ -107,11 +109,11 @@ export function TransactionList({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <Select value={categoryFilter} onValueChange={applyFilter}>
-          <SelectTrigger className="w-48" aria-label="კატეგორიის ფილტრი">
+          <SelectTrigger className="w-48" aria-label={t('categoryFilterAria')}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">ყველა კატეგორია</SelectItem>
+            <SelectItem value="all">{t('allCategories')}</SelectItem>
             {categories.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.categoryName}
@@ -119,13 +121,13 @@ export function TransactionList({
             ))}
           </SelectContent>
         </Select>
-        <span className="text-sm text-muted-foreground">{total} ჩანაწერი</span>
+        <span className="text-sm text-muted-foreground">{t('count', { count: total })}</span>
       </div>
 
       {transactions.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            ცვლადი ხარჯები ჯერ არ არის — დაამატე „+&quot; ღილაკით
+            {t('empty')}
           </CardContent>
         </Card>
       ) : (
@@ -140,7 +142,7 @@ export function TransactionList({
                   />
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">
-                      {transaction.categoryName ?? 'უკატეგორიო'}
+                      {transaction.categoryName ?? t('uncategorized')}
                       {transaction.description && (
                         <span className="ml-2 font-normal text-muted-foreground">
                           {transaction.description}
@@ -149,7 +151,7 @@ export function TransactionList({
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(transaction.date), 'dd MMM yyyy')}
-                      {transaction.expenseId && ' · ფიქსირებულიდან'}
+                      {transaction.expenseId && ` · ${t('fromFixed')}`}
                     </p>
                   </div>
                 </div>
@@ -163,7 +165,7 @@ export function TransactionList({
                     variant="ghost"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => handleDelete(transaction)}
-                    aria-label="წაშლა"
+                    aria-label={t('deleteAria')}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -177,7 +179,7 @@ export function TransactionList({
       {transactions.length < total && (
         <div className="flex justify-center">
           <Button variant="outline" onClick={loadMore} disabled={isPending}>
-            {isPending ? 'იტვირთება…' : 'მეტის ჩვენება'}
+            {isPending ? t('loading') : t('loadMore')}
           </Button>
         </div>
       )}

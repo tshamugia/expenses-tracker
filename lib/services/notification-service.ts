@@ -6,6 +6,7 @@
  */
 
 import prisma from '@/lib/db/prisma'
+import { getServerTranslator } from '@/i18n/server-translator'
 import { sendCategoryLimitEmail, sendPaymentReminderEmail } from './email'
 import { sendPushToUser } from './push-service'
 
@@ -534,10 +535,17 @@ export async function notifyCategoryLimitThreshold(
 
     const percent = Math.round(status.ratio * 100)
     const isOver = threshold === 100
+    const t = await getServerTranslator('CategoryLimitAlert')
     const title = isOver
-      ? `${category.name}: ორიენტირი ამოიწურა`
-      : `${category.name}: ორიენტირის 80% მიღწეულია`
-    const message = `${category.name}: ${status.spent.toFixed(2)}/${status.limit.toFixed(2)} ${currency} — ორიენტირის ${percent}%`
+      ? t('titleOver', { category: category.name })
+      : t('titleWarn', { category: category.name })
+    const message = t('message', {
+      category: category.name,
+      spent: status.spent.toFixed(2),
+      limit: status.limit.toFixed(2),
+      currency,
+      percent,
+    })
 
     await prisma.notification.create({
       data: {

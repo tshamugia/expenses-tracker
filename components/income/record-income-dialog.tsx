@@ -2,11 +2,14 @@
 
 /**
  * Record an income fact (Phase 1 §6.1) — source, amount, currency, date.
+ * Only VARIABLE sources are offered: STABLE income is accrued automatically
+ * every month by the accrual service, so manual entry is variable-only.
  * Form state lives in an inner component that Radix unmounts on close,
  * so every open starts fresh.
  */
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import {
@@ -55,12 +58,14 @@ function RecordIncomeForm({
   onCancel: () => void
   isSubmitting: boolean
 }) {
-  const activeSources = sources.filter((s) => s.isActive)
+  const t = useTranslations('RecordIncomeDialog')
+  // STABLE sources accrue automatically — only variable income is entered here
+  const activeSources = sources.filter((s) => s.isActive && s.type === 'VARIABLE')
   const first = activeSources[0]
 
   const [sourceId, setSourceId] = useState<string>(first?.id ?? NO_SOURCE)
   const [amount, setAmount] = useState(
-    first?.type === 'STABLE' && first.expectedAmount ? String(first.expectedAmount) : ''
+    first?.expectedAmount ? String(first.expectedAmount) : ''
   )
   const [currency, setCurrency] = useState(first?.currency ?? 'GEL')
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
@@ -69,7 +74,7 @@ function RecordIncomeForm({
   const handleSourceChange = (value: string) => {
     setSourceId(value)
     const source = activeSources.find((s) => s.id === value)
-    if (source?.type === 'STABLE' && source.expectedAmount) {
+    if (source?.expectedAmount) {
       setAmount(String(source.expectedAmount))
       setCurrency(source.currency)
     }
@@ -80,7 +85,7 @@ function RecordIncomeForm({
 
     const parsedAmount = Number(amount.replace(',', '.'))
     if (!amount.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError('შეიყვანე თანხა')
+      setError(t('errorAmount'))
       return
     }
 
@@ -95,8 +100,10 @@ function RecordIncomeForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <p className="text-xs text-muted-foreground">{t('variableOnlyHint')}</p>
+
       <div className="space-y-1.5">
-        <Label htmlFor="income-source">წყარო</Label>
+        <Label htmlFor="income-source">{t('source')}</Label>
         <Select value={sourceId} onValueChange={handleSourceChange}>
           <SelectTrigger id="income-source">
             <SelectValue />
@@ -107,14 +114,14 @@ function RecordIncomeForm({
                 {source.name}
               </SelectItem>
             ))}
-            <SelectItem value={NO_SOURCE}>სხვა / წყაროს გარეშე</SelectItem>
+            <SelectItem value={NO_SOURCE}>{t('noSource')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="flex gap-2">
         <div className="flex-1 space-y-1.5">
-          <Label htmlFor="income-amount">თანხა</Label>
+          <Label htmlFor="income-amount">{t('amount')}</Label>
           <Input
             id="income-amount"
             autoFocus
@@ -126,7 +133,7 @@ function RecordIncomeForm({
           />
         </div>
         <div className="w-24 space-y-1.5">
-          <Label htmlFor="income-currency">ვალუტა</Label>
+          <Label htmlFor="income-currency">{t('currency')}</Label>
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger id="income-currency">
               <SelectValue />
@@ -141,7 +148,7 @@ function RecordIncomeForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="income-date">თარიღი</Label>
+        <Label htmlFor="income-date">{t('date')}</Label>
         <Input
           id="income-date"
           type="date"
@@ -158,10 +165,10 @@ function RecordIncomeForm({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          გაუქმება
+          {t('cancel')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'ინახება…' : 'დაფიქსირება'}
+          {isSubmitting ? t('saving') : t('record')}
         </Button>
       </div>
     </form>
@@ -175,11 +182,13 @@ export function RecordIncomeDialog({
   onSubmit,
   isSubmitting = false,
 }: RecordIncomeDialogProps) {
+  const t = useTranslations('RecordIncomeDialog')
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>შემოსავლის დაფიქსირება</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
         <RecordIncomeForm
           sources={sources}

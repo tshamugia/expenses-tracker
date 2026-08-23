@@ -8,6 +8,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Check, Pencil, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ interface CategorySpendListProps {
 
 export function CategorySpendList({ categories, defaultCurrency }: CategorySpendListProps) {
   const router = useRouter()
+  const t = useTranslations('CategorySpendList')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [limitValue, setLimitValue] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -40,18 +42,18 @@ export function CategorySpendList({ categories, defaultCurrency }: CategorySpend
     const limit = trimmed === '' ? null : Number(trimmed.replace(',', '.'))
 
     if (limit !== null && (!Number.isFinite(limit) || limit <= 0)) {
-      toast.error('ლიმიტი დადებითი რიცხვი უნდა იყოს')
+      toast.error(t('limitInvalid'))
       return
     }
 
     startTransition(async () => {
       const result = await setCategoryLimit(categoryId, limit)
       if (result.success) {
-        toast.success(limit === null ? 'ორიენტირი მოხსნილია' : 'ორიენტირი შენახულია')
+        toast.success(limit === null ? t('limitRemoved') : t('limitSaved'))
         setEditingId(null)
         router.refresh()
       } else {
-        toast.error('ორიენტირის შენახვა ვერ მოხერხდა', { description: result.error })
+        toast.error(t('limitSaveFailed'), { description: result.error })
       }
     })
   }
@@ -70,7 +72,7 @@ export function CategorySpendList({ categories, defaultCurrency }: CategorySpend
                 <span className="truncate font-medium">{category.categoryName}</span>
                 {category.kind === 'FIXED' && (
                   <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                    ფიქსირებული
+                    {t('fixedBadge')}
                   </span>
                 )}
               </div>
@@ -86,9 +88,9 @@ export function CategorySpendList({ categories, defaultCurrency }: CategorySpend
                       if (e.key === 'Enter') saveLimit(category.id)
                       if (e.key === 'Escape') setEditingId(null)
                     }}
-                    placeholder="ლიმიტი"
+                    placeholder={t('limitPlaceholder')}
                     className="h-8 w-24"
-                    aria-label={`${category.categoryName} — თვიური ორიენტირი`}
+                    aria-label={t('limitAria', { category: category.categoryName })}
                   />
                   <Button
                     size="icon"
@@ -96,7 +98,7 @@ export function CategorySpendList({ categories, defaultCurrency }: CategorySpend
                     className="h-8 w-8"
                     disabled={isPending}
                     onClick={() => saveLimit(category.id)}
-                    aria-label="შენახვა"
+                    aria-label={t('saveAria')}
                   >
                     <Check className="h-4 w-4" />
                   </Button>
@@ -105,7 +107,7 @@ export function CategorySpendList({ categories, defaultCurrency }: CategorySpend
                     variant="ghost"
                     className="h-8 w-8"
                     onClick={() => setEditingId(null)}
-                    aria-label="გაუქმება"
+                    aria-label={t('cancelAria')}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -127,7 +129,7 @@ export function CategorySpendList({ categories, defaultCurrency }: CategorySpend
                   ) : (
                     <span>
                       {category.spent.toFixed(0)}
-                      {symbol} · ორიენტირი არ არის
+                      {symbol} · {t('noLimit')}
                     </span>
                   )}
                   <Pencil className="h-3.5 w-3.5" />

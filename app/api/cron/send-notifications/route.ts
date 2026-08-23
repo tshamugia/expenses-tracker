@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { accrueStableIncomeForAllUsers } from '@/lib/services/income-accrual'
 import { sendUpcomingPaymentNotifications } from '@/lib/services/notification-service'
 
 /**
@@ -32,6 +33,16 @@ export async function GET(request: NextRequest) {
     console.log('Starting scheduled payment notification job...')
     const startTime = Date.now()
 
+    // Credit stable income that came due, for users who have not opened the
+    // app; failures must not block the reminder emails below
+    let accruedCount = 0
+    try {
+      accruedCount = await accrueStableIncomeForAllUsers()
+      console.log(`Accrued ${accruedCount} stable income transactions`)
+    } catch (error) {
+      console.error('Error accruing stable income:', error)
+    }
+
     const result = await sendUpcomingPaymentNotifications()
 
     const duration = Date.now() - startTime
@@ -44,6 +55,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: result.success,
+      accruedCount,
       sentCount: result.sentCount,
       errorCount: result.errors.length,
       errors: result.errors,

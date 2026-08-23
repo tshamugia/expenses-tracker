@@ -6,6 +6,7 @@
  * method explanation. Reused on the dashboard in Phase 4.
  */
 
+import { useTranslations } from 'next-intl'
 import { TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { IncomeForecast } from '@/lib/services/income-forecast'
@@ -16,26 +17,23 @@ interface ForecastCardProps {
   defaultCurrency: string
 }
 
-function methodLabel(forecast: IncomeForecast): string {
-  switch (forecast.method) {
-    case 'no_history':
-      return 'არასტაბილურ შემოსავალზე ჯერ ისტორია გროვდება (მინ. 3 თვე)'
-    case 'average_discounted':
-      return `ბოლო ${forecast.monthsOfHistory} თვის კონსერვატიული შეფასება (საშუალოს 75%)`
-    case 'historical_min':
-      return `ბოლო ${forecast.monthsOfHistory} თვის მინიმუმი — კონსერვატიული შეფასება`
-  }
-}
-
 export function ForecastCard({ forecast, defaultCurrency }: ForecastCardProps) {
+  const t = useTranslations('ForecastCard')
   const symbol = getCurrencySymbol(defaultCurrency as Currency)
+
+  const methodLabel =
+    forecast.method === 'no_history'
+      ? t('methodNoHistory')
+      : forecast.method === 'average_discounted'
+        ? t('methodAverage', { months: forecast.monthsOfHistory })
+        : t('methodMin', { months: forecast.monthsOfHistory })
 
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base font-medium text-muted-foreground">
           <TrendingUp className="h-4 w-4" />
-          მომდევნო თვის პროგნოზი
+          {t('title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
@@ -44,11 +42,12 @@ export function ForecastCard({ forecast, defaultCurrency }: ForecastCardProps) {
           {symbol}
         </p>
         <p className="text-sm text-muted-foreground">
-          სტაბილური {forecast.stableTotal.toFixed(0)}
-          {symbol} + არასტაბილური {forecast.variableEstimate.toFixed(0)}
-          {symbol}
+          {t('breakdown', {
+            stable: `${forecast.stableTotal.toFixed(0)}${symbol}`,
+            variable: `${forecast.variableEstimate.toFixed(0)}${symbol}`,
+          })}
         </p>
-        <p className="text-xs text-muted-foreground">{methodLabel(forecast)}</p>
+        <p className="text-xs text-muted-foreground">{methodLabel}</p>
       </CardContent>
     </Card>
   )

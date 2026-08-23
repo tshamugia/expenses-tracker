@@ -61,6 +61,7 @@ enum TransactionType {
 
 enum EntrySource {
   MANUAL
+  AUTO // stable-income monthly accrual
   CLAUDE
   IMPORT
   BANK

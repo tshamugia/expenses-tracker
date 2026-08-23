@@ -12,6 +12,7 @@ import { revalidatePath } from 'next/cache'
 import { endOfMonth, startOfMonth, subMonths } from 'date-fns'
 import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
+import { accrueStableIncomeForUser } from '@/lib/services/income-accrual'
 import { forecastNextMonthIncome } from '@/lib/services/income-forecast'
 import {
   getCurrencyContext,
@@ -217,6 +218,14 @@ export async function recordIncome(
       if (!source) {
         return { success: false, error: 'Income source not found or access denied' }
       }
+      // STABLE income is accrued automatically each month — manual entries
+      // would double-count it
+      if (source.type === 'STABLE') {
+        return {
+          success: false,
+          error: 'Stable income is recorded automatically every month',
+        }
+      }
     }
 
     const transaction = await prisma.transaction.create({
@@ -294,6 +303,14 @@ export async function getIncomeOverview(): Promise<IncomeActionResult<IncomeOver
     }
     const userId = session.user.id
     const now = new Date()
+
+    // Lazy accrual: credit any stable income that came due since the last
+    // visit, so the month facts below already include it. Never blocks the page.
+    try {
+      await accrueStableIncomeForUser(userId, now)
+    } catch (error) {
+      console.error('Error accruing stable income:', error)
+    }
 
     const context = await getCurrencyContext(userId)
     const toDefault = (amount: number, currency: string) =>

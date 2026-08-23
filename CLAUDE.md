@@ -60,6 +60,18 @@ Full rules: `docs/phases/phase-0-workflow-ci.md`.
 
 Detailed per-phase test cases are specified in each `docs/phases/phase-*.md` file under the "ტესტირება" section — they are part of that phase's Definition of Done.
 
+## Internationalization (i18n) — MANDATORY
+
+The app is bilingual: **English (`en`, default) and Georgian (`ka`)**, via `next-intl` in "without i18n routing" mode — the locale comes from the `locale` cookie (see `i18n/request.ts` and `i18n/config.ts`), URLs never contain a locale prefix. The language switcher lives in Settings (`components/settings/language-settings.tsx`, backed by the `setLocale` Server Action in `lib/actions/locale-actions.ts`).
+
+**RULE: every new page, component, or field with user-facing text MUST be implemented in both languages from the start.**
+
+- Never hardcode user-facing strings. Use `useTranslations('<Namespace>')` (works in both Server and Client Components) or `getTranslations` in async server code / Server Actions.
+- Every new key goes into **both** `messages/en.json` and `messages/ka.json` in the same namespace. Key parity is enforced by `i18n/messages-parity.test.ts` — a key added to only one catalog fails `npm run test` and CI.
+- Namespaces are PascalCase per feature/component (`Sidebar`, `LanguageSettings`, ...), nested keys camelCase.
+- Existing legacy screens are migrated incrementally: whenever you touch a component with hardcoded strings, move them into the catalogs as part of the change.
+- Component tests wrap rendering in `<NextIntlClientProvider locale="en" messages={en}>` (see `components/layout/sidebar.test.tsx` for the pattern).
+
 ## Architecture
 
 ### Three-Layer Architecture

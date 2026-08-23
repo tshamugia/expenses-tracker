@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -12,12 +13,15 @@ import {
   User,
   Bell,
   TrendingUp,
-  X
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetTitle,
+} from '@/components/ui/sheet'
 
 interface SidebarProps {
   isOpen: boolean
@@ -26,61 +30,70 @@ interface SidebarProps {
 
 const navigation = [
   {
-    name: 'Dashboard',
+    key: 'dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
-    name: 'Income',
+    key: 'income',
     href: '/income',
     icon: TrendingUp,
   },
   {
-    name: 'Expenses',
+    key: 'expenses',
     href: '/expenses',
     icon: Receipt,
   },
   {
-    name: 'Categories',
+    key: 'categories',
     href: '/categories',
     icon: FolderKanban,
   },
   {
-    name: 'Payments',
+    key: 'payments',
     href: '/payments',
     icon: CreditCard,
   },
   {
-    name: 'Notifications',
+    key: 'notifications',
     href: '/notifications',
     icon: Bell,
   },
   {
-    name: 'Profile',
+    key: 'profile',
     href: '/profile',
     icon: User,
   },
   {
-    name: 'Settings',
+    key: 'settings',
     href: '/settings',
     icon: Settings,
   },
-]
+] as const
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  showHeader = true,
+}: {
+  onNavigate?: () => void
+  showHeader?: boolean
+}) {
   const pathname = usePathname()
+  const t = useTranslations('Sidebar')
 
   return (
     <div className="flex h-full flex-col">
-      {/* Logo Section */}
-      <div className="flex h-16 items-center border-b border-border px-6">
-        <div className="flex items-center gap-2 font-semibold">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            💰
+      {/* Logo Section — hidden in the mobile sheet, which has its own "Menu" title */}
+      {showHeader && (
+        <div className="flex h-16 items-center border-b border-border px-6">
+          <div className="flex items-center gap-2 font-semibold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              💰
+            </div>
+            <span>{t('appName')}</span>
           </div>
-          <span>Expense Tracker</span>
         </div>
-      </div>
+      )}
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
@@ -89,7 +102,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
             return (
               <Link
-                key={item.name}
+                key={item.key}
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
@@ -100,7 +113,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 )}
               >
                 <item.icon className="h-5 w-5" />
-                <span>{item.name}</span>
+                <span>{t(`nav.${item.key}`)}</span>
               </Link>
             )
           })}
@@ -112,7 +125,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Footer Section */}
       <div className="p-4">
         <p className="text-xs text-muted-foreground">
-          © 2025 Expense Tracker
+          {t('footer')}
         </p>
       </div>
     </div>
@@ -120,6 +133,8 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const t = useTranslations('Sidebar')
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -131,23 +146,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <Sheet open={isOpen} onOpenChange={onClose}>
         <SheetContent side="left" className="w-64 p-0">
           <div className="flex h-full flex-col">
-            {/* Close Button */}
-            <div className="flex h-16 items-center justify-between border-b border-border px-6">
+            <div className="flex h-16 items-center border-b border-border px-6">
               <div className="flex items-center gap-2 font-semibold">
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                   💰
                 </div>
-                <span>Menu</span>
+                <SheetTitle className="text-base">{t('menu')}</SheetTitle>
+                <SheetDescription className="sr-only">
+                  {t('mainNavigation')}
+                </SheetDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onClose}
-              >
-                <X className="h-5 w-5" />
-              </Button>
             </div>
-            <SidebarContent onNavigate={onClose} />
+            <SidebarContent onNavigate={onClose} showHeader={false} />
           </div>
         </SheetContent>
       </Sheet>

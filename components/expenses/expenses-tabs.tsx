@@ -6,6 +6,7 @@
  * Content for each tab is passed as server-rendered children.
  */
 
+import { useTranslations } from 'next-intl'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface ExpensesTabsProps {
@@ -18,14 +19,15 @@ interface ExpensesTabsProps {
 const VALID_TABS = ['fixed', 'variable', 'categories']
 
 export function ExpensesTabs({ defaultTab, fixed, variable, categories }: ExpensesTabsProps) {
+  const t = useTranslations('ExpensesTabs')
   const initialTab = VALID_TABS.includes(defaultTab) ? defaultTab : 'fixed'
 
   return (
     <Tabs defaultValue={initialTab} className="space-y-4">
       <TabsList>
-        <TabsTrigger value="fixed">ფიქსირებული</TabsTrigger>
-        <TabsTrigger value="variable">ცვლადი</TabsTrigger>
-        <TabsTrigger value="categories">კატეგორიები</TabsTrigger>
+        <TabsTrigger value="fixed">{t('fixed')}</TabsTrigger>
+        <TabsTrigger value="variable">{t('variable')}</TabsTrigger>
+        <TabsTrigger value="categories">{t('categories')}</TabsTrigger>
       </TabsList>
       <TabsContent value="fixed">{fixed}</TabsContent>
       <TabsContent value="variable">{variable}</TabsContent>

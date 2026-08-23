@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { getServerTranslator } from '@/i18n/server-translator'
 
 // Lazy-loaded Resend client - only initialized when accessed (not during build)
 let resendInstance: Resend | null = null
@@ -472,9 +473,10 @@ export async function sendCategoryLimitEmail({
 }: SendCategoryLimitEmailParams): Promise<{ success: boolean; error?: string }> {
   try {
     const isOver = percent > 100
+    const t = await getServerTranslator('CategoryLimitAlert')
     const subject = isOver
-      ? `${categoryName}: ორიენტირი ამოიწურა (${percent}%) - ExtraTracker`
-      : `${categoryName}: ორიენტირის ${percent}% მიღწეულია - ExtraTracker`
+      ? t('emailSubjectOver', { category: categoryName, percent })
+      : t('emailSubjectWarn', { category: categoryName, percent })
 
     if (!process.env.RESEND_API_KEY) {
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
@@ -497,13 +499,17 @@ export async function sendCategoryLimitEmail({
         <html>
           <body style="font-family: sans-serif; color: #111; max-width: 480px; margin: 0 auto; padding: 24px;">
             <h2 style="color: ${isOver ? '#dc2626' : '#d97706'};">${subject}</h2>
-            <p>გამარჯობა${userName ? `, ${userName}` : ''}!</p>
+            <p>${t('emailGreeting', { name: userName ? `, ${userName}` : '' })}</p>
             <p>
-              კატეგორია <strong>${categoryName}</strong> ამ თვეში:
-              <strong>${spent.toFixed(2)}/${limit.toFixed(2)} ${currency}</strong>
-              — ორიენტირის <strong>${percent}%</strong>.
+              ${t('emailBody', {
+                category: categoryName,
+                spent: spent.toFixed(2),
+                limit: limit.toFixed(2),
+                currency,
+                percent,
+              })}
             </p>
-            <p style="color: #555;">ეს რბილი ორიენტირია — შემდეგ ხარჯებზე ყურადღება მიაქციე.</p>
+            <p style="color: #555;">${t('emailHint')}</p>
             <p style="color: #999; font-size: 12px;">ExtraTracker</p>
           </body>
         </html>

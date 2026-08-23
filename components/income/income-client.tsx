@@ -8,6 +8,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
 import { Pencil, Plus, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
@@ -31,6 +32,7 @@ interface IncomeClientProps {
 }
 
 export function IncomeClient({ overview }: IncomeClientProps) {
+  const t = useTranslations('Income')
   const router = useRouter()
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false)
   const [editingSource, setEditingSource] = useState<SerializedIncomeSource | null>(null)
@@ -59,12 +61,12 @@ export function IncomeClient({ overview }: IncomeClientProps) {
           })
 
       if (result.success) {
-        toast.success(editingSource ? 'წყარო განახლდა' : 'წყარო დაემატა')
+        toast.success(editingSource ? t('sourceUpdated') : t('sourceAdded'))
         setSourceDialogOpen(false)
         setEditingSource(null)
         router.refresh()
       } else {
-        toast.error('შენახვა ვერ მოხერხდა', { description: result.error })
+        toast.error(t('saveFailed'), { description: result.error })
       }
     })
   }
@@ -73,10 +75,10 @@ export function IncomeClient({ overview }: IncomeClientProps) {
     startTransition(async () => {
       const result = await updateIncomeSource(source.id, { isActive })
       if (result.success) {
-        toast.success(isActive ? 'წყარო გააქტიურდა' : 'წყარო დაარქივდა')
+        toast.success(isActive ? t('sourceActivated') : t('sourceArchived'))
         router.refresh()
       } else {
-        toast.error('შენახვა ვერ მოხერხდა', { description: result.error })
+        toast.error(t('saveFailed'), { description: result.error })
       }
     })
   }
@@ -85,13 +87,15 @@ export function IncomeClient({ overview }: IncomeClientProps) {
     startTransition(async () => {
       const result = await recordIncome(data)
       if (result.success && result.data) {
-        toast.success('შემოსავალი დაფიქსირდა', {
-          description: `თვის ჯამი: ${result.data.monthTotal.toFixed(0)}${symbol}`,
+        toast.success(t('incomeRecorded'), {
+          description: t('monthTotalDescription', {
+            total: `${result.data.monthTotal.toFixed(0)}${symbol}`,
+          }),
         })
         setRecordDialogOpen(false)
         router.refresh()
       } else {
-        toast.error('დაფიქსირება ვერ მოხერხდა', { description: result.error })
+        toast.error(t('recordFailed'), { description: result.error })
       }
     })
   }
@@ -104,15 +108,14 @@ export function IncomeClient({ overview }: IncomeClientProps) {
             <Wallet className="h-8 w-8 text-primary" />
           </div>
           <div className="space-y-1">
-            <h2 className="text-xl font-semibold">დაამატე პირველი წყარო</h2>
+            <h2 className="text-xl font-semibold">{t('emptyTitle')}</h2>
             <p className="max-w-sm text-sm text-muted-foreground">
-              დაიწყე ხელფასით — მოსალოდნელი თანხა და თარიღი საკმარისია, რომ
-              მომდევნო თვის პროგნოზი მაშინვე გამოჩნდეს.
+              {t('emptyDescription')}
             </p>
           </div>
           <Button onClick={() => setSourceDialogOpen(true)} className="gap-1">
             <Plus className="h-4 w-4" />
-            წყაროს დამატება
+            {t('addSource')}
           </Button>
         </div>
 
@@ -129,10 +132,10 @@ export function IncomeClient({ overview }: IncomeClientProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">შემოსავალი</h1>
+        <h1 className="text-2xl font-bold">{t('title')}</h1>
         <Button onClick={() => setRecordDialogOpen(true)} className="gap-1">
           <Plus className="h-4 w-4" />
-          შემოსავლის დაფიქსირება
+          {t('recordIncome')}
         </Button>
       </div>
 
@@ -140,7 +143,7 @@ export function IncomeClient({ overview }: IncomeClientProps) {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">წყაროები</h2>
+          <h2 className="text-lg font-semibold">{t('sources')}</h2>
           <Button
             variant="outline"
             size="sm"
@@ -151,7 +154,7 @@ export function IncomeClient({ overview }: IncomeClientProps) {
             className="gap-1"
           >
             <Plus className="h-4 w-4" />
-            დამატება
+            {t('add')}
           </Button>
         </div>
 
@@ -169,20 +172,20 @@ export function IncomeClient({ overview }: IncomeClientProps) {
                       setEditingSource(source)
                       setSourceDialogOpen(true)
                     }}
-                    aria-label={`${source.name} — რედაქტირება`}
+                    aria-label={t('editAria', { name: source.name })}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Switch
                     checked={source.isActive}
                     onCheckedChange={(checked) => handleToggleActive(source, checked)}
-                    aria-label={`${source.name} — აქტიური`}
+                    aria-label={t('activeAria', { name: source.name })}
                   />
                 </div>
               </CardHeader>
               <CardContent className="flex items-center justify-between">
                 <Badge variant={source.type === 'STABLE' ? 'default' : 'secondary'}>
-                  {source.type === 'STABLE' ? 'სტაბილური' : 'ცვლადი'}
+                  {source.type === 'STABLE' ? t('stable') : t('variable')}
                 </Badge>
                 <div className="text-right text-sm text-muted-foreground">
                   {source.expectedAmount !== null && (
@@ -191,7 +194,9 @@ export function IncomeClient({ overview }: IncomeClientProps) {
                       {getCurrencySymbol(source.currency as Currency)}
                     </span>
                   )}
-                  {source.expectedDay && <span> · {source.expectedDay} რიცხვი</span>}
+                  {source.expectedDay && (
+                    <span> · {t('dayOfMonth', { day: source.expectedDay })}</span>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -201,16 +206,16 @@ export function IncomeClient({ overview }: IncomeClientProps) {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">მიმდინარე თვე</h2>
+          <h2 className="text-lg font-semibold">{t('currentMonth')}</h2>
           <span className="text-sm text-muted-foreground">
-            ჯამი: <span className="font-semibold text-foreground">{overview.monthTotal.toFixed(0)}{symbol}</span>
+            {t('total')} <span className="font-semibold text-foreground">{overview.monthTotal.toFixed(0)}{symbol}</span>
           </span>
         </div>
 
         {overview.monthTransactions.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-muted-foreground">
-              ამ თვეში შემოსავალი ჯერ არ დაფიქსირებულა
+              {t('emptyMonth')}
             </CardContent>
           </Card>
         ) : (
@@ -219,8 +224,13 @@ export function IncomeClient({ overview }: IncomeClientProps) {
               <Card key={transaction.id}>
                 <CardContent className="flex items-center justify-between p-3">
                   <div>
-                    <p className="text-sm font-medium">
-                      {transaction.incomeSourceName ?? transaction.description ?? 'შემოსავალი'}
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      {transaction.incomeSourceName ?? transaction.description ?? t('incomeFallback')}
+                      {transaction.entrySource === 'AUTO' && (
+                        <Badge variant="outline" className="text-[10px] uppercase">
+                          {t('autoBadge')}
+                        </Badge>
+                      )}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(transaction.date), 'dd MMM yyyy')}

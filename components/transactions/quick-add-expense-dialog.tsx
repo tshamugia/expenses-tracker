@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -61,6 +62,7 @@ function QuickAddForm({
   onCancel: () => void
   isSubmitting: boolean
 }) {
+  const t = useTranslations('QuickAdd')
   const [amount, setAmount] = useState('')
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [currency, setCurrency] = useState('GEL')
@@ -76,11 +78,11 @@ function QuickAddForm({
 
     const parsedAmount = Number(amount.replace(',', '.'))
     if (!amount.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setError('შეიყვანე თანხა')
+      setError(t('errorAmount'))
       return
     }
     if (!categoryId) {
-      setError('აირჩიე კატეგორია')
+      setError(t('errorCategory'))
       return
     }
 
@@ -97,7 +99,7 @@ function QuickAddForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex gap-2">
         <div className="flex-1 space-y-1.5">
-          <Label htmlFor="quick-add-amount">თანხა</Label>
+          <Label htmlFor="quick-add-amount">{t('amount')}</Label>
           <Input
             id="quick-add-amount"
             autoFocus
@@ -109,7 +111,7 @@ function QuickAddForm({
           />
         </div>
         <div className="w-24 space-y-1.5">
-          <Label htmlFor="quick-add-currency">ვალუტა</Label>
+          <Label htmlFor="quick-add-currency">{t('currency')}</Label>
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger id="quick-add-currency">
               <SelectValue />
@@ -124,8 +126,8 @@ function QuickAddForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label>კატეგორია</Label>
-        <div className="flex flex-wrap gap-2" role="listbox" aria-label="კატეგორია">
+        <Label>{t('category')}</Label>
+        <div className="flex flex-wrap gap-2" role="listbox" aria-label={t('category')}>
           {categories.map((category) => (
             <button
               key={category.id}
@@ -151,10 +153,10 @@ function QuickAddForm({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="quick-add-description">აღწერა (სურვილით)</Label>
+        <Label htmlFor="quick-add-description">{t('description')}</Label>
         <Input
           id="quick-add-description"
-          placeholder="მაგ. ლანჩი"
+          placeholder={t('descriptionPlaceholder')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -168,10 +170,10 @@ function QuickAddForm({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          გაუქმება
+          {t('cancel')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'ინახება…' : 'შენახვა'}
+          {isSubmitting ? t('saving') : t('save')}
         </Button>
       </div>
     </form>
@@ -185,11 +187,13 @@ export function QuickAddExpenseDialog({
   onSubmit,
   isSubmitting = false,
 }: QuickAddExpenseDialogProps) {
+  const t = useTranslations('QuickAdd')
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>ხარჯის დამატება</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
         </DialogHeader>
         <QuickAddForm
           categories={categories}

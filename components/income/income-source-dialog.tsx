@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -53,6 +54,7 @@ function IncomeSourceForm({
   onCancel: () => void
   isSubmitting: boolean
 }) {
+  const t = useTranslations('IncomeSourceDialog')
   const [name, setName] = useState(source?.name ?? '')
   const [type, setType] = useState<'STABLE' | 'VARIABLE'>(
     (source?.type as 'STABLE' | 'VARIABLE') ?? 'STABLE'
@@ -70,23 +72,23 @@ function IncomeSourceForm({
     e.preventDefault()
 
     if (!name.trim()) {
-      setError('შეიყვანე წყაროს სახელი')
+      setError(t('errorName'))
       return
     }
 
     const parsedAmount = amount.trim() ? Number(amount.replace(',', '.')) : null
     if (type === 'STABLE' && (!parsedAmount || parsedAmount <= 0)) {
-      setError('სტაბილურ წყაროს სჭირდება მოსალოდნელი თანხა')
+      setError(t('errorStableAmount'))
       return
     }
     if (parsedAmount !== null && (!Number.isFinite(parsedAmount) || parsedAmount <= 0)) {
-      setError('თანხა დადებითი რიცხვი უნდა იყოს')
+      setError(t('errorAmountPositive'))
       return
     }
 
     const parsedDay = day.trim() ? Number(day) : null
     if (parsedDay !== null && (!Number.isInteger(parsedDay) || parsedDay < 1 || parsedDay > 31)) {
-      setError('რიცხვი 1-31 შუალედში უნდა იყოს')
+      setError(t('errorDayRange'))
       return
     }
 
@@ -103,33 +105,36 @@ function IncomeSourceForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
-        <Label htmlFor="source-name">სახელი</Label>
+        <Label htmlFor="source-name">{t('nameLabel')}</Label>
         <Input
           id="source-name"
           autoFocus
-          placeholder="მაგ. ხელფასი"
+          placeholder={t('namePlaceholder')}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="source-type">ტიპი</Label>
+        <Label htmlFor="source-type">{t('typeLabel')}</Label>
         <Select value={type} onValueChange={(v) => setType(v as 'STABLE' | 'VARIABLE')}>
           <SelectTrigger id="source-type">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="STABLE">სტაბილური (ხელფასი)</SelectItem>
-            <SelectItem value="VARIABLE">ცვლადი (პროექტები)</SelectItem>
+            <SelectItem value="STABLE">{t('typeStable')}</SelectItem>
+            <SelectItem value="VARIABLE">{t('typeVariable')}</SelectItem>
           </SelectContent>
         </Select>
+        {type === 'STABLE' && (
+          <p className="text-xs text-muted-foreground">{t('autoHint')}</p>
+        )}
       </div>
 
       <div className="flex gap-2">
         <div className="flex-1 space-y-1.5">
           <Label htmlFor="source-amount">
-            მოსალოდნელი თანხა{type === 'VARIABLE' ? ' (სურვილით)' : ''}
+            {type === 'VARIABLE' ? t('expectedAmountOptional') : t('expectedAmount')}
           </Label>
           <Input
             id="source-amount"
@@ -140,7 +145,7 @@ function IncomeSourceForm({
           />
         </div>
         <div className="w-24 space-y-1.5">
-          <Label htmlFor="source-currency">ვალუტა</Label>
+          <Label htmlFor="source-currency">{t('currency')}</Label>
           <Select value={currency} onValueChange={setCurrency}>
             <SelectTrigger id="source-currency">
               <SelectValue />
@@ -156,7 +161,7 @@ function IncomeSourceForm({
 
       {type === 'STABLE' && (
         <div className="space-y-1.5">
-          <Label htmlFor="source-day">თვის რიცხვი (სურვილით)</Label>
+          <Label htmlFor="source-day">{t('dayLabel')}</Label>
           <Input
             id="source-day"
             inputMode="numeric"
@@ -175,10 +180,10 @@ function IncomeSourceForm({
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          გაუქმება
+          {t('cancel')}
         </Button>
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'ინახება…' : 'შენახვა'}
+          {isSubmitting ? t('saving') : t('save')}
         </Button>
       </div>
     </form>
@@ -192,13 +197,13 @@ export function IncomeSourceDialog({
   onSubmit,
   isSubmitting = false,
 }: IncomeSourceDialogProps) {
+  const t = useTranslations('IncomeSourceDialog')
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {source ? 'წყაროს რედაქტირება' : 'შემოსავლის წყაროს დამატება'}
-          </DialogTitle>
+          <DialogTitle>{source ? t('editTitle') : t('addTitle')}</DialogTitle>
         </DialogHeader>
         <IncomeSourceForm
           source={source}

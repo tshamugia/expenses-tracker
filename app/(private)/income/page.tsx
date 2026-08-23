@@ -1,3 +1,4 @@
+import { getTranslations } from 'next-intl/server'
 import { IncomeClient } from '@/components/income/income-client'
 import { getIncomeOverview } from '@/lib/actions/income-actions'
 import { getAuthUserId } from '@/lib/auth/get-session'
@@ -8,9 +9,10 @@ export default async function IncomePage() {
   const result = await getIncomeOverview()
 
   if (!result.success || !result.data) {
+    const t = await getTranslations('Income')
     return (
       <div className="py-24 text-center text-muted-foreground">
-        შემოსავლების ჩატვირთვა ვერ მოხერხდა: {result.error}
+        {t('loadFailed', { error: result.error ?? '' })}
       </div>
     )
   }

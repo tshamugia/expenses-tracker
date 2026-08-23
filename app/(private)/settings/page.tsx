@@ -3,6 +3,7 @@ import { Settings } from 'lucide-react'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { ThemeSettings } from '@/components/settings/theme-settings'
 import { CurrencySettings } from '@/components/settings/currency-settings'
+import { LanguageSettings } from '@/components/settings/language-settings'
 import { SubscriptionPlans } from '@/components/settings/subscription-plans'
 import { getUserSettings, getSubscriptionPlans } from '@/lib/actions/settings-actions'
 import { Card, CardContent } from '@/components/ui/card'
@@ -53,8 +54,11 @@ async function SettingsContent() {
         <ThemeSettings settings={settingsResult.data} />
       </div>
 
-      {/* Currency Settings */}
-      <CurrencySettings settings={settingsResult.data} />
+      {/* Currency & Language Grid */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CurrencySettings settings={settingsResult.data} />
+        <LanguageSettings />
+      </div>
 
       {/* Subscription Plans */}
       <SubscriptionPlans
