@@ -7,7 +7,11 @@
 
 import prisma from '@/lib/db/prisma'
 import { getServerTranslator } from '@/i18n/server-translator'
-import { sendCategoryLimitEmail, sendPaymentReminderEmail } from './email'
+import {
+  sendCategoryLimitEmail,
+  sendGoalMilestoneEmail,
+  sendPaymentReminderEmail,
+} from './email'
 import { sendPushToUser } from './push-service'
 
 export interface NotificationResult {
@@ -682,6 +686,196 @@ export async function sendUpcomingDebtNotifications(): Promise<NotificationResul
         ...errors,
         error instanceof Error ? error.message : 'Unknown error occurred',
       ],
+    }
+  }
+}
+
+/**
+ * Goal milestone (Phase 3): a non-reserve goal reached its target.
+ * In-app + email + best-effort push. Called from contributeToGoal.
+ */
+export async function notifyGoalAchieved(
+  userId: string,
+  goalName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const title = t('achievedTitle')
+    const message = t('achievedMessage', { goal: goalName })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'success',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({ kind: 'goal-achieved', goalName }),
+      },
+    })
+
+    await sendPushToUser(userId, { title, body: message, url: '/goals' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyGoalAchieved:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Reserve milestone (Phase 3): the emergency fund filled its current stage.
+ * Stage 1 → also nudges toward the 3-month stage. In-app + email + push.
+ */
+export async function notifyReserveStageReached(
+  userId: string,
+  stage: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const title = t('reserveStageTitle', { stage })
+    const message =
+      stage === 1 ? t('reserveStage1Message') : t('reserveStage3Message')
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'success',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({ kind: 'reserve-stage', stage }),
+      },
+    })
+
+    await sendPushToUser(userId, { title, body: message, url: '/goals' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyReserveStageReached:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Reserve withdrawal (Phase 3): money taken out of the emergency fund, with the
+ * mandatory reason recorded. In-app only (a deliberate, logged action).
+ */
+export async function notifyReserveWithdrawal(
+  userId: string,
+  input: { goalName: string; amount: number; currency: string; reason: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const title = t('withdrawTitle')
+    const message = t('withdrawMessage', {
+      goal: input.goalName,
+      amount: input.amount.toFixed(2),
+      currency: input.currency,
+      reason: input.reason,
+    })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'warning',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({
+          kind: 'goal-withdrawal',
+          reason: input.reason,
+          amount: input.amount,
+        }),
+      },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyReserveWithdrawal:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Reserve target changed (Phase 3): the auto-computed target moved by >±10%.
+ * In-app only, with a short explanation. Called from recalcReserveTargetForUser.
+ */
+export async function notifyReserveTargetChanged(
+  userId: string,
+  input: { oldTarget: number; newTarget: number; currency: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const increased = input.newTarget > input.oldTarget
+    const title = t('reserveTargetTitle')
+    const message = t(
+      increased ? 'reserveTargetUpMessage' : 'reserveTargetDownMessage',
+      {
+        oldTarget: input.oldTarget.toFixed(2),
+        newTarget: input.newTarget.toFixed(2),
+        currency: input.currency,
+      }
+    )
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'info',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({
+          kind: 'reserve-target-changed',
+          oldTarget: input.oldTarget,
+          newTarget: input.newTarget,
+        }),
+      },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyReserveTargetChanged:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     }
   }
 }

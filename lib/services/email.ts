@@ -530,3 +530,68 @@ export async function sendCategoryLimitEmail({
     }
   }
 }
+
+export interface SendGoalMilestoneEmailParams {
+  email: string
+  userName?: string
+  subject: string
+  heading: string
+  body: string
+}
+
+/**
+ * Generic milestone email (Phase 3): goal achieved / reserve stage reached.
+ * The caller passes already-translated copy (notification-service owns the
+ * translator). Falls back to a console log without a Resend key.
+ */
+export async function sendGoalMilestoneEmail({
+  email,
+  userName,
+  subject,
+  heading,
+  body,
+}: SendGoalMilestoneEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📧 GOAL MILESTONE EMAIL (Development Mode)')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`To: ${email}`)
+      console.log(`Subject: ${subject}`)
+      console.log(`${heading} — ${body}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      return { success: true }
+    }
+
+    const { error } = await resend.emails.send({
+      from: 'ExtraTracker <onboarding@resend.dev>',
+      to: [email],
+      subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: sans-serif; color: #111; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #059669;">${heading}</h2>
+            <p>${userName ? `Hi ${userName},` : 'Hi there,'}</p>
+            <p style="font-size: 16px; line-height: 24px;">${body}</p>
+            <p style="color: #999; font-size: 12px;">ExtraTracker</p>
+          </body>
+        </html>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send goal milestone email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending goal milestone email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}

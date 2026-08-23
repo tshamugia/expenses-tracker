@@ -14,6 +14,7 @@ import {
   Bell,
   TrendingUp,
   Landmark,
+  Target,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -49,6 +50,11 @@ const navigation = [
     key: 'debts',
     href: '/debts',
     icon: Landmark,
+  },
+  {
+    key: 'goals',
+    href: '/goals',
+    icon: Target,
   },
   {
     key: 'categories',

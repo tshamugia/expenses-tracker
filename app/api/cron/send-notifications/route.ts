@@ -4,6 +4,7 @@ import {
   sendUpcomingDebtNotifications,
   sendUpcomingPaymentNotifications,
 } from '@/lib/services/notification-service'
+import { recalcAllReserveTargets } from '@/lib/services/reserve-target-service'
 
 /**
  * Cron endpoint to send payment reminder notifications
@@ -51,6 +52,18 @@ export async function GET(request: NextRequest) {
     // Debt installment reminders (Phase 2): upcoming + overdue, deduped per event
     const debtResult = await sendUpcomingDebtNotifications()
 
+    // Reserve target recompute (Phase 3): once a month, on the 1st. Notifies
+    // affected users on a >±10% move; failures must not block the emails above.
+    let reserveRecalcCount = 0
+    if (new Date().getDate() === 1) {
+      try {
+        reserveRecalcCount = await recalcAllReserveTargets()
+        console.log(`Recomputed ${reserveRecalcCount} reserve targets`)
+      } catch (error) {
+        console.error('Error recomputing reserve targets:', error)
+      }
+    }
+
     const duration = Date.now() - startTime
     const sentCount = result.sentCount + debtResult.sentCount
     const errors = [...result.errors, ...debtResult.errors]
@@ -65,6 +78,7 @@ export async function GET(request: NextRequest) {
       success: result.success && debtResult.success,
       accruedCount,
       sentCount,
+      reserveRecalcCount,
       errorCount: errors.length,
       errors,
       duration,
