@@ -542,14 +542,38 @@ export async function markExpensePaid(
       }
     }
 
-    // Mark payment as paid
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        paid: true,
-        paidAt: new Date(),
-      },
-    })
+    // Resolve the ledger category by the expense's category name (may be null)
+    const ledgerCategory = expense.category
+      ? await prisma.category.findFirst({
+          where: { userId, categoryName: expense.category },
+          select: { id: true },
+        })
+      : null
+
+    // Mark payment as paid AND mirror it into the unified Transaction ledger
+    // atomically — either both records are written or neither (Phase 1 §5)
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          paid: true,
+          paidAt: new Date(),
+        },
+      }),
+      prisma.transaction.create({
+        data: {
+          userId,
+          type: 'EXPENSE',
+          amount: payment.amount,
+          currency: expense.currency,
+          date: new Date(),
+          categoryId: ledgerCategory?.id ?? null,
+          expenseId: expense.id,
+          description: expense.title,
+          entrySource: 'MANUAL',
+        },
+      }),
+    ])
 
     // Business logic: For recurring expenses, roll the schedule forward.
     // Advance the expense's nextDueDate by one recurrence interval and create

@@ -249,6 +249,15 @@ For detailed architecture, see [CLAUDE.md](CLAUDE.md)
 
 ## 🎯 Roadmap
 
+### Finance Stability PRD (docs/PRD-finance-stability-v2.md)
+- [x] **Phase 0** — Migration workflow + PR checks CI + Vitest bootstrap
+- [x] **Phase 1** — Income & variable expenses: unified `Transaction` ledger, income sources with conservative next-month forecast (R2), `/income` page, global quick-add expense, category soft limits with 80%/100% warnings
+- [ ] **Phase 2** — Debts
+- [ ] **Phase 3** — Goals
+- [ ] **Phase 4** — Monthly plan
+- [ ] **Phase 5** — Claude/MCP
+- [ ] **Phase 6** — Bank integration
+
 ### v0.1.0
 - [ ] Form validation with Zod
 - [ ] Advanced filtering and search

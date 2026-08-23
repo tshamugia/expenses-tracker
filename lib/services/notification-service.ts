@@ -6,7 +6,7 @@
  */
 
 import prisma from '@/lib/db/prisma'
-import { sendPaymentReminderEmail } from './email'
+import { sendCategoryLimitEmail, sendPaymentReminderEmail } from './email'
 import { sendPushToUser } from './push-service'
 
 export interface NotificationResult {
@@ -493,6 +493,101 @@ export async function sendUserPaymentNotifications(
         ...errors,
         error instanceof Error ? error.message : 'Unknown error occurred',
       ],
+    }
+  }
+}
+
+/**
+ * Category soft-limit warning (Phase 1).
+ * Fires when the current-month spend crosses 80% or 100% of the category's
+ * monthly limit. Max ONE notification per threshold per category per month —
+ * dedup state lives in Notification.metadata (limitKey marker).
+ */
+export async function notifyCategoryLimitThreshold(
+  userId: string,
+  category: { id: string; name: string },
+  status: { spent: number; limit: number; ratio: number },
+  currency: string
+): Promise<{ success: boolean; notified: boolean; error?: string }> {
+  try {
+    const threshold = status.ratio > 1 ? 100 : status.ratio >= 0.8 ? 80 : null
+    if (threshold === null) {
+      return { success: true, notified: false }
+    }
+
+    const now = new Date()
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const limitKey = `${category.id}:${threshold}:${monthKey}`
+
+    // Dedup: at most one notification per threshold per category per month
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId,
+        metadata: { contains: `"limitKey":"${limitKey}"` },
+      },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return { success: true, notified: false }
+    }
+
+    const percent = Math.round(status.ratio * 100)
+    const isOver = threshold === 100
+    const title = isOver
+      ? `${category.name}: ორიენტირი ამოიწურა`
+      : `${category.name}: ორიენტირის 80% მიღწეულია`
+    const message = `${category.name}: ${status.spent.toFixed(2)}/${status.limit.toFixed(2)} ${currency} — ორიენტირის ${percent}%`
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: isOver ? 'error' : 'warning',
+        actionUrl: '/expenses?tab=categories',
+        metadata: JSON.stringify({
+          kind: 'category-limit',
+          limitKey,
+          categoryId: category.id,
+          threshold,
+          spent: status.spent,
+          limit: status.limit,
+        }),
+      },
+    })
+
+    // Best-effort push; failures must not block the expense write
+    await sendPushToUser(userId, {
+      title,
+      body: message,
+      url: '/expenses?tab=categories',
+    })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+
+    if (user) {
+      await sendCategoryLimitEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        categoryName: category.name,
+        spent: status.spent,
+        limit: status.limit,
+        currency,
+        percent,
+      })
+    }
+
+    return { success: true, notified: true }
+  } catch (error) {
+    console.error('Error in notifyCategoryLimitThreshold:', error)
+    return {
+      success: false,
+      notified: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     }
   }
 }

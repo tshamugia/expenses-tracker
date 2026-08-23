@@ -447,3 +447,80 @@ export async function sendPaymentReminderEmail({
     }
   }
 }
+
+export interface SendCategoryLimitEmailParams {
+  email: string
+  userName?: string
+  categoryName: string
+  spent: number
+  limit: number
+  currency: string
+  percent: number // e.g. 84 or 101
+}
+
+/**
+ * Send category soft-limit warning email (80% / 100% thresholds)
+ */
+export async function sendCategoryLimitEmail({
+  email,
+  userName,
+  categoryName,
+  spent,
+  limit,
+  currency,
+  percent,
+}: SendCategoryLimitEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const isOver = percent > 100
+    const subject = isOver
+      ? `${categoryName}: ორიენტირი ამოიწურა (${percent}%) - ExtraTracker`
+      : `${categoryName}: ორიენტირის ${percent}% მიღწეულია - ExtraTracker`
+
+    if (!process.env.RESEND_API_KEY) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📧 CATEGORY LIMIT EMAIL (Development Mode)')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`To: ${email}`)
+      console.log(`Subject: ${subject}`)
+      console.log(`${categoryName}: ${spent.toFixed(2)}/${limit.toFixed(2)} ${currency} (${percent}%)`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      return { success: true }
+    }
+
+    const { error } = await resend.emails.send({
+      from: 'ExtraTracker <onboarding@resend.dev>',
+      to: [email],
+      subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: sans-serif; color: #111; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: ${isOver ? '#dc2626' : '#d97706'};">${subject}</h2>
+            <p>გამარჯობა${userName ? `, ${userName}` : ''}!</p>
+            <p>
+              კატეგორია <strong>${categoryName}</strong> ამ თვეში:
+              <strong>${spent.toFixed(2)}/${limit.toFixed(2)} ${currency}</strong>
+              — ორიენტირის <strong>${percent}%</strong>.
+            </p>
+            <p style="color: #555;">ეს რბილი ორიენტირია — შემდეგ ხარჯებზე ყურადღება მიაქციე.</p>
+            <p style="color: #999; font-size: 12px;">ExtraTracker</p>
+          </body>
+        </html>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send category limit email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending category limit email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}

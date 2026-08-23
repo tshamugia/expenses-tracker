@@ -11,6 +11,7 @@ import {
   FolderKanban,
   User,
   Bell,
+  TrendingUp,
   X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,11 @@ const navigation = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    name: 'Income',
+    href: '/income',
+    icon: TrendingUp,
   },
   {
     name: 'Expenses',

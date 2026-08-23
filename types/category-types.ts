@@ -8,8 +8,17 @@ import type { Category } from '@prisma/client'
 // Basic category type from Prisma
 export type { Category }
 
-// Serialized category for client components
-export type SerializedCategory = Category
+// Serialized category for client components (Decimal → number)
+export type SerializedCategory = Omit<Category, 'monthlyLimit'> & {
+  monthlyLimit: number | null
+}
+
+// Category enriched with current-month spend status (Phase 1)
+export interface CategoryWithSpend extends SerializedCategory {
+  spent: number
+  ratio: number | null
+  level: 'ok' | 'warning' | 'over'
+}
 
 // View model for category list
 export interface CategoryListItem {
