@@ -1,202 +1,208 @@
 'use client'
 
 /**
- * Client Component for Dashboard
- * - Handles Add Expense modal
- * - Uses Zustand for optimistic updates
- * - Calls Server Actions for mutations
+ * Dashboard (Phase 4 §6.1) — rebuilt around the plan.
+ * Top to bottom: Safe to spend → month progress + live verdict → main goals
+ * (stability stepper + debt-free + 3-month reserve) → debts → other goals →
+ * net-position trend. Every amount is in the default currency.
  */
 
-import { useState, useTransition, useMemo } from 'react'
-import { ExpenseStats } from '@/components/expenses/expense-stats'
-import { ExpenseCharts } from '@/components/expenses/expense-charts'
-import { UpcomingExpenses } from '@/components/expenses/upcoming-expenses'
-import { ExpenseForm, type ExpenseFormData } from '@/components/expenses/expense-form'
-import { CurrencyRates } from '@/components/currency/currency-rates'
-import { CurrencyCalculator } from '@/components/currency/currency-calculator'
-import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
-import { createExpense } from '@/lib/actions/expense-actions'
-import { toast } from 'sonner'
-import type { DashboardData, ExpenseListItem } from '@/types/expense-types'
-import type { CurrencyRate } from '@/lib/services/currency'
-import type { Currency } from '@/lib/utils/currency-conversion'
-import { convertCurrency } from '@/lib/utils/currency-conversion'
+import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import { format } from 'date-fns'
+import { Landmark, Target } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { formatCurrency } from '@/lib/utils/currency-helpers'
+import type { DashboardData } from '@/types/plan-types'
+import { SafeToSpend } from '@/components/dashboard/safe-to-spend'
+import { StabilityStepper } from '@/components/dashboard/stability-stepper'
+import { NetPositionChart } from '@/components/dashboard/net-position-chart'
+import { VerdictCard } from '@/components/plan/verdict-card'
 
 interface DashboardClientProps {
-  dashboardData: DashboardData
-  userId: string
-  currencyRates: {
-    usd: CurrencyRate | null
-    eur: CurrencyRate | null
-    date: string | null
-  } | null
-  defaultCurrency: Currency
+  data: DashboardData
 }
 
-export function DashboardClient({
-  dashboardData,
-  userId,
-  currencyRates,
-  defaultCurrency
-}: DashboardClientProps) {
-  const { expenses, upcomingExpenses, categoryData } = dashboardData
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [, startTransition] = useTransition()
-
-  // Recalculate stats with currency conversion
-  const stats = useMemo(() => {
-    // Helper function to convert expense amount to default currency
-    const convertToDefaultCurrency = (expense: ExpenseListItem): number => {
-      const expenseCurrency = (expense.currency || 'GEL') as Currency
-
-      // If same currency, no conversion needed
-      if (expenseCurrency === defaultCurrency) {
-        return expense.amount
-      }
-
-      // Convert the simplified rate to CurrencyRate format
-      const usdRate = currencyRates?.usd ? {
-        ...currencyRates.usd,
-        quantity: 1,
-        rateFormated: '',
-        diffFormated: '',
-        name: 'US Dollar',
-        diff: 0,
-        date: currencyRates.date || '',
-        validFromDate: currencyRates.date || ''
-      } : null
-
-      const eurRate = currencyRates?.eur ? {
-        ...currencyRates.eur,
-        quantity: 1,
-        rateFormated: '',
-        diffFormated: '',
-        name: 'Euro',
-        diff: 0,
-        date: currencyRates.date || '',
-        validFromDate: currencyRates.date || ''
-      } : null
-
-      return convertCurrency(
-        expense.amount,
-        expenseCurrency,
-        defaultCurrency,
-        usdRate,
-        eurRate
-      )
-    }
-
-    // Calculate stats with currency conversion
-    const convertedStats = expenses.reduce(
-      (acc, expense) => {
-        const convertedAmount = convertToDefaultCurrency(expense)
-        acc.total += convertedAmount
-        acc.count += 1
-
-        if (expense.isPaid) {
-          acc.paid += convertedAmount
-        } else if (expense.isOverdue) {
-          acc.overdue += convertedAmount
-        } else {
-          acc.pending += convertedAmount
-        }
-
-        return acc
-      },
-      { total: 0, paid: 0, pending: 0, overdue: 0, count: 0 }
-    )
-
-    return convertedStats
-  }, [expenses, defaultCurrency, currencyRates])
-
-  const handleCreateExpense = async (data: ExpenseFormData) => {
-    setIsSubmitting(true)
-    try {
-      // Call Server Action
-      startTransition(async () => {
-        const result = await createExpense({
-          userId,
-          title: data.title,
-          amount: data.amount,
-          currency: data.currency || 'GEL',
-          category: data.category,
-          description: data.notes,
-          nextDueDate: new Date(data.date),
-        })
-
-        if (result.success && result.data) {
-          toast.success('Expense created successfully!')
-          setIsFormOpen(false)
-          // The page will automatically revalidate and show the new expense
-        } else {
-          toast.error('Failed to create expense', {
-            description: result.error || 'Unknown error',
-          })
-        }
-        setIsSubmitting(false)
-      })
-    } catch (err) {
-      console.error('Error creating expense:', err)
-      toast.error('Failed to create expense')
-      setIsSubmitting(false)
-    }
-  }
+export function DashboardClient({ data }: DashboardClientProps) {
+  const t = useTranslations('Dashboard')
+  const cur = data.defaultCurrency
+  const fmtMonth = (d: Date | string | null) => (d ? format(new Date(d), 'MMM yyyy') : null)
 
   return (
-    <>
-      <div className="space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Dashboard</h1>
-            <p className="text-sm text-muted-foreground sm:text-base">
-              Welcome back! Here&apos;s an overview of your expenses.
-            </p>
-          </div>
-          <Button onClick={() => setIsFormOpen(true)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Expense
-          </Button>
-        </div>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">{t('title')}</h1>
 
-        {/* Stats Cards - Now includes Total Count */}
-        <ExpenseStats data={stats} currency={defaultCurrency} />
-
-        {/* Currency Section - Exchange Rates and Calculator */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <CurrencyRates
-            usd={currencyRates?.usd || null}
-            eur={currencyRates?.eur || null}
-            date={currencyRates?.date || null}
-          />
-          <CurrencyCalculator
-            usd={currencyRates?.usd || null}
-            eur={currencyRates?.eur || null}
-          />
-        </div>
-
-        {/* Interactive Charts - Bar and Pie Charts */}
-        <ExpenseCharts categoryData={categoryData} stats={stats} currency={defaultCurrency} />
-
-        {/* Upcoming Expenses - Replaces Expense Cards */}
-        <UpcomingExpenses
-          expenses={upcomingExpenses}
-          defaultCurrency={defaultCurrency}
-          currencyRates={currencyRates}
-        />
-      </div>
-
-      {/* Expense Form Modal */}
-      <ExpenseForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleCreateExpense}
-        initialData={null}
-        isLoading={isSubmitting}
-        userId={userId}
+      {/* 1. Safe to spend */}
+      <SafeToSpend
+        hasPlan={data.hasPlan}
+        safeToSpendDay={data.safeToSpendDay}
+        safeToSpendMonth={data.safeToSpendMonth}
+        spentFree={data.spentFree}
+        currency={cur}
       />
-    </>
+
+      {/* 2. This month's progress + live verdict */}
+      {data.hasPlan && data.liveVerdict && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('monthProgress')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.completionPct != null && (
+              <div className="space-y-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${Math.min(100, data.completionPct)}%` }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('completion')}: {Math.round(data.completionPct)}%
+                </p>
+              </div>
+            )}
+            <VerdictCard
+              kind={data.liveVerdict.kind}
+              netChange={data.liveVerdict.netChange}
+              components={data.liveVerdict.components}
+              currency={cur}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 3. Main goals: stability stepper + debt-free + reserve */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t('stabilityPath')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <StabilityStepper stage={data.stability.stage} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <MainGoal
+              title={t('debtFree')}
+              progressText={t('debtFreeProgress', {
+                pct: Math.round(data.stability.debtFree.paidOrSavedPct),
+                remaining: formatCurrency(data.stability.debtFree.remaining, cur),
+              })}
+              pct={data.stability.debtFree.paidOrSavedPct}
+              caption={
+                data.stability.debtFree.projectedDate
+                  ? t('projected', { date: fmtMonth(data.stability.debtFree.projectedDate) ?? '' })
+                  : t('noProjection')
+              }
+            />
+            <MainGoal
+              title={t('reserveGoal')}
+              progressText={t('reserveProgressText', {
+                pct: Math.round(data.stability.reserveProgress.paidOrSavedPct),
+                remaining: formatCurrency(data.stability.reserveProgress.remaining, cur),
+              })}
+              pct={data.stability.reserveProgress.paidOrSavedPct}
+              caption=""
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 4. Debts */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Landmark className="h-4 w-4" /> {t('debtsTitle')}
+          </CardTitle>
+          <Link href="/debts" className="text-sm text-primary hover:underline">
+            {t('viewDebts')}
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {data.debts.totalRemainingPrincipal > 0 ? (
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{t('totalRemaining')}</span>
+                <span className="font-semibold tabular-nums">
+                  {formatCurrency(data.debts.totalRemainingPrincipal, cur)}
+                </span>
+              </div>
+              {data.debts.nextPayment && (
+                <p className="text-sm text-muted-foreground">
+                  {t('nextPayment', {
+                    amount: formatCurrency(data.debts.nextPayment.amount, data.debts.nextPayment.currency),
+                    date: format(new Date(data.debts.nextPayment.dueDate), 'd MMM'),
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('noDebts')}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 5. Other goals */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Target className="h-4 w-4" /> {t('otherGoals')}
+          </CardTitle>
+          <Link href="/goals" className="text-sm text-primary hover:underline">
+            {t('viewGoals')}
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {data.otherGoals.length > 0 ? (
+            <ul className="space-y-2">
+              {data.otherGoals.map((g) => (
+                <li key={g.goalId} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate">{g.name}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${g.percent}%` }} />
+                    </div>
+                    <Badge variant="secondary">{Math.round(g.percent)}%</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t('noGoals')}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 6. Net position trend */}
+      <NetPositionChart
+        data={data.stability.netPositionTrend}
+        currency={cur}
+        current={data.stability.netPosition}
+      />
+    </div>
+  )
+}
+
+function MainGoal({
+  title,
+  progressText,
+  pct,
+  caption,
+}: {
+  title: string
+  progressText: string
+  pct: number
+  caption: string
+}) {
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">{title}</h3>
+        <span className="text-sm tabular-nums text-muted-foreground">{Math.round(pct)}%</span>
+      </div>
+      <div className="my-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+      <p className="text-sm text-muted-foreground">{progressText}</p>
+      {caption && <p className="mt-1 text-xs text-muted-foreground">{caption}</p>}
+    </div>
   )
 }

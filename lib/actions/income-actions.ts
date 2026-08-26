@@ -9,11 +9,11 @@
  */
 
 import { revalidatePath } from 'next/cache'
-import { endOfMonth, startOfMonth, subMonths } from 'date-fns'
+import { endOfMonth, startOfMonth } from 'date-fns'
 import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
 import { accrueStableIncomeForUser } from '@/lib/services/income-accrual'
-import { forecastNextMonthIncome } from '@/lib/services/income-forecast'
+import { computeIncomeForecastForUser } from '@/lib/services/income-forecast-service'
 import {
   getCurrencyContext,
   type CurrencyContext,
@@ -35,7 +35,6 @@ export interface IncomeActionResult<T> {
 }
 
 const SUPPORTED_CURRENCIES = ['GEL', 'USD', 'EUR']
-const FORECAST_HISTORY_MONTHS = 6
 
 function serializeSource(source: {
   expectedAmount: unknown
@@ -338,61 +337,8 @@ export async function getIncomeOverview(): Promise<IncomeActionResult<IncomeOver
       }),
     ])
 
-    // --- Variable income history for the forecast (last 6 full months) ---
-    const windowStart = startOfMonth(subMonths(now, FORECAST_HISTORY_MONTHS))
-    const currentMonthStart = startOfMonth(now)
-    const variableWhere = {
-      userId,
-      type: 'INCOME' as const,
-      OR: [{ incomeSourceId: null }, { incomeSource: { type: 'VARIABLE' as const } }],
-    }
-
-    const [variableTxs, olderCount] = await Promise.all([
-      prisma.transaction.findMany({
-        where: { ...variableWhere, date: { gte: windowStart, lt: currentMonthStart } },
-        select: { amount: true, currency: true, date: true },
-        orderBy: { date: 'asc' },
-      }),
-      prisma.transaction.count({
-        where: { ...variableWhere, date: { lt: windowStart } },
-      }),
-    ])
-
-    // History starts either at the window edge (older data exists) or at the
-    // first variable-income month; months with zero income count as 0 (R2).
-    const firstHistoryMonth =
-      olderCount > 0
-        ? windowStart
-        : variableTxs.length > 0
-          ? startOfMonth(variableTxs[0].date)
-          : null
-
-    const variableHistory: { month: string; total: number }[] = []
-    if (firstHistoryMonth) {
-      for (
-        let cursor = new Date(firstHistoryMonth);
-        cursor < currentMonthStart;
-        cursor = startOfMonth(subMonths(cursor, -1))
-      ) {
-        const next = startOfMonth(subMonths(cursor, -1))
-        const total = variableTxs
-          .filter((t) => t.date >= cursor && t.date < next)
-          .reduce((sum, t) => sum + toDefault(Number(t.amount), t.currency), 0)
-        variableHistory.push({
-          month: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`,
-          total,
-        })
-      }
-    }
-
-    const stableSources = sources
-      .filter((s) => s.isActive && s.type === 'STABLE' && s.expectedAmount !== null)
-      .map((s) => ({
-        expectedAmount: toDefault(Number(s.expectedAmount), s.currency),
-        currency: context.defaultCurrency,
-      }))
-
-    const forecast = forecastNextMonthIncome({ stableSources, variableHistory })
+    // Conservative next-month forecast (shared engine, PRD R2)
+    const { forecast } = await computeIncomeForecastForUser(userId, now, context)
 
     const monthItems: TransactionListItem[] = monthTransactions.map((t) => ({
       id: t.id,

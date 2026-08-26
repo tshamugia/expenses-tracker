@@ -15,6 +15,7 @@ import {
   TrendingUp,
   Landmark,
   Target,
+  ClipboardList,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
@@ -35,6 +36,11 @@ const navigation = [
     key: 'dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+  },
+  {
+    key: 'plan',
+    href: '/plan',
+    icon: ClipboardList,
   },
   {
     key: 'income',

@@ -11,7 +11,7 @@
 | 1 | [phase-1-income-expenses.md](phase-1-income-expenses.md) | შემოსავლები, ერთიანი ტრანზაქციები, ხარჯის ორიენტირები, პროგნოზი + **ტესტ-ინფრასტრუქტურის სეტაპი** | ✅ დასრულებული (2026-08-23, PR #7) |
 | 2 | [phase-2-debts.md](phase-2-debts.md) | ვალები — სრული ამორტიზაცია + წინსწრებითი დაფარვის სიმულატორი | ✅ დასრულებული (2026-08-23) |
 | 3 | [phase-3-goals.md](phase-3-goals.md) | მიზნები + სარეზერვო ფონდი (ჩაშენებული მიზანი) | ✅ დასრულებული (2026-08-24) |
-| 4 | [phase-4-monthly-plan.md](phase-4-monthly-plan.md) | ავტომატური თვიური გეგმა, Safe to spend, დაშბორდი, პროგრესის თრექინგი, თვის დახურვა | ⬜ დაგეგმილი |
+| 4 | [phase-4-monthly-plan.md](phase-4-monthly-plan.md) | ავტომატური თვიური გეგმა, Safe to spend, დაშბორდი, პროგრესის თრექინგი, თვის დახურვა | ✅ დასრულებული (2026-08-24) |
 | 5 | [phase-5-claude-mcp.md](phase-5-claude-mcp.md) | Claude ასისტენტი (MCP) — ჯერ read, შემდეგ write | ⬜ დაგეგმილი |
 | 6 | [phase-6-bank-integration.md](phase-6-bank-integration.md) | ბანკი — A: ამონაწერის იმპორტი → B: Open Banking API | ⬜ დაგეგმილი |
 

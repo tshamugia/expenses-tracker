@@ -981,3 +981,95 @@ export async function notifyCategoryLimitThreshold(
     }
   }
 }
+
+// --- Phase 4: monthly-plan rhythm --------------------------------------------
+
+/**
+ * "Your plan is ready" digest (§7 / ს1) — sent on the 1st after generation.
+ * In-app + email + push, pointing to /plan to confirm.
+ */
+export async function notifyPlanReady(
+  userId: string,
+  input: { month: string; safeToSpend: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('PlanNotifications')
+    const title = t('readyTitle', { month: input.month })
+    const message = t('readyMessage', { amount: input.safeToSpend })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'info',
+        actionUrl: '/plan',
+        metadata: JSON.stringify({ kind: 'plan-ready', month: input.month }),
+      },
+    })
+    await sendPushToUser(userId, { title, body: message, url: '/plan' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyPlanReady:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * "Time to close the month" reminder (§7 / ს4) — sent in the last days of a
+ * month that still has a confirmed (unclosed) plan. In-app + email + push.
+ */
+export async function notifyMonthCloseReminder(
+  userId: string,
+  input: { month: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('PlanNotifications')
+    const title = t('closeReminderTitle', { month: input.month })
+    const message = t('closeReminderMessage')
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'info',
+        actionUrl: '/plan',
+        metadata: JSON.stringify({ kind: 'plan-close-reminder', month: input.month }),
+      },
+    })
+    await sendPushToUser(userId, { title, body: message, url: '/plan' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyMonthCloseReminder:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}

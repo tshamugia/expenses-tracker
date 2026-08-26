@@ -34,6 +34,7 @@ model User {
   incomeSources  IncomeSource[]
   debts          Debt[]
   goals          Goal[]
+  monthlyPlans   MonthlyPlan[]
   refreshTokens  RefreshToken[]
 }
 
@@ -214,6 +215,81 @@ model GoalContribution {
   @@index([goalId, date])
 }
 
+// Monthly plan (Phase 4, PRD §6 waterfall / §7.5 — the heart of the system).
+// Each month the engine generates a plan by the strict waterfall:
+// mandatory → debts → reserve → goals → free (= Safe to spend). The plan is a
+// snapshot of allocations; the month-close ritual compares plan vs actual and
+// produces an honest verdict (forward/back).
+
+enum PlanStatus {
+  DRAFT     // generated, awaiting confirmation
+  CONFIRMED // user confirmed — the active plan
+  CLOSED    // month closed
+}
+
+enum AllocationKind {
+  MANDATORY // fixed expenses (FIXED categories + recurring Expenses)
+  DEBT      // planned debt installment (refId = debtId)
+  RESERVE   // emergency-fund contribution (refId = reserve goalId)
+  GOAL      // goal contribution (refId = goalId)
+  VARIABLE  // variable-category target (refId = categoryId)
+  FREE      // free flow = Safe to spend
+}
+
+model MonthlyPlan {
+  id               String     @id @default(uuid()) @db.Uuid
+  userId           String     @db.Uuid
+  month            String     // "2026-09"
+  status           PlanStatus @default(DRAFT)
+  forecastIncome   Decimal    @db.Decimal(12, 2)
+  forecastStable   Decimal    @db.Decimal(12, 2)
+  forecastVariable Decimal    @db.Decimal(12, 2)
+  actualIncome     Decimal?   @db.Decimal(12, 2) // filled during the month
+  safeToSpend      Decimal    @db.Decimal(12, 2) // the month's FREE
+  currency         String     @default("GEL")
+  confirmedAt      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  allocations PlanAllocation[]
+  close       MonthClose?
+
+  @@unique([userId, month])
+}
+
+model PlanAllocation {
+  id      String         @id @default(uuid()) @db.Uuid
+  planId  String         @db.Uuid
+  kind    AllocationKind
+  refId   String?        @db.Uuid // debtId / goalId / categoryId
+  label   String         // snapshot name (so a deleted entity can't break history)
+  planned Decimal        @db.Decimal(12, 2)
+  actual  Decimal?       @db.Decimal(12, 2) // filled at close
+
+  plan MonthlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId, kind])
+}
+
+model MonthClose {
+  id                 String   @id @default(uuid()) @db.Uuid
+  planId             String   @db.Uuid @unique
+  completionPct      Decimal  @db.Decimal(5, 2)  // plan completion %
+  verdict            String   // "FORWARD" | "BACK" | "FLAT"
+  netChange          Decimal  @db.Decimal(12, 2) // net-position change
+  plannedNetChange   Decimal  @db.Decimal(12, 2) // what the plan projected
+  debtPrincipalDelta Decimal  @db.Decimal(12, 2) // debt principal reduction (+)
+  reserveDelta       Decimal  @db.Decimal(12, 2)
+  goalsDelta         Decimal  @db.Decimal(12, 2)
+  newDebt            Decimal  @db.Decimal(12, 2) // new debt taken (−)
+  withdrawals        Decimal  @db.Decimal(12, 2) // reserve/goal withdrawals (−)
+  conclusions        Json     // [{type:'raise_limit', categoryId, delta, note}] — next plan uses these
+  closedAt           DateTime @default(now())
+
+  plan MonthlyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+}
+
 model Account {
   id                String  @id @default(uuid()) @db.Uuid
   userId            String  @db.Uuid
@@ -326,6 +402,10 @@ model NotificationPreference {
   // Subscription
   subscriptionPlan String @default("free") // 'free', 'pro', 'enterprise'
   subscriptionStatus String @default("active") // 'active', 'canceled', 'expired'
+  // Windfall split (Phase 4, §6 Q1): how excess income is proposed. Sum = 100.
+  windfallDebtPct  Int    @default(50)
+  windfallGoalsPct Int    @default(30)
+  windfallFreePct  Int    @default(20)
 
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -5,6 +5,10 @@ import {
   sendUpcomingPaymentNotifications,
 } from '@/lib/services/notification-service'
 import { recalcAllReserveTargets } from '@/lib/services/reserve-target-service'
+import {
+  generateMonthlyPlansForAllUsers,
+  sendMonthCloseReminders,
+} from '@/lib/services/plan-cron'
 
 /**
  * Cron endpoint to send payment reminder notifications
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest) {
     // Reserve target recompute (Phase 3): once a month, on the 1st. Notifies
     // affected users on a >±10% move; failures must not block the emails above.
     let reserveRecalcCount = 0
+    let plansGenerated = 0
     if (new Date().getDate() === 1) {
       try {
         reserveRecalcCount = await recalcAllReserveTargets()
@@ -62,6 +67,22 @@ export async function GET(request: NextRequest) {
       } catch (error) {
         console.error('Error recomputing reserve targets:', error)
       }
+      // Monthly plan generation + "plan ready" digest (Phase 4, §7 / ს1)
+      try {
+        plansGenerated = await generateMonthlyPlansForAllUsers()
+        console.log(`Generated ${plansGenerated} monthly plans`)
+      } catch (error) {
+        console.error('Error generating monthly plans:', error)
+      }
+    }
+
+    // Month-close reminders in the last days of the month (Phase 4, §7 / ს4)
+    let closeReminders = 0
+    try {
+      closeReminders = await sendMonthCloseReminders()
+      if (closeReminders > 0) console.log(`Sent ${closeReminders} close reminders`)
+    } catch (error) {
+      console.error('Error sending close reminders:', error)
     }
 
     const duration = Date.now() - startTime
@@ -79,6 +100,8 @@ export async function GET(request: NextRequest) {
       accruedCount,
       sentCount,
       reserveRecalcCount,
+      plansGenerated,
+      closeReminders,
       errorCount: errors.length,
       errors,
       duration,
