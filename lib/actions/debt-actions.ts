@@ -62,8 +62,12 @@ function serializeDebt(debt: {
   monthlyPayment: unknown
   [key: string]: unknown
 }): SerializedDebt {
+  // Drop the `schedule` relation if it was included — its rows carry raw
+  // Decimal values that can't cross the Server→Client boundary. Callers that
+  // need the schedule serialize it separately via serializeItem.
+  const { schedule: _schedule, ...rest } = debt
   return {
-    ...debt,
+    ...rest,
     principal: Number(debt.principal),
     annualRatePct: Number(debt.annualRatePct),
     monthlyPayment: Number(debt.monthlyPayment),

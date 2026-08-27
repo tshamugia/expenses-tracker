@@ -33,12 +33,16 @@ import {
   notifyReserveStageReached,
   notifyReserveWithdrawal,
 } from '@/lib/services/notification-service'
+import { gatherPlanInput, toMonthKey } from '@/lib/services/plan-input'
+import { generatePlanForUser } from '@/lib/services/plan-generation'
+import { computeGoalWhatIf } from '@/lib/services/goal-plan-impact'
 import type {
   ContributeInput,
   CreateGoalInput,
   GoalDetail,
   GoalListItem,
   GoalsOverview,
+  GoalWhatIf,
   ReserveExplanation,
   SerializedContribution,
   SerializedGoal,
@@ -57,8 +61,13 @@ const SUPPORTED_CURRENCIES = ['GEL', 'USD', 'EUR']
 // --- serialization helpers ---------------------------------------------------
 
 function serializeGoal(goal: Goal): SerializedGoal {
+  // Strip any included relation (e.g. `contributions`) so raw Decimal amounts
+  // never ride along into the client payload via the spread below.
+  const { contributions: _contributions, ...scalars } = goal as Goal & {
+    contributions?: unknown
+  }
   return {
-    ...goal,
+    ...scalars,
     targetAmount: Number(goal.targetAmount),
     monthlyContribution:
       goal.monthlyContribution === null ? null : Number(goal.monthlyContribution),
@@ -232,6 +241,9 @@ export async function createGoal(
         targetDate,
         monthlyContribution,
         priority,
+        // A new goal starts on the wishlist: full analytics, but excluded from
+        // the plan (and Safe-to-Spend) until the user approves it.
+        status: 'PROPOSED',
       },
     })
 
@@ -244,6 +256,67 @@ export async function createGoal(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create goal',
+    }
+  }
+}
+
+/**
+ * Approve a proposed (wishlist) goal: promote it to ACTIVE so it enters the
+ * monthly plan's waterfall and lowers Safe-to-Spend accordingly. Refreshes the
+ * current month's DRAFT plan immediately so the numbers update; a CONFIRMED or
+ * CLOSED month is left untouched (the goal takes effect next month) — the
+ * `planRefreshed` flag lets the UI say so.
+ */
+export async function approveGoal(
+  id: string
+): Promise<GoalActionResult<{ goal: SerializedGoal; planRefreshed: boolean }>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    const userId = session.user.id
+
+    const existing = await prisma.goal.findFirst({ where: { id, userId } })
+    if (!existing) {
+      return { success: false, error: 'Goal not found or access denied' }
+    }
+    if (existing.isEmergencyFund) {
+      return {
+        success: false,
+        error: 'The emergency fund is managed automatically',
+      }
+    }
+    if (existing.status !== 'PROPOSED') {
+      return { success: false, error: 'Only proposed goals can be approved' }
+    }
+
+    const updated = await prisma.goal.update({
+      where: { id },
+      data: { status: 'ACTIVE' },
+    })
+
+    // Recompute the current month's draft plan so Safe-to-Spend reflects the
+    // newly-active goal. Skipped (never throws the action) for a confirmed/
+    // closed month or on any generation error.
+    let planRefreshed = false
+    try {
+      const gen = await generatePlanForUser(userId, toMonthKey(new Date()))
+      planRefreshed = !gen.skipped
+    } catch (error) {
+      console.error('Error refreshing plan after approveGoal:', error)
+    }
+
+    revalidatePath('/goals')
+    revalidatePath('/plan')
+    revalidatePath('/dashboard')
+
+    return { success: true, data: { goal: serializeGoal(updated), planRefreshed } }
+  } catch (error) {
+    console.error('Error in approveGoal:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to approve goal',
     }
   }
 }
@@ -373,8 +446,14 @@ export async function reorderGoals(
     }
     const userId = session.user.id
 
+    // Only active goals carry a plan priority; proposed (wishlist) goals are
+    // excluded so approving one later doesn't reshuffle the active order.
     const goals = await prisma.goal.findMany({
-      where: { userId, isEmergencyFund: false, status: { not: 'ARCHIVED' } },
+      where: {
+        userId,
+        isEmergencyFund: false,
+        status: { in: ['ACTIVE', 'ACHIEVED'] },
+      },
       select: { id: true },
     })
     const owned = new Set(goals.map((g) => g.id))
@@ -431,6 +510,43 @@ export async function getGoals(): Promise<GoalActionResult<GoalsOverview>> {
       progress: computeProgress(goal, goal.contributions, now),
       reserve: reserveExplanation(goal),
     }))
+
+    // For proposed (wishlist) goals, preview how approving each would lower this
+    // month's Safe-to-Spend. The plan input already excludes proposed goals, so
+    // appending a candidate to the waterfall gives an honest before/after. Only
+    // gather the (heavier) plan input when there is at least one proposed goal.
+    const hasProposed = goals.some(
+      (g) => g.status === 'PROPOSED' && !g.isEmergencyFund
+    )
+    if (hasProposed) {
+      try {
+        const gathered = await gatherPlanInput(userId, toMonthKey(now))
+        for (let i = 0; i < goals.length; i++) {
+          const g = goals[i]
+          if (g.status !== 'PROPOSED' || g.isEmergencyFund) continue
+          const saved = roundMoney(
+            g.contributions.reduce((s, c) => s + Number(c.amount), 0)
+          )
+          const remaining = Math.max(0, roundMoney(Number(g.targetAmount) - saved))
+          const monthlyContribution =
+            g.monthlyContribution === null ? 0 : Number(g.monthlyContribution)
+          const impact = computeGoalWhatIf(gathered.input, {
+            monthlyContribution,
+            remaining,
+            priority: g.priority,
+          })
+          const whatIf: GoalWhatIf = {
+            safeBefore: impact.safeBefore,
+            safeAfter: impact.safeAfter,
+            deltaMonthly: impact.deltaMonthly,
+          }
+          items[i].whatIf = whatIf
+        }
+      } catch (error) {
+        // What-if is a nicety — never fail the whole overview over it.
+        console.error('Error computing proposed-goal what-if:', error)
+      }
+    }
 
     return {
       success: true,

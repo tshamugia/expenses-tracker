@@ -86,14 +86,14 @@ describe('generateMonthlyPlan', () => {
     expect(r.error).toBe('Unauthorized')
   })
 
-  it('refuses to overwrite a CONFIRMED plan', async () => {
-    mockPrisma.monthlyPlan.findUnique.mockResolvedValue({ id: 'p1', status: 'CONFIRMED' })
+  it('refuses to regenerate a CLOSED month', async () => {
+    mockPrisma.monthlyPlan.findUnique.mockResolvedValue({ id: 'p1', status: 'CLOSED' })
     const r = await generateMonthlyPlan('2026-09')
     expect(r.success).toBe(false)
-    expect(r.error).toMatch(/confirmed plan already exists/i)
+    expect(r.error).toMatch(/closed/i)
   })
 
-  it('generates and persists a DRAFT via the waterfall', async () => {
+  it('generates and persists an active (CONFIRMED) plan via the waterfall', async () => {
     mockPrisma.monthlyPlan.findUnique.mockResolvedValue(null)
     mockGather.mockResolvedValue({
       input: {
@@ -138,6 +138,8 @@ describe('generateMonthlyPlan', () => {
     expect(r.success).toBe(true)
     expect(mockPrisma.monthlyPlan.create).toHaveBeenCalledTimes(1)
     const createArg = mockPrisma.monthlyPlan.create.mock.calls[0][0]
+    // Active immediately — no DRAFT/confirm step in the goal-driven model
+    expect(createArg.data.status).toBe('CONFIRMED')
     // FREE = 5000 - 1000 - 500 = 3500
     expect(createArg.data.safeToSpend).toBe(3500)
     const freeAlloc = createArg.data.allocations.create.find((a: { kind: string }) => a.kind === 'FREE')
@@ -306,11 +308,58 @@ describe('closeMonth', () => {
 })
 
 describe('getActivePlan', () => {
-  it('returns null when there is no plan for the month', async () => {
+  it('auto-generates the month plan when none exists yet (fully automatic)', async () => {
+    // No plan yet → getActivePlan + generatePlanForUser both see null
     mockPrisma.monthlyPlan.findUnique.mockResolvedValue(null)
+    mockGather.mockResolvedValue({
+      input: {
+        forecast: forecast(4000),
+        mandatoryFixed: [{ label: 'Rent', amount: 1000, refId: 'exp-1' }],
+        variableTargets: [],
+        debtInstallments: [],
+        reserve: null,
+        goals: [
+          { goalId: 'g-laptop', label: 'Laptop', monthlyContribution: 500, remaining: 1500, priority: 2 },
+        ],
+        conclusions: [],
+        daysInMonth: 30,
+      },
+      currency: 'GEL',
+      month: '2026-09',
+      monthStart: new Date(2026, 8, 1),
+      monthEnd: new Date(2026, 8, 30),
+    })
+    mockPrisma.monthlyPlan.create.mockResolvedValue({ id: 'plan-new' })
+    mockPrisma.monthlyPlan.findFirstOrThrow.mockResolvedValue({
+      id: 'plan-new',
+      userId: USER_ID,
+      status: 'CONFIRMED',
+      month: '2026-09',
+      forecastIncome: 4000,
+      forecastStable: 4000,
+      forecastVariable: 0,
+      actualIncome: null,
+      safeToSpend: 2500,
+      currency: 'GEL',
+      confirmedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      allocations: [
+        { id: 'm', kind: 'MANDATORY', refId: 'exp-1', label: 'Rent', planned: 1000, actual: null },
+        { id: 'g', kind: 'GOAL', refId: 'g-laptop', label: 'Laptop', planned: 500, actual: null },
+        { id: 'free', kind: 'FREE', refId: null, label: 'Free', planned: 2500, actual: null },
+      ],
+    })
+
     const r = await getActivePlan('2026-09')
     expect(r.success).toBe(true)
-    expect(r.data).toBeNull()
+    expect(r.data).not.toBeNull()
+    expect(mockPrisma.monthlyPlan.create).toHaveBeenCalledTimes(1)
+    // X = the single laptop goal's 500; obligations = 1000; available = 3000
+    expect(r.data?.setAside.requiredSetAside).toBe(500)
+    expect(r.data?.setAside.obligations).toBe(1000)
+    expect(r.data?.setAside.availableForGoals).toBe(3000)
+    expect(r.data?.setAside.feasible).toBe(true)
   })
 
   it('computes remaining Safe to spend from the flexible pool minus discretionary spend', async () => {
@@ -344,5 +393,8 @@ describe('getActivePlan', () => {
     // flexible = 600 (free) + 400 (variable) = 1000; spent 200 → remaining 800
     expect(r.data?.safeToSpendMonth).toBe(800)
     expect(r.data?.spentFree).toBe(200)
+    // The serialized plan must not carry the raw `allocations` relation — that
+    // would leak Decimal `planned` values into the Client Component.
+    expect(r.data?.plan).not.toHaveProperty('allocations')
   })
 })

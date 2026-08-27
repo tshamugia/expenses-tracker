@@ -1,53 +1,52 @@
 'use client'
 
 /**
- * /plan orchestrator (Phase 4 §6.2). Renders the plan lifecycle in four states:
- *  - no plan → one-tap generate CTA (ს1)
- *  - DRAFT → editable waterfall table + deficit resolution → Confirm
- *  - CONFIRMED → planned vs actual live, windfall banner (ს2), Close month
- *  - close ritual → plan vs actual, conclusions to accept, honest verdict (ს4)
- *  - CLOSED → the closed summary
+ * /plan orchestrator (Phase 4b — goal-driven, automatic).
+ * The plan is computed from the user's goals; there is no manual confirm. The
+ * page shows a single headline — "Set aside ₾X this month" — with live progress
+ * toward X, a per-goal breakdown, the obligations paid first, Safe to spend, and
+ * (for a still-open month) the close ritual with an honest verdict.
  * Business logic lives in plan-actions; this component only orchestrates.
  */
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { AlertTriangle, ClipboardList, Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ClipboardList,
+  Sparkles,
+  Target,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
 import {
   applyWindfall,
   closeMonth,
-  confirmPlan,
   generateMonthlyPlan,
   getClosePreview,
-  reopenPlan,
 } from '@/lib/actions/plan-actions'
 import type {
-  AllocationKind,
   ClosePreview,
   PlanConclusion,
   PlanView,
-  SerializedAllocation,
+  SetAsideLine,
 } from '@/types/plan-types'
 import { VerdictCard } from './verdict-card'
 
-const SECTION_ORDER: AllocationKind[] = [
-  'MANDATORY',
-  'VARIABLE',
-  'DEBT',
-  'RESERVE',
-  'GOAL',
-  'FREE',
-]
-
 interface PlanClientProps {
   initialPlan: PlanView | null
+}
+
+/** width % for a progress bar, clamped and divide-by-zero safe. */
+function pct(part: number, whole: number): number {
+  if (whole <= 0) return part > 0 ? 100 : 0
+  return Math.min(100, Math.max(0, (part / whole) * 100))
 }
 
 export function PlanClient({ initialPlan }: PlanClientProps) {
@@ -55,11 +54,10 @@ export function PlanClient({ initialPlan }: PlanClientProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const plan = initialPlan
-  const [edits, setEdits] = useState<Record<string, number>>({})
   const [closePreview, setClosePreview] = useState<ClosePreview | null>(null)
   const [accepted, setAccepted] = useState<Set<number>>(new Set())
 
-  // --- no plan ---------------------------------------------------------------
+  // --- no plan (rare — the plan is auto-generated; this is the fallback) ------
   const handleGenerate = () => {
     startTransition(async () => {
       const r = await generateMonthlyPlan()
@@ -95,8 +93,9 @@ export function PlanClient({ initialPlan }: PlanClientProps) {
     )
   }
 
-  const { defaultCurrency: cur } = plan
+  const cur = plan.defaultCurrency
   const status = plan.plan.status
+  const sa = plan.setAside
 
   // --- close ritual ----------------------------------------------------------
   const openClose = () => {
@@ -148,87 +147,122 @@ export function PlanClient({ initialPlan }: PlanClientProps) {
     )
   }
 
-  // --- shared: allocations grouped by section --------------------------------
-  const grouped = SECTION_ORDER.map((kind) => ({
-    kind,
-    items: plan.allocations.filter((a) => a.kind === kind),
-  })).filter((g) => g.items.length > 0)
-
-  const plannedOf = (a: SerializedAllocation) =>
-    a.kind === 'FREE' ? a.planned : edits[a.id] ?? a.planned
-
-  const nonFreeTotal = plan.allocations
-    .filter((a) => a.kind !== 'FREE')
-    .reduce((s, a) => s + plannedOf(a), 0)
-  const computedFree = Math.round((plan.plan.forecastIncome - nonFreeTotal) * 100) / 100
-  const hasDeficit = status === 'DRAFT' && computedFree < 0
-
-  // --- confirm / reopen ------------------------------------------------------
-  const handleConfirm = () => {
-    const adjustments = plan.allocations
-      .filter((a) => a.kind !== 'FREE' && edits[a.id] !== undefined && edits[a.id] !== a.planned)
-      .map((a) => ({ allocationId: a.id, planned: edits[a.id] }))
-    startTransition(async () => {
-      const r = await confirmPlan(plan.plan.id, adjustments)
-      if (r.success) {
-        toast.success(t('confirmed'))
-        router.refresh()
-      } else {
-        toast.error(t('confirmFailed'), { description: r.error })
-      }
-    })
-  }
-
-  const handleReopen = () => {
-    startTransition(async () => {
-      const r = await reopenPlan(plan.plan.id)
-      if (r.success) router.refresh()
-      else toast.error(r.error)
-    })
-  }
-
-  // deficit quick-fix: shift a line down so the plan balances
-  const applyQuickFix = (allocationId: string, newPlanned: number) => {
-    setEdits((prev) => ({ ...prev, [allocationId]: Math.max(0, Math.round(newPlanned * 100) / 100) }))
-  }
-
-  const liveByAllocId = new Map(
-    (plan.live ?? []).map((l) => [l.allocation.id, l.actual])
-  )
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <Badge variant={status === 'CONFIRMED' ? 'default' : 'secondary'}>
-            {status === 'DRAFT'
-              ? t('draftBadge')
-              : status === 'CONFIRMED'
-                ? t('confirmedBadge')
-                : t('closedBadge')}
+          <Badge variant={status === 'CLOSED' ? 'secondary' : 'default'}>
+            {status === 'CLOSED' ? t('closedBadge') : t('activeBadge')}
           </Badge>
         </div>
         <span className="text-sm text-muted-foreground">{plan.plan.month}</span>
       </div>
 
-      {/* forecast income */}
+      {/* headline: set aside X this month */}
+      <Card>
+        <CardContent className="space-y-4 py-8 text-center">
+          {sa.requiredSetAside <= 0 ? (
+            <p className="text-muted-foreground">{t('nothingToSetAside')}</p>
+          ) : (
+            <>
+              <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+                {t('setAsideSubtitle')}
+              </p>
+              <p className="text-5xl font-bold tabular-nums text-primary">
+                {t('setAsideTitle', {
+                  amount: formatCurrency(sa.requiredSetAside, cur),
+                })}
+              </p>
+              <div className="mx-auto max-w-md space-y-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${pct(sa.actualSetAside, sa.requiredSetAside)}%` }}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {t('setAsideProgress', {
+                    saved: formatCurrency(sa.actualSetAside, cur),
+                    required: formatCurrency(sa.requiredSetAside, cur),
+                  })}
+                </p>
+              </div>
+              {sa.achieved && (
+                <Badge className="gap-1 bg-emerald-600 hover:bg-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  {t('achievedBadge')}
+                </Badge>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* infeasible warning */}
+      {!sa.feasible && (
+        <Card className="border-red-300 dark:border-red-900">
+          <CardContent className="space-y-2 pt-6">
+            <div className="flex items-center gap-2 font-semibold text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              {t('infeasibleTitle', { amount: formatCurrency(sa.shortfall, cur) })}
+            </div>
+            <p className="text-sm text-muted-foreground">{t('infeasibleDescription')}</p>
+            <Button asChild size="sm" variant="outline" className="gap-1">
+              <Link href="/goals">
+                <Target className="h-4 w-4" />
+                {t('openGoals')}
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* safe to spend */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t('forecastIncome')}</CardTitle>
+          <CardTitle className="text-base">{t('safeToSpendLabel')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold tabular-nums">
-            {formatCurrency(plan.plan.forecastIncome, cur)}
+          <div className="text-3xl font-bold tabular-nums">
+            {t('safeToSpendDay', { amount: formatCurrency(plan.safeToSpendDay, cur) })}
           </div>
           <p className="text-sm text-muted-foreground">
-            {t('stable')}: {formatCurrency(plan.plan.forecastStable, cur)} · {t('variable')}:{' '}
-            {formatCurrency(plan.plan.forecastVariable, cur)}
+            {t('safeToSpendMonthLine', {
+              remaining: formatCurrency(plan.safeToSpendMonth, cur),
+            })}
           </p>
         </CardContent>
       </Card>
 
-      {/* windfall banner (CONFIRMED, income above forecast) */}
+      {/* per-goal breakdown */}
+      {sa.lines.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">{t('perGoalTitle')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {sa.lines.map((line) => (
+              <GoalLine key={line.refId ?? line.label} line={line} currency={cur} t={t} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* obligations (paid first) */}
+      <Card>
+        <CardContent className="flex items-center justify-between gap-3 pt-6 text-sm">
+          <span className="text-muted-foreground">{t('obligationsTitle')}</span>
+          <div className="flex items-center gap-4 tabular-nums">
+            <span className="font-semibold">{formatCurrency(sa.obligations, cur)}</span>
+            <span className="text-muted-foreground">
+              {t('availableForGoals')}: {formatCurrency(sa.availableForGoals, cur)}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* windfall banner (income above forecast) */}
       {status === 'CONFIRMED' && plan.windfall && (
         <WindfallBanner
           planId={plan.plan.id}
@@ -242,144 +276,55 @@ export function PlanClient({ initialPlan }: PlanClientProps) {
         />
       )}
 
-      {/* deficit block */}
-      {hasDeficit && (
-        <DeficitBlock
-          shortfall={-computedFree}
-          allocations={plan.allocations}
-          currency={cur}
-          onQuickFix={applyQuickFix}
-        />
-      )}
-
-      {/* allocation table */}
-      <Card>
-        <CardContent className="space-y-4 pt-6">
-          {grouped.map((section) => (
-            <div key={section.kind} className="space-y-1">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t(`section${section.kind}` as `section${AllocationKind}`)}
-              </h3>
-              {section.items.map((a) => {
-                const isFree = a.kind === 'FREE'
-                const planned = isFree ? computedFree : plannedOf(a)
-                const actual =
-                  status === 'CONFIRMED'
-                    ? liveByAllocId.get(a.id) ?? 0
-                    : a.actual
-                return (
-                  <div
-                    key={a.id}
-                    className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50"
-                  >
-                    <span className={isFree ? 'font-semibold' : ''}>{a.label}</span>
-                    <div className="flex items-center gap-4 tabular-nums">
-                      {status === 'DRAFT' && !isFree ? (
-                        <Input
-                          type="number"
-                          value={edits[a.id] ?? a.planned}
-                          onChange={(e) =>
-                            setEdits((prev) => ({ ...prev, [a.id]: Number(e.target.value) }))
-                          }
-                          className="h-8 w-28 text-right"
-                          aria-label={a.label}
-                        />
-                      ) : (
-                        <span className={isFree ? 'font-semibold' : ''}>
-                          {formatCurrency(Math.max(0, planned), cur)}
-                        </span>
-                      )}
-                      {(status === 'CONFIRMED' || status === 'CLOSED') && actual != null && (
-                        <span className="w-24 text-right text-muted-foreground">
-                          {formatCurrency(actual, cur)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
       {/* actions */}
-      <div className="flex justify-end gap-2">
-        {status === 'DRAFT' && (
-          <Button onClick={handleConfirm} disabled={isPending || hasDeficit} size="lg">
-            {t('confirm')}
+      {status === 'CONFIRMED' && (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={handleGenerate} disabled={isPending} className="gap-1">
+            <Sparkles className="h-4 w-4" />
+            {t('recalculate')}
           </Button>
-        )}
-        {status === 'CONFIRMED' && (
-          <>
-            <Button variant="outline" onClick={handleReopen} disabled={isPending}>
-              {t('reopen')}
-            </Button>
-            <Button onClick={openClose} disabled={isPending} size="lg">
-              {t('closeButton')}
-            </Button>
-          </>
-        )}
-      </div>
+          <Button onClick={openClose} disabled={isPending} size="lg">
+            {t('closeButton')}
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
-// --- deficit block -----------------------------------------------------------
+// --- per-goal line -----------------------------------------------------------
 
-function DeficitBlock({
-  shortfall,
-  allocations,
+function GoalLine({
+  line,
   currency,
-  onQuickFix,
+  t,
 }: {
-  shortfall: number
-  allocations: SerializedAllocation[]
+  line: SetAsideLine
   currency: string
-  onQuickFix: (allocationId: string, newPlanned: number) => void
+  t: ReturnType<typeof useTranslations>
 }) {
-  const t = useTranslations('Plan')
-  const goals = allocations.filter((a) => a.kind === 'GOAL')
-  const variables = allocations.filter((a) => a.kind === 'VARIABLE')
-
   return (
-    <Card className="border-red-300 dark:border-red-900">
-      <CardContent className="space-y-3 pt-6">
-        <div className="flex items-center gap-2 font-semibold text-red-600 dark:text-red-400">
-          <AlertTriangle className="h-5 w-5" />
-          {t('deficitTitle', { amount: formatCurrency(shortfall, currency) })}
-        </div>
-        <p className="text-sm text-muted-foreground">{t('deficitDescription')}</p>
-        <div className="flex flex-col gap-2">
-          {goals.map((g) => (
-            <div key={g.id} className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => onQuickFix(g.id, 0)}>
-                {t('optionPause', { label: g.label, amount: formatCurrency(g.planned, currency) })}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onQuickFix(g.id, g.planned - shortfall)}
-              >
-                {t('optionReduce', { label: g.label })}
-              </Button>
-            </div>
-          ))}
-          {variables.map((v) => (
-            <Button
-              key={v.id}
-              size="sm"
-              variant="outline"
-              className="self-start"
-              onClick={() => onQuickFix(v.id, v.planned - shortfall)}
-            >
-              {t('optionTrim', { label: v.label })}
-            </Button>
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">{t('resolveHint')}</p>
-      </CardContent>
-    </Card>
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2">
+          {line.achieved && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+          {line.label}
+        </span>
+        <span className="tabular-nums text-muted-foreground">
+          {t('goalSetAside', { amount: formatCurrency(line.saved, currency) })} ·{' '}
+          {t('goalNeeds', { amount: formatCurrency(line.required, currency) })}
+        </span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={
+            'h-full rounded-full transition-all ' +
+            (line.achieved ? 'bg-emerald-600' : 'bg-primary')
+          }
+          style={{ width: `${pct(line.saved, line.required)}%` }}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -468,6 +413,22 @@ function CloseView({
         <span className="text-sm text-muted-foreground">{preview.plan.month}</span>
       </div>
       <p className="text-sm text-muted-foreground">{t('closeDescription')}</p>
+
+      {/* goals-funded summary for the month */}
+      <Card>
+        <CardContent className="flex items-center justify-between gap-3 pt-6">
+          <div className="flex items-center gap-2 font-semibold">
+            {preview.achieved && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
+            {preview.achieved ? t('achievedBadge') : t('inProgressBadge')}
+          </div>
+          <span className="text-sm tabular-nums text-muted-foreground">
+            {t('setAsideProgress', {
+              saved: formatCurrency(preview.actualSetAside, cur),
+              required: formatCurrency(preview.requiredSetAside, cur),
+            })}
+          </span>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">

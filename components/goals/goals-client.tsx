@@ -15,6 +15,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
   advanceReserveStage,
+  approveGoal,
+  archiveGoal,
   contributeToGoal,
   createGoal,
   recalcReserveTarget,
@@ -23,6 +25,7 @@ import {
 } from '@/lib/actions/goal-actions'
 import type { GoalsOverview } from '@/types/goal-types'
 import { GoalCard } from './goal-card'
+import { GoalProposedCard } from './goal-proposed-card'
 import {
   GoalContributeDialog,
   type GoalMovementData,
@@ -52,6 +55,15 @@ export function GoalsClient({ overview }: GoalsClientProps) {
   const userGoals = useMemo(
     () => overview.goals.filter((g) => !g.goal.isEmergencyFund),
     [overview.goals]
+  )
+  // Active goals (committed, in the plan) vs proposed (wishlist, not yet in the plan).
+  const activeGoals = useMemo(
+    () => userGoals.filter((g) => g.goal.status !== 'PROPOSED'),
+    [userGoals]
+  )
+  const proposedGoals = useMemo(
+    () => userGoals.filter((g) => g.goal.status === 'PROPOSED'),
+    [userGoals]
   )
 
   const handleCreate = (data: GoalFormData) => {
@@ -127,8 +139,8 @@ export function GoalsClient({ overview }: GoalsClientProps) {
 
   const handleReorder = (index: number, direction: -1 | 1) => {
     const target = index + direction
-    if (target < 0 || target >= userGoals.length) return
-    const ids = userGoals.map((g) => g.goal.id)
+    if (target < 0 || target >= activeGoals.length) return
+    const ids = activeGoals.map((g) => g.goal.id)
     ;[ids[index], ids[target]] = [ids[target], ids[index]]
     startTransition(async () => {
       const result = await reorderGoals(ids)
@@ -140,7 +152,36 @@ export function GoalsClient({ overview }: GoalsClientProps) {
     })
   }
 
-  const hasUserGoals = userGoals.length > 0
+  const handleApprove = (goalId: string) => {
+    startTransition(async () => {
+      const result = await approveGoal(goalId)
+      if (result.success) {
+        toast.success(
+          result.data?.planRefreshed
+            ? t('approveSuccess')
+            : t('approveSuccessNextMonth')
+        )
+        router.refresh()
+      } else {
+        toast.error(t('approveFailed'), { description: result.error })
+      }
+    })
+  }
+
+  const handleDelete = (goalId: string) => {
+    startTransition(async () => {
+      const result = await archiveGoal(goalId)
+      if (result.success) {
+        toast.success(t('deleteSuccess'))
+        router.refresh()
+      } else {
+        toast.error(t('deleteFailed'), { description: result.error })
+      }
+    })
+  }
+
+  const hasActiveGoals = activeGoals.length > 0
+  const hasProposedGoals = proposedGoals.length > 0
 
   return (
     <div className="space-y-6">
@@ -167,26 +208,52 @@ export function GoalsClient({ overview }: GoalsClientProps) {
         />
       )}
 
-      {hasUserGoals ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {userGoals.map((item, index) => (
-            <GoalCard
-              key={item.goal.id}
-              item={item}
-              onContribute={() =>
-                setMovement({ goalId: item.goal.id, mode: 'contribute' })
-              }
-              onWithdraw={() =>
-                setMovement({ goalId: item.goal.id, mode: 'withdraw' })
-              }
-              onMoveUp={() => handleReorder(index, -1)}
-              onMoveDown={() => handleReorder(index, 1)}
-              isFirst={index === 0}
-              isLast={index === userGoals.length - 1}
-            />
-          ))}
-        </div>
-      ) : (
+      {hasActiveGoals && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {t('activeGoalsTitle')}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {activeGoals.map((item, index) => (
+              <GoalCard
+                key={item.goal.id}
+                item={item}
+                onContribute={() =>
+                  setMovement({ goalId: item.goal.id, mode: 'contribute' })
+                }
+                onWithdraw={() =>
+                  setMovement({ goalId: item.goal.id, mode: 'withdraw' })
+                }
+                onMoveUp={() => handleReorder(index, -1)}
+                onMoveDown={() => handleReorder(index, 1)}
+                isFirst={index === 0}
+                isLast={index === activeGoals.length - 1}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hasProposedGoals && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground">
+            {t('proposedGoalsTitle')}
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {proposedGoals.map((item) => (
+              <GoalProposedCard
+                key={item.goal.id}
+                item={item}
+                onApprove={() => handleApprove(item.goal.id)}
+                onDelete={() => handleDelete(item.goal.id)}
+                isBusy={isPending}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!hasActiveGoals && !hasProposedGoals && (
         <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed py-16 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Target className="h-7 w-7 text-primary" />

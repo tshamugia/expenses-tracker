@@ -52,6 +52,8 @@ import type {
   PlanView,
   SerializedAllocation,
   SerializedPlan,
+  SetAsideLine,
+  SetAsidePlan,
   StabilityProgress,
   WindfallProposal,
 } from '@/types/plan-types'
@@ -67,8 +69,21 @@ const TREND_MONTHS = 6
 // --- serialization -----------------------------------------------------------
 
 function serializePlan(plan: MonthlyPlan): SerializedPlan {
+  // Callers often fetch the plan with its relations included (`allocations`,
+  // `close`). Strip them before spreading so their raw Decimal fields never ride
+  // along into a Client Component — those relations are serialized separately.
+  const {
+    allocations: _allocations,
+    close: _close,
+    user: _user,
+    ...rest
+  } = plan as MonthlyPlan & {
+    allocations?: unknown
+    close?: unknown
+    user?: unknown
+  }
   return {
-    ...plan,
+    ...rest,
     forecastIncome: Number(plan.forecastIncome),
     forecastStable: Number(plan.forecastStable),
     forecastVariable: Number(plan.forecastVariable),
@@ -252,9 +267,10 @@ function actualForAllocation(a: SerializedAllocation, actuals: MonthActuals): nu
 // --- generate / confirm ------------------------------------------------------
 
 /**
- * Generate a DRAFT plan for `month` (default: the current month) by the
- * waterfall. Idempotent for drafts — an existing DRAFT is regenerated; a
- * CONFIRMED/CLOSED plan is protected (the user must reopen editing).
+ * (Re)generate the current month's active plan from the goals (Phase 4b). The
+ * plan is automatic, so this is just a manual refresh; a CLOSED month is
+ * protected. Callers normally never need this — `getActivePlan` generates on
+ * first view — but it backs an explicit "refresh" affordance.
  */
 export async function generateMonthlyPlan(
   month?: string
@@ -266,11 +282,11 @@ export async function generateMonthlyPlan(
     const now = new Date()
     const targetMonth = month ?? toMonthKey(now)
 
-    const gen = await generatePlanForUser(userId, targetMonth)
+    const gen = await generatePlanForUser(userId, targetMonth, now)
     if (gen.skipped || !gen.planId) {
       return {
         success: false,
-        error: 'A confirmed plan already exists for this month — reopen it to edit',
+        error: 'This month is already closed — it can no longer be regenerated',
       }
     }
 
@@ -448,6 +464,8 @@ async function buildPlanView(
     windfall = await computeWindfallProposal(userId, serPlan, actuals.incomeTotal)
   }
 
+  const setAside = buildSetAside(allocations, serPlan, actuals)
+
   return {
     plan: serPlan,
     allocations,
@@ -458,7 +476,55 @@ async function buildPlanView(
     spentFree,
     daysLeft,
     windfall,
+    setAside,
     defaultCurrency: context.defaultCurrency,
+  }
+}
+
+/**
+ * The goal-driven set-aside summary (Phase 4b): X (reserve + goals) vs what was
+ * actually set aside this month, plus per-goal lines and feasibility against the
+ * money left after obligations.
+ */
+function buildSetAside(
+  allocations: SerializedAllocation[],
+  plan: SerializedPlan,
+  actuals: MonthActuals
+): SetAsidePlan {
+  const setAsideAllocs = allocations.filter(
+    (a) => a.kind === 'RESERVE' || a.kind === 'GOAL'
+  )
+  const requiredSetAside = roundMoney(
+    setAsideAllocs.reduce((s, a) => s + a.planned, 0)
+  )
+  const actualSetAside = roundMoney(actuals.reserveNet + actuals.goalsNet)
+  const obligations = roundMoney(
+    allocations
+      .filter((a) => a.kind === 'MANDATORY' || a.kind === 'DEBT')
+      .reduce((s, a) => s + a.planned, 0)
+  )
+  const availableForGoals = roundMoney(plan.forecastIncome - obligations)
+  const shortfall = Math.max(0, roundMoney(requiredSetAside - availableForGoals))
+  const lines: SetAsideLine[] = setAsideAllocs.map((a) => {
+    const saved = roundMoney(a.refId ? actuals.contribByGoal.get(a.refId) ?? 0 : 0)
+    return {
+      refId: a.refId,
+      label: a.label,
+      kind: a.kind as 'RESERVE' | 'GOAL',
+      required: a.planned,
+      saved,
+      achieved: saved + 1e-6 >= a.planned,
+    }
+  })
+  return {
+    requiredSetAside,
+    actualSetAside,
+    achieved: actualSetAside + 1e-6 >= requiredSetAside,
+    obligations,
+    availableForGoals,
+    feasible: requiredSetAside <= availableForGoals + 1e-9,
+    shortfall,
+    lines,
   }
 }
 
@@ -477,7 +543,14 @@ export async function getActivePlan(
       where: { userId_month: { userId, month: targetMonth } },
       select: { id: true },
     })
-    if (!plan) return { success: true, data: null }
+
+    // Phase 4b — the plan is automatic: if the month has none yet, generate it
+    // from the current goals/income so the user never has to "create" one.
+    if (!plan) {
+      const gen = await generatePlanForUser(userId, targetMonth, now)
+      if (gen.skipped || !gen.planId) return { success: true, data: null }
+      return { success: true, data: await buildPlanView(userId, gen.planId, now) }
+    }
 
     return { success: true, data: await buildPlanView(userId, plan.id, now) }
   } catch (error) {
@@ -636,6 +709,7 @@ export async function getClosePreview(
     const proposed = proposeConclusions(
       lines.filter((l) => l.kind === 'VARIABLE').map((l) => ({ refId: l.refId, label: l.label, planned: l.planned, actual: l.actual }))
     )
+    const setAside = buildSetAside(allocations, serPlan, actuals)
 
     return {
       success: true,
@@ -646,6 +720,9 @@ export async function getClosePreview(
         verdict: { kind: verdict.verdict, netChange: verdict.netChange, components: verdict.components },
         plannedNetChange,
         completionPct,
+        requiredSetAside: setAside.requiredSetAside,
+        actualSetAside: setAside.actualSetAside,
+        achieved: setAside.achieved,
         defaultCurrency: context.defaultCurrency,
       },
     }
@@ -687,6 +764,7 @@ export async function closeMonth(
       return { success: false, error: 'This month is already closed' }
     }
 
+    const serPlan = serializePlan(plan)
     const allocations = plan.allocations.map(serializeAllocation)
     const monthStart = monthStartOf(plan.month)
     const context = await getCurrencyContext(userId)
@@ -706,6 +784,7 @@ export async function closeMonth(
     const withdrawals = roundMoney(
       Math.min(0, actuals.reserveNet) + Math.min(0, actuals.goalsNet)
     )
+    const setAside = buildSetAside(allocations, serPlan, actuals)
 
     const acceptedConclusions: PlanConclusion[] = decision.conclusions ?? []
 
@@ -726,6 +805,9 @@ export async function closeMonth(
           goalsDelta: actuals.goalsNet,
           newDebt: actuals.newDebtPrincipal,
           withdrawals,
+          requiredSetAside: setAside.requiredSetAside,
+          actualSetAside: setAside.actualSetAside,
+          achieved: setAside.achieved,
           conclusions: acceptedConclusions as unknown as object,
         },
       })
@@ -747,6 +829,9 @@ export async function closeMonth(
         verdict: { kind: verdict.verdict, netChange: verdict.netChange, components: verdict.components },
         plannedNetChange,
         completionPct,
+        requiredSetAside: setAside.requiredSetAside,
+        actualSetAside: setAside.actualSetAside,
+        achieved: setAside.achieved,
         defaultCurrency: context.defaultCurrency,
       },
     }
@@ -967,6 +1052,11 @@ export async function getDashboardData(): Promise<PlanActionResult<DashboardData
         daysLeft: planView?.daysLeft ?? getDaysInMonth(now),
         planStatus: planView?.plan.status ?? null,
         completionPct,
+        requiredSetAside: planView?.setAside.requiredSetAside ?? 0,
+        actualSetAside: planView?.setAside.actualSetAside ?? 0,
+        achieved: planView?.setAside.achieved ?? false,
+        feasible: planView?.setAside.feasible ?? true,
+        shortfall: planView?.setAside.shortfall ?? 0,
         liveVerdict,
         stability,
         debts: {

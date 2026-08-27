@@ -9,6 +9,9 @@ const {
   mockNotifyStage,
   mockNotifyWithdraw,
   mockTranslator,
+  mockGeneratePlanForUser,
+  mockGatherPlanInput,
+  mockComputeWhatIf,
 } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockComputeMandatory: vi.fn(),
@@ -17,6 +20,9 @@ const {
   mockNotifyStage: vi.fn(),
   mockNotifyWithdraw: vi.fn(),
   mockTranslator: vi.fn(),
+  mockGeneratePlanForUser: vi.fn(),
+  mockGatherPlanInput: vi.fn(),
+  mockComputeWhatIf: vi.fn(),
   mockPrisma: {
     goal: {
       create: vi.fn(),
@@ -51,13 +57,25 @@ vi.mock('@/lib/services/notification-service', () => ({
 vi.mock('@/i18n/server-translator', () => ({
   getServerTranslator: async () => mockTranslator,
 }))
+vi.mock('@/lib/services/plan-generation', () => ({
+  generatePlanForUser: mockGeneratePlanForUser,
+}))
+vi.mock('@/lib/services/plan-input', () => ({
+  gatherPlanInput: mockGatherPlanInput,
+  toMonthKey: () => '2026-08',
+}))
+vi.mock('@/lib/services/goal-plan-impact', () => ({
+  computeGoalWhatIf: mockComputeWhatIf,
+}))
 
 import {
   advanceReserveStage,
+  approveGoal,
   archiveGoal,
   contributeToGoal,
   createGoal,
   ensureEmergencyFund,
+  getGoals,
   updateGoal,
   withdrawFromGoal,
 } from './goal-actions'
@@ -100,6 +118,13 @@ beforeEach(() => {
   mockPrisma.transaction.create.mockResolvedValue({ id: 'tx-1' })
   mockPrisma.goalContribution.create.mockResolvedValue({})
   mockPrisma.goal.aggregate.mockResolvedValue({ _max: { priority: 3 } })
+  mockGeneratePlanForUser.mockResolvedValue({ planId: 'plan-1', skipped: false })
+  mockGatherPlanInput.mockResolvedValue({ input: { goals: [] } })
+  mockComputeWhatIf.mockReturnValue({
+    safeBefore: 1000,
+    safeAfter: 800,
+    deltaMonthly: 200,
+  })
 })
 
 describe('ensureEmergencyFund', () => {
@@ -161,6 +186,154 @@ describe('createGoal', () => {
     const result = await createGoal({ name: 'x', targetAmount: 0 })
     expect(result.success).toBe(false)
     expect(mockPrisma.goal.create).not.toHaveBeenCalled()
+  })
+
+  it('starts new goals as PROPOSED (wishlist, excluded from the plan)', async () => {
+    mockPrisma.goal.create.mockResolvedValue(makeGoal({ status: 'PROPOSED' }))
+    const result = await createGoal({
+      name: 'New laptop',
+      targetAmount: 1500,
+      monthlyContribution: 100,
+    })
+    expect(result.success).toBe(true)
+    const data = mockPrisma.goal.create.mock.calls[0][0].data
+    expect(data.status).toBe('PROPOSED')
+  })
+})
+
+describe('approveGoal', () => {
+  it('promotes a proposed goal to ACTIVE and refreshes the plan', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue(makeGoal({ status: 'PROPOSED' }))
+    mockPrisma.goal.update.mockResolvedValue(makeGoal({ status: 'ACTIVE' }))
+
+    const result = await approveGoal('goal-1')
+
+    expect(result.success).toBe(true)
+    expect(mockPrisma.goal.update).toHaveBeenCalledWith({
+      where: { id: 'goal-1' },
+      data: { status: 'ACTIVE' },
+    })
+    expect(mockGeneratePlanForUser).toHaveBeenCalledWith(USER_ID, '2026-08')
+    expect(result.data?.planRefreshed).toBe(true)
+  })
+
+  it('reports planRefreshed=false when the month is already confirmed/closed', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue(makeGoal({ status: 'PROPOSED' }))
+    mockPrisma.goal.update.mockResolvedValue(makeGoal({ status: 'ACTIVE' }))
+    mockGeneratePlanForUser.mockResolvedValue({
+      planId: null,
+      skipped: true,
+      reason: 'confirmed',
+    })
+
+    const result = await approveGoal('goal-1')
+
+    expect(result.success).toBe(true)
+    expect(result.data?.planRefreshed).toBe(false)
+  })
+
+  it('rejects a goal that is not proposed', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue(makeGoal({ status: 'ACTIVE' }))
+    const result = await approveGoal('goal-1')
+    expect(result.success).toBe(false)
+    expect(mockPrisma.goal.update).not.toHaveBeenCalled()
+    expect(mockGeneratePlanForUser).not.toHaveBeenCalled()
+  })
+
+  it('rejects the emergency fund', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue(
+      makeGoal({ isEmergencyFund: true, status: 'PROPOSED' })
+    )
+    const result = await approveGoal('goal-1')
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/managed automatically/i)
+    expect(mockPrisma.goal.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects when the goal is missing', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue(null)
+    const result = await approveGoal('goal-x')
+    expect(result.success).toBe(false)
+    expect(mockPrisma.goal.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects unauthenticated users', async () => {
+    mockAuth.mockResolvedValue(null)
+    const result = await approveGoal('goal-1')
+    expect(result).toEqual({ success: false, error: 'Unauthorized' })
+  })
+})
+
+describe('getGoals what-if', () => {
+  it('attaches a what-if impact to proposed goals only', async () => {
+    // ensureReserveExists: reserve already present
+    mockPrisma.goal.findFirst.mockResolvedValue({ id: 'reserve-1' })
+    mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+      defaultCurrency: 'GEL',
+    })
+    mockPrisma.goal.findMany.mockResolvedValue([
+      makeGoal({ id: 'active-1', status: 'ACTIVE', contributions: [] }),
+      makeGoal({
+        id: 'prop-1',
+        status: 'PROPOSED',
+        monthlyContribution: 100,
+        contributions: [],
+      }),
+    ])
+
+    const result = await getGoals()
+
+    expect(result.success).toBe(true)
+    const items = result.data!.goals
+    const active = items.find((i) => i.goal.id === 'active-1')
+    const proposed = items.find((i) => i.goal.id === 'prop-1')
+    expect(active?.whatIf).toBeUndefined()
+    expect(proposed?.whatIf).toEqual({
+      safeBefore: 1000,
+      safeAfter: 800,
+      deltaMonthly: 200,
+    })
+    expect(mockGatherPlanInput).toHaveBeenCalledTimes(1)
+    expect(mockComputeWhatIf).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not leak the raw contributions relation (Decimal) into the client payload', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue({ id: 'reserve-1' })
+    mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+      defaultCurrency: 'GEL',
+    })
+    // The overview query includes `contributions: { select: { amount } }`, so
+    // each goal object carries a raw amounts array. serializeGoal must strip it
+    // — otherwise a Decimal reaches the Client Component and Next.js throws.
+    mockPrisma.goal.findMany.mockResolvedValue([
+      makeGoal({
+        id: 'active-1',
+        status: 'ACTIVE',
+        contributions: [{ amount: 100 }, { amount: 50 }],
+      }),
+    ])
+
+    const result = await getGoals()
+
+    expect(result.success).toBe(true)
+    const goal = result.data!.goals[0].goal as Record<string, unknown>
+    expect(goal).not.toHaveProperty('contributions')
+    expect(typeof goal.targetAmount).toBe('number')
+  })
+
+  it('skips plan gathering when there are no proposed goals', async () => {
+    mockPrisma.goal.findFirst.mockResolvedValue({ id: 'reserve-1' })
+    mockPrisma.notificationPreference.findUnique.mockResolvedValue({
+      defaultCurrency: 'GEL',
+    })
+    mockPrisma.goal.findMany.mockResolvedValue([
+      makeGoal({ id: 'active-1', status: 'ACTIVE', contributions: [] }),
+    ])
+
+    const result = await getGoals()
+
+    expect(result.success).toBe(true)
+    expect(mockGatherPlanInput).not.toHaveBeenCalled()
   })
 })
 

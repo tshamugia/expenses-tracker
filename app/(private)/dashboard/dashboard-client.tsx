@@ -42,6 +42,41 @@ export function DashboardClient({ data }: DashboardClientProps) {
         currency={cur}
       />
 
+      {/* 1b. Goal-driven set-aside headline */}
+      {data.hasPlan && data.requiredSetAside > 0 && (
+        <Card>
+          <CardContent className="space-y-2 pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">
+                {t('setAsideHeadline', { amount: formatCurrency(data.requiredSetAside, cur) })}
+              </p>
+              {data.achieved ? (
+                <Badge className="bg-emerald-600 hover:bg-emerald-600">{t('goalsFunded')}</Badge>
+              ) : !data.feasible ? (
+                <Badge variant="destructive">{t('goalsShort', { amount: formatCurrency(data.shortfall, cur) })}</Badge>
+              ) : null}
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={
+                  'h-full rounded-full transition-all ' +
+                  (data.achieved ? 'bg-emerald-600' : 'bg-primary')
+                }
+                style={{
+                  width: `${Math.min(100, data.requiredSetAside > 0 ? (data.actualSetAside / data.requiredSetAside) * 100 : 0)}%`,
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {t('setAsideProgress', {
+                saved: formatCurrency(data.actualSetAside, cur),
+                required: formatCurrency(data.requiredSetAside, cur),
+              })}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 2. This month's progress + live verdict */}
       {data.hasPlan && data.liveVerdict && (
         <Card>

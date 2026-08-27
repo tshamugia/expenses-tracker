@@ -81,6 +81,52 @@ describe('generatePlan — waterfall', () => {
   })
 })
 
+describe('generatePlan — goal-driven layer (Phase 4b)', () => {
+  it('reports obligations, availableForGoals and the required set-aside X', () => {
+    const r = generatePlan(baseInput())
+    // obligations = mandatory 1000 + debt 500 = 1500
+    expect(r.availableForGoals).toBe(3500) // 5000 − 1500
+    // X = reserve 300 + goal 200 = 500
+    expect(r.requiredSetAside).toBe(500)
+    expect(r.feasible).toBe(true)
+    expect(r.shortfall).toBe(0)
+  })
+
+  it('excludes variable-category targets from obligations (they are discretionary)', () => {
+    // availableForGoals must ignore the 400 Food target
+    const r = generatePlan(baseInput())
+    expect(r.availableForGoals).toBe(3500)
+  })
+
+  it('flags infeasible with the shortfall when X exceeds availableForGoals', () => {
+    const r = generatePlan(
+      baseInput({
+        reserve: { goalId: 'reserve', label: 'Reserve', monthlyContribution: 300, remaining: 1000 },
+        goals: [
+          { goalId: 'goal-car', label: 'Car', monthlyContribution: 4000, remaining: 5000, priority: 2 },
+        ],
+      })
+    )
+    // available 3500; X = 300 + 4000 = 4300 → short 800
+    expect(r.feasible).toBe(false)
+    expect(r.requiredSetAside).toBe(4300)
+    expect(r.shortfall).toBe(800)
+  })
+
+  it('required set-aside respects each goal cap at its remaining', () => {
+    const r = generatePlan(
+      baseInput({
+        reserve: null,
+        goals: [
+          { goalId: 'g1', label: 'Laptop', monthlyContribution: 500, remaining: 120, priority: 2 },
+        ],
+      })
+    )
+    // goal capped at 120 → X = 120
+    expect(r.requiredSetAside).toBe(120)
+  })
+})
+
 describe('generatePlan — conclusions', () => {
   it('raises a VARIABLE target by a raise_limit conclusion', () => {
     const r = generatePlan(

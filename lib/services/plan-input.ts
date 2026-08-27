@@ -10,6 +10,7 @@ import prisma from '@/lib/db/prisma'
 import { computeIncomeForecastForUser } from '@/lib/services/income-forecast-service'
 import { getCurrencyContext } from '@/lib/services/spend-status-service'
 import { roundMoney } from '@/lib/services/amortization'
+import { goalRequiredThisMonth } from '@/lib/services/goal-math'
 import type { Conclusion, PlanInput } from '@/lib/services/plan-engine'
 import type { PlanConclusion } from '@/types/plan-types'
 import { convertCurrency, type Currency } from '@/lib/utils/currency-conversion'
@@ -41,11 +42,15 @@ export interface GatheredPlanInput {
  */
 export async function gatherPlanInput(
   userId: string,
-  month: string
+  month: string,
+  referenceDate?: Date
 ): Promise<GatheredPlanInput> {
   const monthStart = monthStartOf(month)
   const monthEnd = endOfMonth(monthStart)
   const daysInMonth = getDaysInMonth(monthStart)
+  // Months-left for a goal's deadline is measured from this date (today when the
+  // caller passes it; monthStart otherwise, for deterministic generation).
+  const asOf = referenceDate ?? monthStart
 
   const context = await getCurrencyContext(userId)
   const toDefault = (amount: number, currency: string) =>
@@ -157,15 +162,24 @@ export async function gatherPlanInput(
     const saved = roundMoney(g.contributions.reduce((s, c) => s + Number(c.amount), 0))
     const target = Number(g.targetAmount)
     const remaining = Math.max(0, roundMoney(target - saved))
-    const monthlyContribution = g.monthlyContribution === null ? 0 : Number(g.monthlyContribution)
+    const storedContribution =
+      g.monthlyContribution === null ? null : Number(g.monthlyContribution)
     if (g.isEmergencyFund) {
+      // The reserve has no deadline — it saves at its stored pace (Phase 4b).
       reserve = {
         goalId: g.id,
         label: g.name,
-        monthlyContribution,
+        monthlyContribution: storedContribution ?? 0,
         remaining,
       }
     } else {
+      // A goal's required contribution is derived from its deadline when it has
+      // one (remaining ÷ months left), else its stored pace (Phase 4b).
+      const monthlyContribution = goalRequiredThisMonth(
+        { targetDate: g.targetDate, monthlyContribution: storedContribution },
+        remaining,
+        asOf
+      )
       planGoals.push({
         goalId: g.id,
         label: g.name,

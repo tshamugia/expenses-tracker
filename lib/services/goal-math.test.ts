@@ -3,6 +3,7 @@ import {
   calcGoalProgress,
   calcMandatoryMonthlyExpense,
   calcReserveTarget,
+  goalRequiredThisMonth,
   projectedCompletionDate,
   requiredMonthlyContribution,
   type GoalMathInput,
@@ -147,6 +148,43 @@ describe('calcGoalProgress', () => {
     // remaining 1000 / 500 = 2 months
     expect(p.projectedDate).toEqual(new Date(2026, 9, 24))
     expect(p.requiredMonthly).toBeNull()
+  })
+})
+
+describe('goalRequiredThisMonth', () => {
+  // "laptop in 3 months": remaining 1500, deadline 3 calendar months out
+  it('derives the monthly amount from a deadline (the core Phase 4b behavior)', () => {
+    const laptop = { targetDate: new Date(2026, 10, 24), monthlyContribution: null }
+    // Nov 2026 is 3 calendar months after Aug 2026 → 1500 / 3 = 500
+    expect(goalRequiredThisMonth(laptop, 1500, TODAY)).toBe(500)
+  })
+
+  it('demands the whole remaining when the deadline is this month or past', () => {
+    const thisMonth = { targetDate: new Date(2026, 7, 28), monthlyContribution: null }
+    expect(goalRequiredThisMonth(thisMonth, 1200, TODAY)).toBe(1200)
+    const past = { targetDate: new Date(2026, 5, 1), monthlyContribution: null }
+    expect(goalRequiredThisMonth(past, 1200, TODAY)).toBe(1200)
+  })
+
+  it('prefers the deadline over a stored contribution when both exist', () => {
+    // deadline needs 500/mo, but the user stored a slower 200 pace → plan uses 500
+    const g = { targetDate: new Date(2026, 10, 24), monthlyContribution: 200 }
+    expect(goalRequiredThisMonth(g, 1500, TODAY)).toBe(500)
+  })
+
+  it('falls back to the stored contribution when there is no deadline', () => {
+    const g = { targetDate: null, monthlyContribution: 200 }
+    expect(goalRequiredThisMonth(g, 1500, TODAY)).toBe(200)
+  })
+
+  it('caps the stored contribution at the remaining (partial final month)', () => {
+    const g = { targetDate: null, monthlyContribution: 500 }
+    expect(goalRequiredThisMonth(g, 200, TODAY)).toBe(200)
+  })
+
+  it('is 0 with neither a deadline nor a contribution, or nothing remaining', () => {
+    expect(goalRequiredThisMonth({ targetDate: null, monthlyContribution: null }, 1500, TODAY)).toBe(0)
+    expect(goalRequiredThisMonth({ targetDate: new Date(2026, 10, 24), monthlyContribution: null }, 0, TODAY)).toBe(0)
   })
 })
 

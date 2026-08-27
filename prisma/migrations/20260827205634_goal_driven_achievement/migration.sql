@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "MonthClose" ADD COLUMN     "achieved" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "actualSetAside" DECIMAL(12,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "requiredSetAside" DECIMAL(12,2) NOT NULL DEFAULT 0;

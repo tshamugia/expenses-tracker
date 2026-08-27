@@ -16,7 +16,7 @@ import { validatePassword } from '@/lib/utils/password-validation'
 export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isLoading, setIsLoading] = useState(false)
+  const [loadingProvider, setLoadingProvider] = useState<'credentials' | 'google' | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -31,28 +31,32 @@ export function LoginForm() {
     }
   }, [searchParams])
 
+  const isGoogleLoading = loadingProvider === 'google'
+  const isCredentialsLoading = loadingProvider === 'credentials'
+  const isLoading = loadingProvider !== null
+
   const handleGoogleSignIn = async () => {
-    setIsLoading(true)
+    setLoadingProvider('google')
     try {
       await signIn('google', { callbackUrl: '/dashboard' })
     } catch (error) {
       console.error('Sign in error:', error)
       toast.error('Failed to sign in with Google')
     } finally {
-      setIsLoading(false)
+      setLoadingProvider(null)
     }
   }
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setLoadingProvider('credentials')
 
     try {
       if (isSignUp) {
         // Validate confirm password
         if (password !== confirmPassword) {
           toast.error('Passwords do not match')
-          setIsLoading(false)
+          setLoadingProvider(null)
           return
         }
 
@@ -60,7 +64,7 @@ export function LoginForm() {
         const validation = validatePassword(password)
         if (!validation.isValid) {
           toast.error(validation.error)
-          setIsLoading(false)
+          setLoadingProvider(null)
           return
         }
 
@@ -95,7 +99,7 @@ export function LoginForm() {
       console.error('Authentication error:', error)
       toast.error('Something went wrong. Please try again.')
     } finally {
-      setIsLoading(false)
+      setLoadingProvider(null)
     }
   }
 
@@ -266,7 +270,7 @@ export function LoginForm() {
               disabled={isLoading || (isSignUp && password !== confirmPassword)}
               className="w-full h-11 text-base font-semibold bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-300"
             >
-              {isLoading ? (
+              {isCredentialsLoading ? (
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -298,7 +302,7 @@ export function LoginForm() {
             className="w-full h-11 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-gray-300"
             variant="outline"
           >
-            {isLoading ? (
+            {isGoogleLoading ? (
               <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
@@ -307,7 +311,7 @@ export function LoginForm() {
             ) : (
               <Chrome className="mr-2 h-5 w-5 text-blue-500" />
             )}
-            {isLoading ? 'Signing in...' : 'Continue with Google'}
+            {isGoogleLoading ? 'Signing in...' : 'Continue with Google'}
           </Button>
 
           {/* Sign Up/Sign In Toggle */}

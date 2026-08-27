@@ -446,6 +446,16 @@ describe('getDebts', () => {
     const result = await getDebts()
     expect(result.data?.strategy).toBeNull()
   })
+
+  it('does not leak the raw (Decimal-carrying) schedule into the serialized debt', async () => {
+    mockPrisma.debt.findMany.mockResolvedValue([
+      makeDebt({ schedule: scheduleFixture(5000, 18, 24, 0) }),
+    ])
+    const result = await getDebts()
+    // The `schedule` relation must be stripped — its rows hold Prisma Decimals
+    // that can't cross the Server→Client boundary.
+    expect(result.data?.debts[0].debt).not.toHaveProperty('schedule')
+  })
 })
 
 describe('getDebtDetail', () => {

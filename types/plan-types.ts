@@ -72,7 +72,29 @@ export interface AllocationLive {
   actual: number // spent/moved so far this month
 }
 
-/** Everything the /plan page needs for the active/draft plan. */
+/** One goal (or the reserve) as a line in the required set-aside (Phase 4b). */
+export interface SetAsideLine {
+  refId: string | null
+  label: string
+  kind: 'RESERVE' | 'GOAL'
+  required: number // what this goal needs this month
+  saved: number // set aside so far this month
+  achieved: boolean // saved ≥ required
+}
+
+/** The goal-driven set-aside summary for the month (Phase 4b). */
+export interface SetAsidePlan {
+  requiredSetAside: number // X — total to set aside this month
+  actualSetAside: number // Y — set aside so far
+  achieved: boolean // Y ≥ X
+  obligations: number // mandatory + debt (shown separately, not part of X)
+  availableForGoals: number // income − obligations
+  feasible: boolean // X ≤ availableForGoals
+  shortfall: number // max(0, X − availableForGoals)
+  lines: SetAsideLine[]
+}
+
+/** Everything the /plan page needs for the active plan. */
 export interface PlanView {
   plan: SerializedPlan
   allocations: SerializedAllocation[]
@@ -83,6 +105,7 @@ export interface PlanView {
   spentFree: number // discretionary spend so far
   daysLeft: number
   windfall: WindfallProposal | null
+  setAside: SetAsidePlan // Phase 4b — the goal-driven core of the plan
   defaultCurrency: string
 }
 
@@ -112,6 +135,10 @@ export interface ClosePreview {
   }
   plannedNetChange: number
   completionPct: number
+  // Goal-driven achievement for the month (Phase 4b)
+  requiredSetAside: number
+  actualSetAside: number
+  achieved: boolean
   defaultCurrency: string
 }
 
@@ -143,6 +170,12 @@ export interface DashboardData {
   daysLeft: number
   planStatus: PlanStatus | null
   completionPct: number | null
+  // Goal-driven set-aside headline (Phase 4b)
+  requiredSetAside: number
+  actualSetAside: number
+  achieved: boolean
+  feasible: boolean
+  shortfall: number
   liveVerdict: {
     kind: VerdictKind
     netChange: number

@@ -17,22 +17,26 @@ export interface GenerateResult {
 }
 
 /**
- * Generate + persist a DRAFT plan for one user and month. Idempotent for drafts;
- * a CONFIRMED/CLOSED month is left untouched (returns skipped).
+ * Generate + persist the month's ACTIVE plan for one user (Phase 4b — the plan is
+ * fully automatic; there is no manual confirm step). A non-closed month is always
+ * regenerated to reflect the current goals/income; a CLOSED month is left
+ * untouched (returns skipped). `referenceDate` measures goal deadlines (today when
+ * the caller passes it, else the month start).
  */
 export async function generatePlanForUser(
   userId: string,
-  month: string
+  month: string,
+  referenceDate?: Date
 ): Promise<GenerateResult> {
   const existing = await prisma.monthlyPlan.findUnique({
     where: { userId_month: { userId, month } },
     select: { id: true, status: true },
   })
-  if (existing && existing.status !== 'DRAFT') {
-    return { planId: null, skipped: true, reason: existing.status === 'CLOSED' ? 'closed' : 'confirmed' }
+  if (existing && existing.status === 'CLOSED') {
+    return { planId: null, skipped: true, reason: 'closed' }
   }
 
-  const gathered = await gatherPlanInput(userId, month)
+  const gathered = await gatherPlanInput(userId, month, referenceDate)
   const result = generatePlan(gathered.input)
 
   const created = await prisma.$transaction(async (tx) => {
@@ -44,7 +48,9 @@ export async function generatePlanForUser(
       data: {
         userId,
         month,
-        status: 'DRAFT',
+        // Active immediately — no DRAFT/confirm in the goal-driven model.
+        status: 'CONFIRMED',
+        confirmedAt: new Date(),
         forecastIncome: gathered.input.forecast.total,
         forecastStable: gathered.input.forecast.stableTotal,
         forecastVariable: gathered.input.forecast.variableEstimate,

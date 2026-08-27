@@ -46,10 +46,18 @@ export interface ReserveExplanation {
   stage: number // 1 or 3
 }
 
+// What-if impact of approving a PROPOSED goal on the current month's plan.
+export interface GoalWhatIf {
+  safeBefore: number // monthly Safe-to-Spend as it stands today
+  safeAfter: number // monthly Safe-to-Spend if this goal were approved
+  deltaMonthly: number // reduction in monthly Safe-to-Spend (safeBefore - safeAfter)
+}
+
 export interface GoalListItem {
   goal: SerializedGoal
   progress: GoalProgress
   reserve?: ReserveExplanation // present only for the emergency fund
+  whatIf?: GoalWhatIf // present only for PROPOSED goals (browsing the wishlist)
 }
 
 // Everything the /goals list page needs in one payload

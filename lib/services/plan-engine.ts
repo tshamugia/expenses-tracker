@@ -82,6 +82,15 @@ export type PlanResult = {
   safeToSpendMonth: number
   safeToSpendDay: number
   deficit: DeficitInfo | null
+  // --- goal-driven layer (Phase 4b) ---
+  /** X — total to set aside this month: reserve + goal contributions. */
+  requiredSetAside: number
+  /** Income left for savings after obligations (mandatory + debt). */
+  availableForGoals: number
+  /** Whether X fits in availableForGoals (goals are all fundable this month). */
+  feasible: boolean
+  /** How much X exceeds availableForGoals (0 when feasible). */
+  shortfall: number
 }
 
 /** Round to 2 decimals, half up (shared banking rounding). */
@@ -209,7 +218,30 @@ export function generatePlan(input: PlanInput): PlanResult {
     }
   }
 
-  return { allocations, safeToSpendMonth, safeToSpendDay, deficit }
+  // --- goal-driven layer (Phase 4b): the required set-aside X and whether it
+  // fits in the money left after obligations. This is additive — it does not
+  // change safeToSpendMonth; it reframes the plan around goals for the UI. ---
+  const sumKind = (...kinds: AllocationKind[]) =>
+    roundMoney(
+      allocations
+        .filter((a) => kinds.includes(a.kind))
+        .reduce((s, a) => s + a.planned, 0)
+    )
+  const requiredSetAside = sumKind('RESERVE', 'GOAL')
+  const availableForGoals = roundMoney(available - sumKind('MANDATORY', 'DEBT'))
+  const feasible = requiredSetAside <= availableForGoals + 1e-9
+  const shortfall = Math.max(0, roundMoney(requiredSetAside - availableForGoals))
+
+  return {
+    allocations,
+    safeToSpendMonth,
+    safeToSpendDay,
+    deficit,
+    requiredSetAside,
+    availableForGoals,
+    feasible,
+    shortfall,
+  }
 }
 
 /**

@@ -16,6 +16,36 @@ import { roundMoney } from '@/lib/services/amortization'
 export { roundMoney }
 
 /**
+ * What a single goal must receive THIS month to stay on schedule (Phase 4b).
+ * This is the driver of the goal-based monthly plan:
+ *  - a goal with a deadline → remaining ÷ months left (a past/this-month deadline
+ *    demands the whole remaining now);
+ *  - a goal with only a contribution pace → that pace, capped at remaining;
+ *  - a goal with neither → 0 (nothing planned).
+ * `referenceDate` is injected so the result is deterministic and testable.
+ */
+export function goalRequiredThisMonth(
+  goal: { targetDate: Date | null; monthlyContribution: number | null },
+  remaining: number,
+  referenceDate: Date
+): number {
+  if (remaining <= 0) return 0
+  const hasDate =
+    goal.targetDate instanceof Date && !isNaN(goal.targetDate.getTime())
+  if (hasDate) {
+    const monthsLeft = differenceInCalendarMonths(
+      goal.targetDate as Date,
+      referenceDate
+    )
+    return requiredMonthlyContribution(remaining, monthsLeft)
+  }
+  if (goal.monthlyContribution != null && goal.monthlyContribution > 0) {
+    return roundMoney(Math.min(goal.monthlyContribution, remaining))
+  }
+  return 0
+}
+
+/**
  * Contribution needed each month to cover `remaining` by the deadline.
  * monthsLeft ≤ 0 (deadline is now or past) → the whole remaining in one month.
  * remaining ≤ 0 → 0 (already funded).
