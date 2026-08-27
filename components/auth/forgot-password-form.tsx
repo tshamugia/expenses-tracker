@@ -61,7 +61,7 @@ export function ForgotPasswordForm() {
             Forgot Password?
           </CardTitle>
           <CardDescription className="text-base">
-            No worries! We'll send you a reset code to your email.
+            No worries! We&apos;ll send you a reset code to your email.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -109,7 +109,7 @@ export function ForgotPasswordForm() {
           <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-900">
             <p className="font-medium mb-1">What happens next?</p>
             <ul className="list-disc list-inside text-blue-700 space-y-1">
-              <li>We'll send a 6-digit code to your email</li>
+              <li>We&apos;ll send a 6-digit code to your email</li>
               <li>The code expires in 15 minutes</li>
               <li>Use it to set a new password</li>
             </ul>

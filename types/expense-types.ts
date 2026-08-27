@@ -24,6 +24,11 @@ export type SerializedExpenseWithPayments = SerializedExpense & {
   payments: SerializedPayment[]
 }
 
+// Query results that also include the linked payment card (e.g. getExpenses)
+export type SerializedExpenseWithRelations = SerializedExpenseWithPayments & {
+  paymentCard?: PaymentCard | null
+}
+
 export type ExpenseWithUser = Expense & {
   user: User
 }

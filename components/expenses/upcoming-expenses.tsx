@@ -6,11 +6,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, DollarSign } from 'lucide-react'
+import { Calendar } from 'lucide-react'
 import type { ExpenseListItem } from '@/types/expense-types'
 import type { CurrencyRate } from '@/lib/services/currency'
 import { PaymentCardDisplay } from './payment-card-display'
-import { formatCurrency } from '@/lib/utils/currency-helpers'
 import { formatExpenseDate } from '@/lib/utils/date-helpers'
 import { formatCurrencyWithConversion, type Currency } from '@/lib/utils/currency-conversion'
 

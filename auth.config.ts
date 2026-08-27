@@ -62,6 +62,8 @@ export const authConfig = {
       // Protected routes - require authentication
       const protectedRoutes = [
         '/dashboard',
+        '/plan',
+        '/income',
         '/expenses',
         '/categories',
         '/payments',

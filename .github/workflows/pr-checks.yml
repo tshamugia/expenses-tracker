@@ -1,0 +1,86 @@
+name: PR Checks
+
+# Merge gate for PRs targeting main (phase 0 — docs/phases/phase-0-workflow-ci.md).
+# Deliberately a separate workflow from build-and-publish.yml so PRs never build
+# or publish a Docker image. Branch protection on main requires this job green.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  pr-checks:
+    # Keep this display name stable: branch protection on main requires the
+    # status check context "pr-checks" (phase 0 §4.3).
+    name: pr-checks
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the migration guard can diff against the base branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      # Lint is non-blocking: the repo has pre-existing lint debt unrelated to
+      # this gate. Findings stay visible; typecheck/test/build are the hard gates.
+      - name: Lint (non-blocking)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      # Fails the job when migration SQL added/changed in this PR contains
+      # destructive statements, unless the PR carries the explicit override
+      # label `migration:destructive-approved` (phase 0 §5.3).
+      - name: Migration guard
+        env:
+          HAS_OVERRIDE: ${{ contains(github.event.pull_request.labels.*.name, 'migration:destructive-approved') }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          files=$(git diff --name-only --diff-filter=AM "$BASE_SHA...$HEAD_SHA" -- 'prisma/migrations/**/*.sql')
+          if [ -z "$files" ]; then
+            echo "No migration SQL files in this PR — guard passes."
+            exit 0
+          fi
+
+          echo "Migration files in this PR:"
+          echo "$files"
+
+          pattern='DROP[[:space:]]+TABLE|DROP[[:space:]]+COLUMN|TRUNCATE|DELETE[[:space:]]+FROM'
+          hits=$(echo "$files" | xargs grep -inE "$pattern" || true)
+
+          if [ -z "$hits" ]; then
+            echo "No destructive statements found — guard passes."
+            exit 0
+          fi
+
+          echo "::warning::Destructive SQL detected in migration files:"
+          echo "$hits"
+
+          if [ "$HAS_OVERRIDE" = "true" ]; then
+            echo "Label 'migration:destructive-approved' present — explicitly approved, guard passes."
+            exit 0
+          fi
+
+          echo "::error::Destructive migration SQL found. Follow the expand–contract procedure (docs/phases/phase-0-workflow-ci.md §5.2) or, if this is a deliberate decision, add the 'migration:destructive-approved' label to the PR."
+          exit 1

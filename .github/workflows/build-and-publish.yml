@@ -43,10 +43,10 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      # NOTE: this project has no automated test suite yet. The "test" step is
-      # intentionally a documented no-op — add `npm test` here once tests exist.
-      - name: Test (none present)
-        run: echo "No test suite in this repo yet — skipping. See implementation.md."
+      # Second line of defense behind pr-checks.yml: even if something lands on
+      # main bypassing the PR gate, a red test suite still stops the deploy.
+      - name: Test
+        run: npm run test
 
   # ── 2. Build image + publish to GHCR ───────────────────────────────
   build-and-push:

@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { getServerTranslator } from '@/i18n/server-translator'
 
 // Lazy-loaded Resend client - only initialized when accessed (not during build)
 let resendInstance: Resend | null = null
@@ -70,7 +71,7 @@ export async function sendPasswordResetEmail({
       return { success: true }
     }
 
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: 'ExtraTracker <onboarding@resend.dev>',
       to: [email],
       subject: 'Reset Your Password - ExtraTracker',
@@ -316,7 +317,7 @@ export async function sendPaymentReminderEmail({
     const urgencyColor = daysUntilDue <= 1 ? '#dc2626' : daysUntilDue <= 3 ? '#f59e0b' : '#3b82f6'
     const urgencyText = daysUntilDue === 0 ? 'Due Today!' : daysUntilDue === 1 ? 'Due Tomorrow!' : `Due in ${daysUntilDue} days`
 
-    const { data, error } = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: 'ExtraTracker <onboarding@resend.dev>',
       to: [email],
       subject: `Payment Reminder: ${expenseTitle} - ${urgencyText}`,
@@ -444,6 +445,153 @@ export async function sendPaymentReminderEmail({
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send email',
+    }
+  }
+}
+
+export interface SendCategoryLimitEmailParams {
+  email: string
+  userName?: string
+  categoryName: string
+  spent: number
+  limit: number
+  currency: string
+  percent: number // e.g. 84 or 101
+}
+
+/**
+ * Send category soft-limit warning email (80% / 100% thresholds)
+ */
+export async function sendCategoryLimitEmail({
+  email,
+  userName,
+  categoryName,
+  spent,
+  limit,
+  currency,
+  percent,
+}: SendCategoryLimitEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    const isOver = percent > 100
+    const t = await getServerTranslator('CategoryLimitAlert')
+    const subject = isOver
+      ? t('emailSubjectOver', { category: categoryName, percent })
+      : t('emailSubjectWarn', { category: categoryName, percent })
+
+    if (!process.env.RESEND_API_KEY) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📧 CATEGORY LIMIT EMAIL (Development Mode)')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`To: ${email}`)
+      console.log(`Subject: ${subject}`)
+      console.log(`${categoryName}: ${spent.toFixed(2)}/${limit.toFixed(2)} ${currency} (${percent}%)`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      return { success: true }
+    }
+
+    const { error } = await resend.emails.send({
+      from: 'ExtraTracker <onboarding@resend.dev>',
+      to: [email],
+      subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: sans-serif; color: #111; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: ${isOver ? '#dc2626' : '#d97706'};">${subject}</h2>
+            <p>${t('emailGreeting', { name: userName ? `, ${userName}` : '' })}</p>
+            <p>
+              ${t('emailBody', {
+                category: categoryName,
+                spent: spent.toFixed(2),
+                limit: limit.toFixed(2),
+                currency,
+                percent,
+              })}
+            </p>
+            <p style="color: #555;">${t('emailHint')}</p>
+            <p style="color: #999; font-size: 12px;">ExtraTracker</p>
+          </body>
+        </html>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send category limit email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending category limit email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+export interface SendGoalMilestoneEmailParams {
+  email: string
+  userName?: string
+  subject: string
+  heading: string
+  body: string
+}
+
+/**
+ * Generic milestone email (Phase 3): goal achieved / reserve stage reached.
+ * The caller passes already-translated copy (notification-service owns the
+ * translator). Falls back to a console log without a Resend key.
+ */
+export async function sendGoalMilestoneEmail({
+  email,
+  userName,
+  subject,
+  heading,
+  body,
+}: SendGoalMilestoneEmailParams): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!process.env.RESEND_API_KEY) {
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('📧 GOAL MILESTONE EMAIL (Development Mode)')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log(`To: ${email}`)
+      console.log(`Subject: ${subject}`)
+      console.log(`${heading} — ${body}`)
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+
+      return { success: true }
+    }
+
+    const { error } = await resend.emails.send({
+      from: 'ExtraTracker <onboarding@resend.dev>',
+      to: [email],
+      subject,
+      html: `
+        <!DOCTYPE html>
+        <html>
+          <body style="font-family: sans-serif; color: #111; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <h2 style="color: #059669;">${heading}</h2>
+            <p>${userName ? `Hi ${userName},` : 'Hi there,'}</p>
+            <p style="font-size: 16px; line-height: 24px;">${body}</p>
+            <p style="color: #999; font-size: 12px;">ExtraTracker</p>
+          </body>
+        </html>
+      `,
+    })
+
+    if (error) {
+      console.error('Failed to send goal milestone email:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error sending goal milestone email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     }
   }
 }

@@ -25,6 +25,7 @@ import type {
   ExpenseFilters,
   ExpenseWithPayments,
   SerializedExpenseWithPayments,
+  SerializedExpenseWithRelations,
   CategoryData,
 } from '@/types/expense-types'
 
@@ -322,7 +323,6 @@ export async function createExpense(
     })
 
     // Business logic: Create initial payment if nextDueDate is provided
-    let paymentId: string | undefined
     if (input.nextDueDate) {
       const payment = await prisma.payment.create({
         data: {
@@ -332,7 +332,6 @@ export async function createExpense(
           paid: false,
         },
       })
-      paymentId = payment.id
 
       // Check if the expense is past due or due today and send immediate notification
       const now = new Date()
@@ -543,14 +542,38 @@ export async function markExpensePaid(
       }
     }
 
-    // Mark payment as paid
-    await prisma.payment.update({
-      where: { id: payment.id },
-      data: {
-        paid: true,
-        paidAt: new Date(),
-      },
-    })
+    // Resolve the ledger category by the expense's category name (may be null)
+    const ledgerCategory = expense.category
+      ? await prisma.category.findFirst({
+          where: { userId, categoryName: expense.category },
+          select: { id: true },
+        })
+      : null
+
+    // Mark payment as paid AND mirror it into the unified Transaction ledger
+    // atomically — either both records are written or neither (Phase 1 §5)
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          paid: true,
+          paidAt: new Date(),
+        },
+      }),
+      prisma.transaction.create({
+        data: {
+          userId,
+          type: 'EXPENSE',
+          amount: payment.amount,
+          currency: expense.currency,
+          date: new Date(),
+          categoryId: ledgerCategory?.id ?? null,
+          expenseId: expense.id,
+          description: expense.title,
+          entrySource: 'MANUAL',
+        },
+      }),
+    ])
 
     // Business logic: For recurring expenses, roll the schedule forward.
     // Advance the expense's nextDueDate by one recurrence interval and create
@@ -624,7 +647,7 @@ export async function markExpensePaid(
  */
 export async function getExpenses(
   userId: string
-): Promise<ActionResult<SerializedExpenseWithPayments[]>> {
+): Promise<ActionResult<SerializedExpenseWithRelations[]>> {
   try {
     const expenses = await prisma.expense.findMany({
       where: { userId },
@@ -642,7 +665,7 @@ export async function getExpenses(
     })
 
     // Convert Decimal to number for client components
-    const serializedExpenses: SerializedExpenseWithPayments[] = expenses.map((expense) => ({
+    const serializedExpenses: SerializedExpenseWithRelations[] = expenses.map((expense) => ({
       ...expense,
       amount: Number(expense.amount),
       payments: expense.payments.map((payment) => ({

@@ -8,7 +8,7 @@ import type { ExpenseListItem } from '@/types/expense-types'
 import type { Currency } from '@/types/settings-types'
 import { ExpenseIcon } from './expense-icons'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
-import { formatCurrencyWithConversion, convertCurrency } from '@/lib/utils/currency-conversion'
+import { convertCurrency } from '@/lib/utils/currency-conversion'
 import { formatExpenseDate } from '@/lib/utils/date-helpers'
 import {
   expenseItemEntry,

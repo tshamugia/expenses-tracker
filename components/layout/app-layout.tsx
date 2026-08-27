@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Sidebar from './sidebar'
 import Header from './header'
 import { PasswordCheck } from '@/components/auth/password-check'
+import { QuickAddLauncher } from '@/components/transactions/quick-add-launcher'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -35,6 +36,9 @@ export function AppLayout({ children }: AppLayoutProps) {
               {children}
             </div>
           </main>
+
+          {/* Mobile quick-add FAB (Phase 1) */}
+          <QuickAddLauncher variant="fab" />
         </div>
       </div>
     </>

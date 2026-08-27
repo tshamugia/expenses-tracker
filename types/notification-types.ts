@@ -22,7 +22,18 @@ export interface CreateNotificationInput {
   message: string
   type?: NotificationType
   actionUrl?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
+}
+
+// Shape of the JSON stored in Notification.metadata (see notification-service.ts)
+export interface NotificationMetadata {
+  expenseId?: string
+  paymentId?: string
+  amount?: number
+  dueDate?: string
+  daysUntilDue?: number
+  isOverdue?: boolean
+  isNewExpense?: boolean
 }
 
 export interface NotificationStats {

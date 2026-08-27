@@ -29,26 +29,25 @@ interface ExpenseChartsProps {
   currency?: string
 }
 
-// Color palette for charts
-const COLORS = [
-  '#3b82f6', // blue-500
-  '#10b981', // green-500
-  '#f59e0b', // amber-500
-  '#ef4444', // red-500
-  '#8b5cf6', // violet-500
-  '#ec4899', // pink-500
-  '#06b6d4', // cyan-500
-  '#f97316', // orange-500
-]
+// Shape of the data recharts passes into a custom tooltip
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: Array<{
+    name?: string
+    value?: number
+    payload: { count?: number }
+  }>
+  currency?: string
+}
 
 // Custom tooltip for currency formatting
-const CustomTooltip = ({ active, payload, currency = 'GEL' }: any) => {
+const CustomTooltip = ({ active, payload, currency = 'GEL' }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-lg border bg-background p-2 shadow-md">
         <p className="text-sm font-medium">{payload[0].name}</p>
         <p className="text-sm text-muted-foreground">
-          Amount: {formatCurrency(payload[0].value, currency)}
+          Amount: {formatCurrency(payload[0].value ?? 0, currency)}
         </p>
         {payload[0].payload.count && (
           <p className="text-sm text-muted-foreground">
@@ -134,8 +133,8 @@ export function ExpenseCharts({
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(entry: any) =>
-                    `${entry.name} ${(entry.percent * 100).toFixed(0)}%`
+                  label={(entry: { name?: string; percent?: number }) =>
+                    `${entry.name} ${((entry.percent ?? 0) * 100).toFixed(0)}%`
                   }
                   outerRadius={100}
                   fill="#8884d8"

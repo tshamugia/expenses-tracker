@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { NotificationBell } from './notification-bell'
 import { ThemeToggle } from './theme-toggle'
 import { InstallPrompt } from '@/components/pwa/install-prompt'
+import { QuickAddLauncher } from '@/components/transactions/quick-add-launcher'
 import { useSession, signOut } from 'next-auth/react'
 
 interface HeaderProps {
@@ -60,6 +61,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2">
+          {/* Quick-add expense (Phase 1) */}
+          <QuickAddLauncher variant="header" />
+
           {/* Install PWA */}
           <InstallPrompt />
 

@@ -156,7 +156,7 @@ export function VerifyEmailForm() {
 
           {/* Resend */}
           <div className="text-center text-sm text-muted-foreground">
-            Didn't get the code?{' '}
+            Didn&apos;t get the code?{' '}
             <button
               type="button"
               onClick={handleResend}

@@ -20,6 +20,8 @@ import {
 } from '@/lib/actions/notification-actions'
 import type { Notification, NotificationType } from '@/types/notification-types'
 
+type NotificationFilter = 'all' | 'unread' | NotificationType
+
 interface NotificationListProps {
   notifications: Notification[]
 }
@@ -28,7 +30,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
   const router = useRouter()
   const [isMarkingAllRead, setIsMarkingAllRead] = useState(false)
   const [isDeletingRead, setIsDeletingRead] = useState(false)
-  const [filter, setFilter] = useState<'all' | 'unread' | NotificationType>('all')
+  const [filter, setFilter] = useState<NotificationFilter>('all')
 
   const handleMarkAllRead = async () => {
     setIsMarkingAllRead(true)
@@ -40,7 +42,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
       } else {
         toast.error(result.error)
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to mark notifications as read')
     } finally {
       setIsMarkingAllRead(false)
@@ -57,7 +59,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
       } else {
         toast.error(result.error)
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete notifications')
     } finally {
       setIsDeletingRead(false)
@@ -80,7 +82,7 @@ export function NotificationList({ notifications }: NotificationListProps) {
         <CardContent className="flex flex-wrap items-center gap-4 py-4">
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <Filter className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+            <Select value={filter} onValueChange={(value) => setFilter(value as NotificationFilter)}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter notifications" />
               </SelectTrigger>

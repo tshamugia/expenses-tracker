@@ -6,7 +6,12 @@
  */
 
 import prisma from '@/lib/db/prisma'
-import { sendPaymentReminderEmail } from './email'
+import { getServerTranslator } from '@/i18n/server-translator'
+import {
+  sendCategoryLimitEmail,
+  sendGoalMilestoneEmail,
+  sendPaymentReminderEmail,
+} from './email'
 import { sendPushToUser } from './push-service'
 
 export interface NotificationResult {
@@ -494,5 +499,577 @@ export async function sendUserPaymentNotifications(
         error instanceof Error ? error.message : 'Unknown error occurred',
       ],
     }
+  }
+}
+
+/**
+ * Debt milestone (Phase 2): the final installment closed the debt.
+ * In-app + best-effort push. Called from recordDebtPayment.
+ */
+export async function notifyDebtPaidOff(
+  userId: string,
+  debtName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('DebtNotifications')
+    const title = t('paidOffTitle')
+    const message = t('paidOffMessage', { debt: debtName })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'success',
+        actionUrl: '/debts',
+        metadata: JSON.stringify({ kind: 'debt-paid-off', debtName }),
+      },
+    })
+
+    await sendPushToUser(userId, { title, body: message, url: '/debts' })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyDebtPaidOff:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Debt installment reminders (Phase 2), for the daily cron.
+ * Triggers, deduped once per installment per event via a metadata marker:
+ * - upcoming: due within the user's notifyBeforeDays window (incl. today)
+ * - overdue: past due and unpaid
+ * Sends in-app + email + best-effort push. Archived / paid-off debts skipped.
+ */
+export async function sendUpcomingDebtNotifications(): Promise<NotificationResult> {
+  const errors: string[] = []
+  let sentCount = 0
+
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        notificationPreferences: { select: { notifyBeforeDays: true } },
+      },
+    })
+
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+
+    const t = await getServerTranslator('DebtNotifications')
+
+    for (const user of users) {
+      try {
+        const notifyBeforeDays =
+          user.notificationPreferences?.notifyBeforeDays ?? 3
+        const windowEnd = new Date(now)
+        windowEnd.setDate(now.getDate() + notifyBeforeDays)
+        windowEnd.setHours(23, 59, 59, 999)
+
+        const items = await prisma.debtScheduleItem.findMany({
+          where: {
+            paid: false,
+            debt: { userId: user.id, status: 'ACTIVE' },
+            dueDate: { lte: windowEnd },
+          },
+          include: {
+            debt: { select: { id: true, name: true, currency: true } },
+          },
+          orderBy: { dueDate: 'asc' },
+        })
+
+        for (const item of items) {
+          const due = new Date(item.dueDate)
+          due.setHours(0, 0, 0, 0)
+          const daysUntilDue = Math.ceil(
+            (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+          )
+          const kind = daysUntilDue < 0 ? 'overdue' : 'upcoming'
+          const debtKey = `debt:${item.id}:${kind}`
+
+          // Dedup: at most one notification per installment per event
+          const existing = await prisma.notification.findFirst({
+            where: {
+              userId: user.id,
+              metadata: { contains: `"debtKey":"${debtKey}"` },
+            },
+            select: { id: true },
+          })
+          if (existing) continue
+
+          const amount = Number(item.payment)
+          const title =
+            kind === 'overdue' ? t('overdueTitle') : t('upcomingTitle')
+          const message =
+            kind === 'overdue'
+              ? t('overdueMessage', {
+                  debt: item.debt.name,
+                  amount: amount.toFixed(2),
+                  currency: item.debt.currency,
+                })
+              : daysUntilDue === 0
+                ? t('dueTodayMessage', {
+                    debt: item.debt.name,
+                    amount: amount.toFixed(2),
+                    currency: item.debt.currency,
+                  })
+                : t('upcomingMessage', {
+                    debt: item.debt.name,
+                    amount: amount.toFixed(2),
+                    currency: item.debt.currency,
+                    days: daysUntilDue,
+                  })
+
+          await prisma.notification.create({
+            data: {
+              userId: user.id,
+              title,
+              message,
+              type: kind === 'overdue' ? 'error' : 'payment',
+              actionUrl: `/debts/${item.debt.id}`,
+              metadata: JSON.stringify({
+                kind: 'debt',
+                debtKey,
+                debtId: item.debt.id,
+                scheduleItemId: item.id,
+                dueDate: item.dueDate,
+                amount,
+                daysUntilDue,
+              }),
+            },
+          })
+
+          await sendPushToUser(user.id, {
+            title,
+            body: message,
+            url: `/debts/${item.debt.id}`,
+          })
+
+          const emailResult = await sendPaymentReminderEmail({
+            email: user.email,
+            userName: user.name || undefined,
+            expenseTitle: item.debt.name,
+            amount,
+            currency: item.debt.currency,
+            dueDate: new Date(item.dueDate),
+            daysUntilDue,
+          })
+
+          if (emailResult.success) {
+            sentCount++
+          } else {
+            errors.push(
+              `Failed to send debt email to ${user.email} for ${item.debt.name}: ${emailResult.error}`
+            )
+          }
+        }
+      } catch (error) {
+        errors.push(
+          `Error processing debt notifications for user ${user.email}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      }
+    }
+
+    return { success: true, sentCount, errors }
+  } catch (error) {
+    console.error('Error in sendUpcomingDebtNotifications:', error)
+    return {
+      success: false,
+      sentCount,
+      errors: [
+        ...errors,
+        error instanceof Error ? error.message : 'Unknown error occurred',
+      ],
+    }
+  }
+}
+
+/**
+ * Goal milestone (Phase 3): a non-reserve goal reached its target.
+ * In-app + email + best-effort push. Called from contributeToGoal.
+ */
+export async function notifyGoalAchieved(
+  userId: string,
+  goalName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const title = t('achievedTitle')
+    const message = t('achievedMessage', { goal: goalName })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'success',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({ kind: 'goal-achieved', goalName }),
+      },
+    })
+
+    await sendPushToUser(userId, { title, body: message, url: '/goals' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyGoalAchieved:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Reserve milestone (Phase 3): the emergency fund filled its current stage.
+ * Stage 1 → also nudges toward the 3-month stage. In-app + email + push.
+ */
+export async function notifyReserveStageReached(
+  userId: string,
+  stage: number
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const title = t('reserveStageTitle', { stage })
+    const message =
+      stage === 1 ? t('reserveStage1Message') : t('reserveStage3Message')
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'success',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({ kind: 'reserve-stage', stage }),
+      },
+    })
+
+    await sendPushToUser(userId, { title, body: message, url: '/goals' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyReserveStageReached:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Reserve withdrawal (Phase 3): money taken out of the emergency fund, with the
+ * mandatory reason recorded. In-app only (a deliberate, logged action).
+ */
+export async function notifyReserveWithdrawal(
+  userId: string,
+  input: { goalName: string; amount: number; currency: string; reason: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const title = t('withdrawTitle')
+    const message = t('withdrawMessage', {
+      goal: input.goalName,
+      amount: input.amount.toFixed(2),
+      currency: input.currency,
+      reason: input.reason,
+    })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'warning',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({
+          kind: 'goal-withdrawal',
+          reason: input.reason,
+          amount: input.amount,
+        }),
+      },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyReserveWithdrawal:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Reserve target changed (Phase 3): the auto-computed target moved by >±10%.
+ * In-app only, with a short explanation. Called from recalcReserveTargetForUser.
+ */
+export async function notifyReserveTargetChanged(
+  userId: string,
+  input: { oldTarget: number; newTarget: number; currency: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('GoalNotifications')
+    const increased = input.newTarget > input.oldTarget
+    const title = t('reserveTargetTitle')
+    const message = t(
+      increased ? 'reserveTargetUpMessage' : 'reserveTargetDownMessage',
+      {
+        oldTarget: input.oldTarget.toFixed(2),
+        newTarget: input.newTarget.toFixed(2),
+        currency: input.currency,
+      }
+    )
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'info',
+        actionUrl: '/goals',
+        metadata: JSON.stringify({
+          kind: 'reserve-target-changed',
+          oldTarget: input.oldTarget,
+          newTarget: input.newTarget,
+        }),
+      },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyReserveTargetChanged:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Category soft-limit warning (Phase 1).
+ * Fires when the current-month spend crosses 80% or 100% of the category's
+ * monthly limit. Max ONE notification per threshold per category per month —
+ * dedup state lives in Notification.metadata (limitKey marker).
+ */
+export async function notifyCategoryLimitThreshold(
+  userId: string,
+  category: { id: string; name: string },
+  status: { spent: number; limit: number; ratio: number },
+  currency: string
+): Promise<{ success: boolean; notified: boolean; error?: string }> {
+  try {
+    const threshold = status.ratio > 1 ? 100 : status.ratio >= 0.8 ? 80 : null
+    if (threshold === null) {
+      return { success: true, notified: false }
+    }
+
+    const now = new Date()
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const limitKey = `${category.id}:${threshold}:${monthKey}`
+
+    // Dedup: at most one notification per threshold per category per month
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId,
+        metadata: { contains: `"limitKey":"${limitKey}"` },
+      },
+      select: { id: true },
+    })
+
+    if (existing) {
+      return { success: true, notified: false }
+    }
+
+    const percent = Math.round(status.ratio * 100)
+    const isOver = threshold === 100
+    const t = await getServerTranslator('CategoryLimitAlert')
+    const title = isOver
+      ? t('titleOver', { category: category.name })
+      : t('titleWarn', { category: category.name })
+    const message = t('message', {
+      category: category.name,
+      spent: status.spent.toFixed(2),
+      limit: status.limit.toFixed(2),
+      currency,
+      percent,
+    })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: isOver ? 'error' : 'warning',
+        actionUrl: '/expenses?tab=categories',
+        metadata: JSON.stringify({
+          kind: 'category-limit',
+          limitKey,
+          categoryId: category.id,
+          threshold,
+          spent: status.spent,
+          limit: status.limit,
+        }),
+      },
+    })
+
+    // Best-effort push; failures must not block the expense write
+    await sendPushToUser(userId, {
+      title,
+      body: message,
+      url: '/expenses?tab=categories',
+    })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+
+    if (user) {
+      await sendCategoryLimitEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        categoryName: category.name,
+        spent: status.spent,
+        limit: status.limit,
+        currency,
+        percent,
+      })
+    }
+
+    return { success: true, notified: true }
+  } catch (error) {
+    console.error('Error in notifyCategoryLimitThreshold:', error)
+    return {
+      success: false,
+      notified: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+// --- Phase 4: monthly-plan rhythm --------------------------------------------
+
+/**
+ * "Your plan is ready" digest (§7 / ს1) — sent on the 1st after generation.
+ * In-app + email + push, pointing to /plan to confirm.
+ */
+export async function notifyPlanReady(
+  userId: string,
+  input: { month: string; safeToSpend: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('PlanNotifications')
+    const title = t('readyTitle', { month: input.month })
+    const message = t('readyMessage', { amount: input.safeToSpend })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'info',
+        actionUrl: '/plan',
+        metadata: JSON.stringify({ kind: 'plan-ready', month: input.month }),
+      },
+    })
+    await sendPushToUser(userId, { title, body: message, url: '/plan' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyPlanReady:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}
+
+/**
+ * "Time to close the month" reminder (§7 / ს4) — sent in the last days of a
+ * month that still has a confirmed (unclosed) plan. In-app + email + push.
+ */
+export async function notifyMonthCloseReminder(
+  userId: string,
+  input: { month: string }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const t = await getServerTranslator('PlanNotifications')
+    const title = t('closeReminderTitle', { month: input.month })
+    const message = t('closeReminderMessage')
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: 'info',
+        actionUrl: '/plan',
+        metadata: JSON.stringify({ kind: 'plan-close-reminder', month: input.month }),
+      },
+    })
+    await sendPushToUser(userId, { title, body: message, url: '/plan' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyMonthCloseReminder:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }

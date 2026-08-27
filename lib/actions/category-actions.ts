@@ -10,13 +10,27 @@
 
 import { revalidatePath } from 'next/cache'
 import { cache } from 'react'
+import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
+import { ensureDefaultCategories } from '@/lib/services/default-categories'
+import { computeCategorySpendStatuses } from '@/lib/services/spend-status-service'
+import type { Category } from '@prisma/client'
 import type {
   SerializedCategory,
+  CategoryWithSpend,
   CreateCategoryInput,
   UpdateCategoryInput,
   CategoryActionResult,
 } from '@/types/category-types'
+
+// Convert Prisma Decimal monthlyLimit to number for client components
+function serializeCategory(category: Category): SerializedCategory {
+  return {
+    ...category,
+    monthlyLimit:
+      category.monthlyLimit === null ? null : Number(category.monthlyLimit),
+  }
+}
 
 /**
  * Get all categories for a user
@@ -30,7 +44,7 @@ export const getUserCategories = cache(
         orderBy: { createdAt: 'desc' },
       })
 
-      return categories
+      return categories.map(serializeCategory)
     } catch (error) {
       console.error('Error fetching categories:', error)
       return []
@@ -52,7 +66,7 @@ export const getCategoryById = cache(
         },
       })
 
-      return category
+      return category ? serializeCategory(category) : null
     } catch (error) {
       console.error('Error fetching category:', error)
       return null
@@ -119,7 +133,7 @@ export async function createCategory(
 
     return {
       success: true,
-      data: category,
+      data: serializeCategory(category),
     }
   } catch (error) {
     console.error('Error creating category:', error)
@@ -211,7 +225,7 @@ export async function updateCategory(
 
     return {
       success: true,
-      data: category,
+      data: serializeCategory(category),
     }
   } catch (error) {
     console.error('Error updating category:', error)
@@ -299,3 +313,94 @@ export const getCategoryCount = cache(async (userId: string): Promise<number> =>
     return 0
   }
 })
+
+/**
+ * Set (or clear) a category's monthly soft limit (Phase 1)
+ * Business logic: Validate ownership and that the limit is positive or null
+ */
+export async function setCategoryLimit(
+  categoryId: string,
+  limit: number | null
+): Promise<CategoryActionResult<SerializedCategory>> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    const userId = session.user.id
+
+    if (limit !== null && (!Number.isFinite(limit) || limit <= 0)) {
+      return { success: false, error: 'Limit must be greater than zero' }
+    }
+
+    // SECURITY: verify ownership
+    const existing = await prisma.category.findFirst({
+      where: { id: categoryId, userId },
+    })
+    if (!existing) {
+      return { success: false, error: 'Category not found or access denied' }
+    }
+
+    const category = await prisma.category.update({
+      where: { id: categoryId },
+      data: { monthlyLimit: limit },
+    })
+
+    revalidatePath('/categories')
+    revalidatePath('/expenses')
+
+    return { success: true, data: serializeCategory(category) }
+  } catch (error) {
+    console.error('Error in setCategoryLimit:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to set category limit',
+    }
+  }
+}
+
+/**
+ * Categories with current-month spend status (Phase 1)
+ * Seeds default categories for brand-new users, then attaches spent/ratio/level.
+ */
+export async function getCategoriesWithSpend(): Promise<
+  CategoryActionResult<CategoryWithSpend[]>
+> {
+  try {
+    const session = await auth()
+    if (!session?.user?.id) {
+      return { success: false, error: 'Unauthorized' }
+    }
+    const userId = session.user.id
+
+    await ensureDefaultCategories(userId)
+
+    const [categories, { statuses }] = await Promise.all([
+      prisma.category.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+      }),
+      computeCategorySpendStatuses(userId),
+    ])
+
+    const statusById = new Map(statuses.map((s) => [s.categoryId, s]))
+
+    const data: CategoryWithSpend[] = categories.map((category) => {
+      const status = statusById.get(category.id)
+      return {
+        ...serializeCategory(category),
+        spent: status?.spent ?? 0,
+        ratio: status?.ratio ?? null,
+        level: status?.level ?? 'ok',
+      }
+    })
+
+    return { success: true, data }
+  } catch (error) {
+    console.error('Error in getCategoriesWithSpend:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load categories',
+    }
+  }
+}

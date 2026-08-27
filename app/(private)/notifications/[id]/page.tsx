@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { NotificationType } from '@/types/notification-types'
+import type { NotificationMetadata, NotificationType } from '@/types/notification-types'
 
 const notificationIcons: Record<NotificationType, typeof Info> = {
   info: Info,
@@ -91,7 +91,7 @@ async function NotificationDetailContent({ id }: { id: string }) {
   const colors = notificationColors[notification.type as NotificationType]
 
   // Parse metadata if it exists
-  let metadata: any = null
+  let metadata: NotificationMetadata | null = null
   if (notification.metadata) {
     try {
       metadata = JSON.parse(notification.metadata)

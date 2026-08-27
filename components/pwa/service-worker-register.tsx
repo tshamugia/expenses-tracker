@@ -10,8 +10,24 @@ import { useEffect } from 'react'
  */
 export function ServiceWorkerRegister() {
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') return
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return
+
+    if (process.env.NODE_ENV !== 'production') {
+      // A worker left over from a previous production run on this origin
+      // keeps serving /_next/static chunks cache-first, hydrating dev pages
+      // with stale code. Unregister it and drop its caches.
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister())
+      })
+      if ('caches' in window) {
+        caches.keys().then((keys) =>
+          keys.forEach((key) => {
+            if (key.startsWith('extracker-')) caches.delete(key)
+          })
+        )
+      }
+      return
+    }
 
     const register = () => {
       navigator.serviceWorker.register('/sw.js').catch((error) => {

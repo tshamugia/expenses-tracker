@@ -17,10 +17,7 @@ import {
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import {
-  markNotificationAsRead,
-  deleteNotification,
-} from '@/lib/actions/notification-actions'
+import { deleteNotification } from '@/lib/actions/notification-actions'
 import { toast } from 'sonner'
 import type { Notification, NotificationType } from '@/types/notification-types'
 
@@ -94,7 +91,7 @@ export function NotificationItem({ notification }: NotificationItemProps) {
         toast.error(result.error)
         setIsDeleting(false)
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete notification')
       setIsDeleting(false)
     }

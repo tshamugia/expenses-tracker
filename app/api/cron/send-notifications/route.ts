@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendUpcomingPaymentNotifications } from '@/lib/services/notification-service'
+import { accrueStableIncomeForAllUsers } from '@/lib/services/income-accrual'
+import {
+  sendUpcomingDebtNotifications,
+  sendUpcomingPaymentNotifications,
+} from '@/lib/services/notification-service'
+import { recalcAllReserveTargets } from '@/lib/services/reserve-target-service'
+import {
+  generateMonthlyPlansForAllUsers,
+  sendMonthCloseReminders,
+} from '@/lib/services/plan-cron'
 
 /**
  * Cron endpoint to send payment reminder notifications
@@ -32,21 +41,69 @@ export async function GET(request: NextRequest) {
     console.log('Starting scheduled payment notification job...')
     const startTime = Date.now()
 
+    // Credit stable income that came due, for users who have not opened the
+    // app; failures must not block the reminder emails below
+    let accruedCount = 0
+    try {
+      accruedCount = await accrueStableIncomeForAllUsers()
+      console.log(`Accrued ${accruedCount} stable income transactions`)
+    } catch (error) {
+      console.error('Error accruing stable income:', error)
+    }
+
     const result = await sendUpcomingPaymentNotifications()
 
+    // Debt installment reminders (Phase 2): upcoming + overdue, deduped per event
+    const debtResult = await sendUpcomingDebtNotifications()
+
+    // Reserve target recompute (Phase 3): once a month, on the 1st. Notifies
+    // affected users on a >±10% move; failures must not block the emails above.
+    let reserveRecalcCount = 0
+    let plansGenerated = 0
+    if (new Date().getDate() === 1) {
+      try {
+        reserveRecalcCount = await recalcAllReserveTargets()
+        console.log(`Recomputed ${reserveRecalcCount} reserve targets`)
+      } catch (error) {
+        console.error('Error recomputing reserve targets:', error)
+      }
+      // Monthly plan generation + "plan ready" digest (Phase 4, §7 / ს1)
+      try {
+        plansGenerated = await generateMonthlyPlansForAllUsers()
+        console.log(`Generated ${plansGenerated} monthly plans`)
+      } catch (error) {
+        console.error('Error generating monthly plans:', error)
+      }
+    }
+
+    // Month-close reminders in the last days of the month (Phase 4, §7 / ს4)
+    let closeReminders = 0
+    try {
+      closeReminders = await sendMonthCloseReminders()
+      if (closeReminders > 0) console.log(`Sent ${closeReminders} close reminders`)
+    } catch (error) {
+      console.error('Error sending close reminders:', error)
+    }
+
     const duration = Date.now() - startTime
+    const sentCount = result.sentCount + debtResult.sentCount
+    const errors = [...result.errors, ...debtResult.errors]
     console.log(`Payment notification job completed in ${duration}ms`)
-    console.log(`Sent: ${result.sentCount} emails`)
-    if (result.errors.length > 0) {
-      console.log(`Errors: ${result.errors.length}`)
-      result.errors.forEach((error) => console.error(`  - ${error}`))
+    console.log(`Sent: ${sentCount} emails (${debtResult.sentCount} debt)`)
+    if (errors.length > 0) {
+      console.log(`Errors: ${errors.length}`)
+      errors.forEach((error) => console.error(`  - ${error}`))
     }
 
     return NextResponse.json({
-      success: result.success,
-      sentCount: result.sentCount,
-      errorCount: result.errors.length,
-      errors: result.errors,
+      success: result.success && debtResult.success,
+      accruedCount,
+      sentCount,
+      reserveRecalcCount,
+      plansGenerated,
+      closeReminders,
+      errorCount: errors.length,
+      errors,
       duration,
       timestamp: new Date().toISOString(),
     })
