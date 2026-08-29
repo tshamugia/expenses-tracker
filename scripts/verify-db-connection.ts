@@ -1,62 +1,47 @@
-import { createClient } from '@supabase/supabase-js'
+/**
+ * Database Connection Verification Script
+ * Verifies the Prisma connection (local Docker Postgres via .env.local) and
+ * confirms the core tables exist and are queryable.
+ * Run with: npm run db:verify
+ */
 
-// Use server-side environment variables
-const supabaseUrl = process.env.SUPABASE_URL!
-const supabaseKey = process.env.SUPABASE_ANON_KEY!
+import prisma from '../lib/db/prisma'
 
-const supabase = createClient(supabaseUrl, supabaseKey)
+async function verifyConnection() {
+  console.log('🔍 Verifying database connection (Prisma)...')
 
-async function testConnection() {
   try {
-    console.log('🔍 Testing Supabase connection...')
-    console.log('📍 Project URL:', supabaseUrl)
-    
-    // Test 1: Check User table
-    const { data: users, error: userError } = await supabase
-      .from('User')
-      .select('id, email, name')
-      .limit(5)
-    
-    if (userError) throw userError
-    console.log('\n✅ User table query successful')
-    console.log(`📊 Users found: ${users?.length || 0}`)
-    if (users && users.length > 0) {
-      console.log('👤 Sample user:', users[0])
-    }
-    
-    // Test 2: Check Expense table
-    const { data: expenses, error: expenseError } = await supabase
-      .from('Expense')
-      .select('id, title, amount, currency, isRecurring')
-      .limit(5)
-    
-    if (expenseError) throw expenseError
-    console.log('\n✅ Expense table query successful')
-    console.log(`📊 Expenses found: ${expenses?.length || 0}`)
-    if (expenses && expenses.length > 0) {
-      console.log('💰 Sample expense:', expenses[0])
-    }
-    
-    // Test 3: List all tables
-    const { data: tables, error: tableError } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .in('table_name', ['User', 'Expense', 'Payment', 'NotificationPreference'])
+    // Confirm we can reach the server and which database we're on
+    const [info] = await prisma.$queryRaw<
+      Array<{ database: string; host: string | null; port: number | null }>
+    >`SELECT current_database() as database, inet_server_addr()::text as host, inet_server_port() as port`
+    console.log(`📍 Connected to database "${info.database}" (${info.host ?? 'local'}:${info.port ?? ''})`)
 
-    if (tableError) throw tableError
+    // Confirm core tables are present and queryable
+    const [userCount, expenseCount, paymentCount, prefCount] = await Promise.all([
+      prisma.user.count(),
+      prisma.expense.count(),
+      prisma.payment.count(),
+      prisma.notificationPreference.count(),
+    ])
+
     console.log('\n✅ Database connection verified!')
-    console.log('📋 Tables confirmed in Expense Tracker database:')
-    for (const table of tables ?? []) {
-      console.log(`   - ${table.table_name} ✓`)
-    }
-    
-    console.log('\n🎉 All tests passed! Database is ready.')
-    
+    console.log('📋 Core tables confirmed:')
+    console.log(`   - User: ${userCount}`)
+    console.log(`   - Expense: ${expenseCount}`)
+    console.log(`   - Payment: ${paymentCount}`)
+    console.log(`   - NotificationPreference: ${prefCount}`)
+
+    console.log('\n🎉 All checks passed! Database is ready.')
   } catch (error) {
-    console.error('❌ Connection test failed:', error)
+    console.error('❌ Connection verification failed:', error instanceof Error ? error.message : error)
+    console.log('\n💡 Is the local Postgres container running?')
+    console.log('   docker compose -f docker-compose.dev.yml up -d db')
+    console.log('   Check DATABASE_URL in .env.local points to localhost:5433.')
     process.exit(1)
+  } finally {
+    await prisma.$disconnect()
   }
 }
 
-testConnection()
+verifyConnection()

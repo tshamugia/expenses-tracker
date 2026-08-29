@@ -21,7 +21,7 @@
 - ახალი CI workflow PR-ებისთვის: lint → typecheck → **test** → build.
 - `build-and-publish.yml`-ში no-op ტესტის ნაბიჯის ჩანაცვლება რეალური `npm run test`-ით.
 - Branch protection `main`-ზე: მერჯი მხოლოდ მწვანე შემოწმებებით.
-- მიგრაციის ნაკადის წესები (dev Supabase → prod Railway) + დესტრუქციული SQL-ის ავტომატური დარაჯი CI-ში.
+- მიგრაციის ნაკადის წესები (dev ლოკალური Docker Postgres → prod Railway) + დესტრუქციული SQL-ის ავტომატური დარაჯი CI-ში.
 - Railway Postgres-ის ბექაფის ჩართვა.
 
 **Out of scope:** React Testing Library და კომპონენტ-ტესტების სრული სეტაპი (ფაზა 1 §8 — ეს ფაზა მხოლოდ ჩარჩოს დგამს); E2E ტესტები; staging გარემო (dev ბაზა + prod საკმარისია ამ მასშტაბზე).
@@ -31,7 +31,7 @@
 ```
 feature branch
    │  ლოკალურად: npm run build && npm run test   ← PR არ იხსნება, სანამ ორივე მწვანეა
-   │  სქემის ცვლილება: npm run db:migrate:dev    ← მიგრაციის SQL იქმნება და Supabase dev-ზე ტესტდება
+   │  სქემის ცვლილება: npm run db:migrate:dev    ← მიგრაციის SQL იქმნება და ლოკალურ Docker dev ბაზაზე ტესტდება
    ▼
 Pull Request  ──►  CI (pr-checks): lint · tsc · test · build · migration-guard
    │                        └─ წითელი = მერჯი დაბლოკილია (branch protection)
@@ -48,13 +48,13 @@ production (მიგრაცია წარმატებულია → �
 1. `npm run build` — გადის შეცდომების გარეშე.
 2. `npm run test` — ყველა ტესტი მწვანეა.
 3. ახალ/შეცვლილ ლოგიკას ტესტები ახლავს (CLAUDE.md „Testing" წესი).
-4. სქემა შეიცვალა? → მიგრაცია შექმნილია `npm run db:migrate:dev`-ით, Supabase dev-ზე გატესტილია და მიგრაციის SQL ხელით არის გადახედილი (იხ. §5 checklist).
+4. სქემა შეიცვალა? → მიგრაცია შექმნილია `npm run db:migrate:dev`-ით, ლოკალურ Docker dev ბაზაზე გატესტილია და მიგრაციის SQL ხელით არის გადახედილი (იხ. §5 checklist).
 
 ### DB-გარემოების როლები
 
 | გარემო | ბაზა | ვინ ცვლის სქემას | წესი |
 |---|---|---|---|
-| Development | Supabase (`.env.local`) | დეველოპერი — `npm run db:migrate:dev` | ერთადერთი ადგილი, სადაც მიგრაცია იქმნება. Reset/seed ნებადართულია — მონაცემები disposable-ია. |
+| Development | ლოკალური Docker Postgres (`.env.local`, `localhost:5433`) | დეველოპერი — `npm run db:migrate:dev` | ერთადერთი ადგილი, სადაც მიგრაცია იქმნება. Reset/seed ნებადართულია — მონაცემები disposable-ია. |
 | Production | Railway Postgres (internal-only) | მხოლოდ CI/CD — pre-deploy `prisma migrate deploy` | ლოკალური კავშირი არ არსებობს და არც უნდა გაჩნდეს. `db push` / `migrate reset` აკრძალულია. |
 
 ## 4. CI ცვლილებები

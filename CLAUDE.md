@@ -25,7 +25,7 @@ npm run lint             # Run ESLint
 npm run db:test          # Test database connection
 npm run db:verify        # Verify database connection
 npm run prisma:generate  # Generate Prisma Client
-npm run db:migrate:dev   # Create + apply a migration on the Supabase dev DB (the ONLY way to change schema)
+npm run db:migrate:dev   # Create + apply a migration on the local Docker dev DB (the ONLY way to change schema)
 npm run prisma:studio    # Open Prisma Studio GUI
 npm run prisma:seed      # Seed database with demo data
 npm run seed:notifications # Seed notification data for testing
@@ -39,7 +39,7 @@ All database commands automatically use `.env.local` via `dotenv-cli`.
 
 Full rules: `docs/phases/phase-0-workflow-ci.md`.
 
-- **Schema changes**: only via `npm run db:migrate:dev` against the Supabase dev DB. The generated SQL in `prisma/migrations/` is committed, reviewed in the PR diff, and applied to production (Railway Postgres) exclusively by the Railway pre-deploy command `prisma migrate deploy` after merge. There is no local connection to the production DB, and none should be created.
+- **Schema changes**: only via `npm run db:migrate:dev` against the local Docker dev DB (`docker-compose.dev.yml` `db` service, `localhost:5433`). The generated SQL in `prisma/migrations/` is committed, reviewed in the PR diff, and applied to production (Railway Postgres) exclusively by the Railway pre-deploy command `prisma migrate deploy` after merge. There is no local connection to the production DB, and none should be created.
 - **Destructive SQL** (`DROP TABLE`/`DROP COLUMN`, `TRUNCATE`, `DELETE FROM`, type narrowing, renames) is blocked in CI by the migration guard in `pr-checks.yml`. It only passes with the explicit PR label `migration:destructive-approved`; prefer the expand–contract procedure (phase 0 §5.2).
 - **Before opening a PR**: `npm run build` and `npm run test` must both be green locally; new/changed logic has tests.
 - **CI gates**: `.github/workflows/pr-checks.yml` runs lint (non-blocking) → typecheck → test → build → migration guard on every PR to `main`; branch protection blocks merging on red. `build-and-publish.yml` re-runs typecheck + tests before building the Docker image on `main`.
@@ -83,7 +83,7 @@ The app is bilingual: **English (`en`, default) and Georgian (`ka`)**, via `next
 ### Data Flow
 
 ```
-User Interaction → Client Component → Server Action → Prisma/Service → Supabase PostgreSQL
+User Interaction → Client Component → Server Action → Prisma/Service → PostgreSQL (local Docker dev / Railway prod)
                                                      ↓
                                               Email Service (Resend)
 ```
@@ -336,7 +336,7 @@ Protected routes are automatically handled by auth.config.ts callbacks. Routes u
 ## Tech Stack
 
 - **Framework**: Next.js 16.0.0 (App Router, React 19)
-- **Database**: Supabase PostgreSQL + Prisma ORM 6.18.0
+- **Database**: PostgreSQL (local Docker for dev, Railway Postgres for prod) + Prisma ORM 6.18.0
 - **Authentication**: Auth.js 5 (NextAuth) with Google OAuth and Credentials
 - **UI**: Tailwind CSS 3 + Shadcn/UI + Framer Motion + next-themes
 - **Icons**: Lucide React
@@ -353,12 +353,9 @@ Protected routes are automatically handled by auth.config.ts callbacks. Routes u
 Required in `.env.local`:
 
 ```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your-project-url.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
-DATABASE_URL=postgresql://postgres:password@db.project.supabase.co:5432/postgres?pgbouncer=true&sslmode=require
-DIRECT_URL=postgresql://postgres:password@db.project.supabase.co:5432/postgres?sslmode=require
+# Database (local Docker Postgres — docker-compose.dev.yml `db` service)
+DATABASE_URL=postgresql://extracker:extracker@localhost:5433/extracker
+DIRECT_URL=postgresql://extracker:extracker@localhost:5433/extracker
 
 # Auth.js
 AUTH_SECRET=your-auth-secret-here              # Generate with: openssl rand -base64 32
@@ -520,8 +517,8 @@ import type { ExpenseListItem } from '@/types/expense-types'
 ## Deployment Recommendations
 
 ### Database
-- Use Supabase PostgreSQL (connection pooling via Prisma)
-- Run `npm run prisma:push` to sync schema before deployment
+- Production uses Railway Postgres; migrations are applied by the Railway pre-deploy command `prisma migrate deploy` (never `prisma:push`)
+- Local development uses the Docker Postgres container (`docker-compose.dev.yml` `db` service)
 - Consider using `npm run prisma:seed` for demo data
 
 ### Environment Variables
