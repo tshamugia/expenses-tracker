@@ -1,6 +1,27 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:17-alpine
+    container_name: extracker-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=extracker
+      - POSTGRES_PASSWORD=extracker
+      - POSTGRES_DB=extracker
+    ports:
+      # Host 5433 -> container 5432 (5432 is used by another local project)
+      - "5433:5432"
+    volumes:
+      - extracker-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U extracker -d extracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - extracker-network
+
   app:
     build:
       context: .
@@ -9,6 +30,9 @@ services:
         - NODE_ENV=development
     container_name: extracker-dev
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "3000:3000"
     volumes:
@@ -17,14 +41,9 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      # Database
-      - DATABASE_URL=${DATABASE_URL}
-      - DIRECT_URL=${DIRECT_URL}
-
-      # Supabase
-      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      # Database (containerized app talks to the db service over the compose network)
+      - DATABASE_URL=postgresql://extracker:extracker@db:5432/extracker
+      - DIRECT_URL=postgresql://extracker:extracker@db:5432/extracker
 
       # Auth
       - AUTH_SECRET=${AUTH_SECRET}
@@ -48,3 +67,6 @@ services:
 networks:
   extracker-network:
     driver: bridge
+
+volumes:
+  extracker-db-data:

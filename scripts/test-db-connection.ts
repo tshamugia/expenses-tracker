@@ -84,20 +84,18 @@ async function testConnection() {
       // Provide helpful diagnostics
       if (error.message.includes("Can't reach database server")) {
         console.log('💡 Possible solutions:')
-        console.log('   1. Check if Supabase project is paused (free tier auto-pauses)')
-        console.log('      → Go to: https://supabase.com/dashboard')
-        console.log('      → Resume your project')
+        console.log('   1. Start the local Postgres container:')
+        console.log('      → docker compose -f docker-compose.dev.yml up -d db')
         console.log()
-        console.log('   2. Check your internet connection')
+        console.log('   2. Verify DATABASE_URL in .env.local points to the local DB:')
+        console.log('      DATABASE_URL=postgresql://extracker:extracker@localhost:5433/extracker')
         console.log()
-        console.log('   3. Verify DATABASE_URL in .env.local:')
-        console.log('      DATABASE_URL=postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres')
-        console.log()
-        console.log('   4. Check Supabase dashboard for database status')
+        console.log('   3. Check the container is healthy:')
+        console.log('      → docker ps --filter name=extracker-db')
       } else if (error.message.includes('password authentication failed')) {
         console.log('💡 Solution:')
-        console.log('   Update your DATABASE_URL and DIRECT_URL with correct password')
-        console.log('   Get password from: Supabase Dashboard → Settings → Database')
+        console.log('   Ensure DATABASE_URL/DIRECT_URL credentials match the db service')
+        console.log('   in docker-compose.dev.yml (user/password: extracker/extracker).')
       }
     } else {
       console.error('Unknown error:', error)
