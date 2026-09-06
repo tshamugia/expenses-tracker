@@ -1073,3 +1073,60 @@ export async function notifyMonthCloseReminder(
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
+
+/**
+ * "Month closed" summary digest (§7 / ს4) — sent after the cron auto-closes an
+ * elapsed month the user never closed manually. In-app + email + push, carrying
+ * the honest verdict and the net-position change. `netChange` is pre-formatted
+ * in the user's default currency by the caller.
+ */
+export async function notifyMonthClosed(
+  userId: string,
+  input: {
+    month: string
+    verdict: 'FORWARD' | 'BACK' | 'FLAT'
+    netChange: string
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const [t, tv] = await Promise.all([
+      getServerTranslator('PlanNotifications'),
+      getServerTranslator('Verdict'),
+    ])
+    const verdictWord = tv(
+      input.verdict === 'FORWARD' ? 'forward' : input.verdict === 'BACK' ? 'back' : 'flat'
+    )
+    const title = t('closedTitle', { month: input.month, verdict: verdictWord })
+    const message = t('closedMessage', { amount: input.netChange })
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        title,
+        message,
+        type: input.verdict === 'BACK' ? 'warning' : 'success',
+        actionUrl: '/plan',
+        metadata: JSON.stringify({ kind: 'plan-closed', month: input.month, verdict: input.verdict }),
+      },
+    })
+    await sendPushToUser(userId, { title, body: message, url: '/plan' })
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, name: true },
+    })
+    if (user) {
+      await sendGoalMilestoneEmail({
+        email: user.email,
+        userName: user.name || undefined,
+        subject: title,
+        heading: title,
+        body: message,
+      })
+    }
+    return { success: true }
+  } catch (error) {
+    console.error('Error in notifyMonthClosed:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+  }
+}

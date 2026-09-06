@@ -7,7 +7,7 @@
 
 import prisma from '@/lib/db/prisma'
 import { generatePlan, type PlanResult } from '@/lib/services/plan-engine'
-import { gatherPlanInput } from '@/lib/services/plan-input'
+import { gatherPlanInput, toMonthKey } from '@/lib/services/plan-input'
 
 export interface GenerateResult {
   planId: string | null
@@ -70,4 +70,26 @@ export async function generatePlanForUser(
   })
 
   return { planId: created.id, skipped: false, result }
+}
+
+/**
+ * Best-effort regeneration of the current month's active plan after a mutation
+ * that changes the waterfall inputs (goal / income-source / debt edits). Phase 4b
+ * event-driven refresh: the plan is automatic, so any change to what must be set
+ * aside — or to obligations/forecast — should immediately re-derive the plan and
+ * Safe-to-Spend. Never throws: a plan-refresh failure must not fail the mutation
+ * that triggered it, and a CLOSED month is left untouched. Returns whether the
+ * plan was actually refreshed.
+ */
+export async function regenerateCurrentPlan(
+  userId: string,
+  now: Date = new Date()
+): Promise<boolean> {
+  try {
+    const gen = await generatePlanForUser(userId, toMonthKey(now), now)
+    return !gen.skipped && !!gen.planId
+  } catch (error) {
+    console.error('Error regenerating current plan:', error)
+    return false
+  }
 }

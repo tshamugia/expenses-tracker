@@ -10,7 +10,8 @@
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { format } from 'date-fns'
-import { Landmark, Target } from 'lucide-react'
+import { Landmark, Sparkles, Target } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
@@ -26,6 +27,7 @@ interface DashboardClientProps {
 
 export function DashboardClient({ data }: DashboardClientProps) {
   const t = useTranslations('Dashboard')
+  const tp = useTranslations('Plan')
   const cur = data.defaultCurrency
   const fmtMonth = (d: Date | string | null) => (d ? format(new Date(d), 'MMM yyyy') : null)
 
@@ -73,6 +75,32 @@ export function DashboardClient({ data }: DashboardClientProps) {
                 required: formatCurrency(data.requiredSetAside, cur),
               })}
             </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 1c. Windfall recommendation (income above forecast) — read-only advice */}
+      {data.windfall && (
+        <Card className="border-emerald-300 dark:border-emerald-900">
+          <CardContent className="space-y-3 pt-6">
+            <div className="flex items-center gap-2 font-semibold text-emerald-600 dark:text-emerald-400">
+              <Sparkles className="h-5 w-5" />
+              {tp('windfallTitle', { amount: formatCurrency(data.windfall.excess, cur) })}
+            </div>
+            <p className="text-sm text-muted-foreground">{tp('windfallDescription')}</p>
+            <ul className="text-sm tabular-nums">
+              <li>{tp('windfallToDebt', { amount: formatCurrency(data.windfall.toDebt, cur) })}</li>
+              <li>{tp('windfallToGoals', { amount: formatCurrency(data.windfall.toGoals, cur) })}</li>
+              <li>{tp('windfallToFree', { amount: formatCurrency(data.windfall.toFree, cur) })}</li>
+            </ul>
+            <div className="flex gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href="/debts">{tp('windfallGoToDebts')}</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/goals">{tp('windfallGoToGoals')}</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

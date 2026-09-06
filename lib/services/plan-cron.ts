@@ -12,8 +12,10 @@ import { getDaysInMonth } from 'date-fns'
 import prisma from '@/lib/db/prisma'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
 import { generatePlanForUser } from '@/lib/services/plan-generation'
+import { closePlanForUser } from '@/lib/services/plan-close'
 import {
   notifyMonthCloseReminder,
+  notifyMonthClosed,
   notifyPlanReady,
 } from '@/lib/services/notification-service'
 import { toMonthKey } from '@/lib/services/plan-input'
@@ -90,4 +92,44 @@ export async function sendMonthCloseReminders(now: Date = new Date()): Promise<n
     }
   }
   return sent
+}
+
+/**
+ * Auto-close any still-open (CONFIRMED) plan for a month that has fully elapsed
+ * (Phase 4b follow-up). Month keys are "YYYY-MM", so a lexicographic `< current`
+ * comparison selects every past month. Each is closed via the shared, session-
+ * free close core (no user-selected conclusions — auto-close accepts none) and a
+ * summary digest is sent. A CLOSED month is never matched. Returns how many were
+ * closed. Per-user failures are logged, never fatal.
+ */
+export async function autoCloseElapsedMonths(now: Date = new Date()): Promise<number> {
+  const currentMonth = toMonthKey(now)
+  const elapsedPlans = await prisma.monthlyPlan.findMany({
+    where: { status: 'CONFIRMED', month: { lt: currentMonth } },
+    select: { id: true, userId: true, month: true },
+  })
+
+  let closed = 0
+  for (const plan of elapsedPlans) {
+    try {
+      const result = await closePlanForUser(plan.userId, plan.id)
+      if (!result.ok) continue
+      closed++
+      try {
+        await notifyMonthClosed(plan.userId, {
+          month: plan.month,
+          verdict: result.data.verdict.kind,
+          netChange: formatCurrency(
+            result.data.verdict.netChange,
+            result.data.defaultCurrency
+          ),
+        })
+      } catch (error) {
+        console.error(`Error notifying month closed for ${plan.userId}:`, error)
+      }
+    } catch (error) {
+      console.error(`Error auto-closing plan ${plan.id} for ${plan.userId}:`, error)
+    }
+  }
+  return closed
 }

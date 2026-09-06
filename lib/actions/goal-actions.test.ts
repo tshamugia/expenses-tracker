@@ -9,7 +9,7 @@ const {
   mockNotifyStage,
   mockNotifyWithdraw,
   mockTranslator,
-  mockGeneratePlanForUser,
+  mockRegenerateCurrentPlan,
   mockGatherPlanInput,
   mockComputeWhatIf,
 } = vi.hoisted(() => ({
@@ -20,7 +20,7 @@ const {
   mockNotifyStage: vi.fn(),
   mockNotifyWithdraw: vi.fn(),
   mockTranslator: vi.fn(),
-  mockGeneratePlanForUser: vi.fn(),
+  mockRegenerateCurrentPlan: vi.fn(),
   mockGatherPlanInput: vi.fn(),
   mockComputeWhatIf: vi.fn(),
   mockPrisma: {
@@ -58,7 +58,7 @@ vi.mock('@/i18n/server-translator', () => ({
   getServerTranslator: async () => mockTranslator,
 }))
 vi.mock('@/lib/services/plan-generation', () => ({
-  generatePlanForUser: mockGeneratePlanForUser,
+  regenerateCurrentPlan: mockRegenerateCurrentPlan,
 }))
 vi.mock('@/lib/services/plan-input', () => ({
   gatherPlanInput: mockGatherPlanInput,
@@ -118,7 +118,7 @@ beforeEach(() => {
   mockPrisma.transaction.create.mockResolvedValue({ id: 'tx-1' })
   mockPrisma.goalContribution.create.mockResolvedValue({})
   mockPrisma.goal.aggregate.mockResolvedValue({ _max: { priority: 3 } })
-  mockGeneratePlanForUser.mockResolvedValue({ planId: 'plan-1', skipped: false })
+  mockRegenerateCurrentPlan.mockResolvedValue(true)
   mockGatherPlanInput.mockResolvedValue({ input: { goals: [] } })
   mockComputeWhatIf.mockReturnValue({
     safeBefore: 1000,
@@ -213,18 +213,14 @@ describe('approveGoal', () => {
       where: { id: 'goal-1' },
       data: { status: 'ACTIVE' },
     })
-    expect(mockGeneratePlanForUser).toHaveBeenCalledWith(USER_ID, '2026-08')
+    expect(mockRegenerateCurrentPlan).toHaveBeenCalledWith(USER_ID)
     expect(result.data?.planRefreshed).toBe(true)
   })
 
   it('reports planRefreshed=false when the month is already confirmed/closed', async () => {
     mockPrisma.goal.findFirst.mockResolvedValue(makeGoal({ status: 'PROPOSED' }))
     mockPrisma.goal.update.mockResolvedValue(makeGoal({ status: 'ACTIVE' }))
-    mockGeneratePlanForUser.mockResolvedValue({
-      planId: null,
-      skipped: true,
-      reason: 'confirmed',
-    })
+    mockRegenerateCurrentPlan.mockResolvedValue(false)
 
     const result = await approveGoal('goal-1')
 
@@ -237,7 +233,7 @@ describe('approveGoal', () => {
     const result = await approveGoal('goal-1')
     expect(result.success).toBe(false)
     expect(mockPrisma.goal.update).not.toHaveBeenCalled()
-    expect(mockGeneratePlanForUser).not.toHaveBeenCalled()
+    expect(mockRegenerateCurrentPlan).not.toHaveBeenCalled()
   })
 
   it('rejects the emergency fund', async () => {
@@ -375,6 +371,8 @@ describe('contributeToGoal', () => {
       data: expect.objectContaining({ amount: 200, transactionId: 'tx-1' }),
     })
     expect(result.data?.achieved).toBe(false)
+    // Phase 4b: a contribution changes remaining → the plan is re-derived
+    expect(mockRegenerateCurrentPlan).toHaveBeenCalledWith(USER_ID)
   })
 
   it('marks a goal achieved and notifies when the target is crossed', async () => {
@@ -486,6 +484,8 @@ describe('advanceReserveStage', () => {
       where: { id: 'goal-1' },
       data: { reserveStage: 3, targetAmount: 6300, status: 'ACTIVE' },
     })
+    // Phase 4b: a larger reserve target re-derives the plan
+    expect(mockRegenerateCurrentPlan).toHaveBeenCalledWith(USER_ID)
   })
 
   it('rejects when already at the 3-month stage', async () => {

@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildSchedule, type ScheduleRow } from '@/lib/services/amortization'
 
-const { mockAuth, mockPrisma, mockContext, mockPaidOff } = vi.hoisted(() => ({
+const { mockAuth, mockPrisma, mockContext, mockPaidOff, mockRegeneratePlan } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockContext: vi.fn(),
   mockPaidOff: vi.fn(),
+  mockRegeneratePlan: vi.fn(),
   mockPrisma: {
     debt: {
       create: vi.fn(),
@@ -32,6 +33,9 @@ vi.mock('@/lib/services/spend-status-service', () => ({
 }))
 vi.mock('@/lib/services/notification-service', () => ({
   notifyDebtPaidOff: mockPaidOff,
+}))
+vi.mock('@/lib/services/plan-generation', () => ({
+  regenerateCurrentPlan: mockRegeneratePlan,
 }))
 
 import {
@@ -104,6 +108,7 @@ beforeEach(() => {
     eurRate: null,
   })
   mockPaidOff.mockResolvedValue({ success: true })
+  mockRegeneratePlan.mockResolvedValue(true)
   // Run the $transaction callback against the same mock (tx === prisma)
   mockPrisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) =>
     cb(mockPrisma)
@@ -180,6 +185,8 @@ describe('createDebt', () => {
     const createManyArg = mockPrisma.debtScheduleItem.createMany.mock.calls[0][0]
     expect(createManyArg.data).toHaveLength(24)
     expect(createManyArg.data[23].remainingPrincipal).toBe(0)
+    // Phase 4b: a new debt adds an obligation → the plan is re-derived
+    expect(mockRegeneratePlan).toHaveBeenCalledWith(USER_ID)
   })
 
   it('from a monthly payment, computes the term (schedule length)', async () => {

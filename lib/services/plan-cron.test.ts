@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockPrisma, mockGenerate, mockNotifyReady, mockNotifyClose } = vi.hoisted(() => ({
+const {
+  mockPrisma,
+  mockGenerate,
+  mockNotifyReady,
+  mockNotifyClose,
+  mockClosePlan,
+  mockNotifyClosed,
+} = vi.hoisted(() => ({
   mockPrisma: {
     goal: { findMany: vi.fn() },
     monthlyPlan: { findUnique: vi.fn(), findMany: vi.fn() },
@@ -8,16 +15,21 @@ const { mockPrisma, mockGenerate, mockNotifyReady, mockNotifyClose } = vi.hoiste
   mockGenerate: vi.fn(),
   mockNotifyReady: vi.fn(),
   mockNotifyClose: vi.fn(),
+  mockClosePlan: vi.fn(),
+  mockNotifyClosed: vi.fn(),
 }))
 
 vi.mock('@/lib/db/prisma', () => ({ default: mockPrisma }))
 vi.mock('@/lib/services/plan-generation', () => ({ generatePlanForUser: mockGenerate }))
+vi.mock('@/lib/services/plan-close', () => ({ closePlanForUser: mockClosePlan }))
 vi.mock('@/lib/services/notification-service', () => ({
   notifyPlanReady: mockNotifyReady,
   notifyMonthCloseReminder: mockNotifyClose,
+  notifyMonthClosed: mockNotifyClosed,
 }))
 
 import {
+  autoCloseElapsedMonths,
   generateMonthlyPlansForAllUsers,
   sendMonthCloseReminders,
 } from './plan-cron'
@@ -28,6 +40,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockNotifyReady.mockResolvedValue({ success: true })
   mockNotifyClose.mockResolvedValue({ success: true })
+  mockNotifyClosed.mockResolvedValue({ success: true })
 })
 
 describe('generateMonthlyPlansForAllUsers', () => {
@@ -67,5 +80,64 @@ describe('sendMonthCloseReminders', () => {
     const count = await sendMonthCloseReminders(lastDay)
     expect(count).toBe(2)
     expect(mockNotifyClose).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('autoCloseElapsedMonths', () => {
+  it('queries only CONFIRMED plans from months before the current one', async () => {
+    mockPrisma.monthlyPlan.findMany.mockResolvedValue([])
+    await autoCloseElapsedMonths(NOW)
+    expect(mockPrisma.monthlyPlan.findMany).toHaveBeenCalledWith({
+      where: { status: 'CONFIRMED', month: { lt: '2026-09' } },
+      select: { id: true, userId: true, month: true },
+    })
+  })
+
+  it('closes each elapsed plan and sends the summary digest', async () => {
+    mockPrisma.monthlyPlan.findMany.mockResolvedValue([
+      { id: 'p1', userId: 'u1', month: '2026-08' },
+      { id: 'p2', userId: 'u2', month: '2026-08' },
+    ])
+    mockClosePlan.mockResolvedValue({
+      ok: true,
+      data: { verdict: { kind: 'FORWARD', netChange: 410 }, achieved: true, defaultCurrency: 'GEL' },
+    })
+
+    const count = await autoCloseElapsedMonths(NOW)
+    expect(count).toBe(2)
+    expect(mockClosePlan).toHaveBeenCalledWith('u1', 'p1')
+    expect(mockNotifyClosed).toHaveBeenCalledTimes(2)
+    expect(mockNotifyClosed).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ month: '2026-08', verdict: 'FORWARD' })
+    )
+  })
+
+  it('skips a plan the close core rejects (e.g. already closed) without counting it', async () => {
+    mockPrisma.monthlyPlan.findMany.mockResolvedValue([
+      { id: 'p1', userId: 'u1', month: '2026-08' },
+    ])
+    mockClosePlan.mockResolvedValue({ ok: false, error: 'This month is already closed' })
+
+    const count = await autoCloseElapsedMonths(NOW)
+    expect(count).toBe(0)
+    expect(mockNotifyClosed).not.toHaveBeenCalled()
+  })
+
+  it('survives a per-plan close failure', async () => {
+    mockPrisma.monthlyPlan.findMany.mockResolvedValue([
+      { id: 'p1', userId: 'u1', month: '2026-08' },
+      { id: 'p2', userId: 'u2', month: '2026-07' },
+    ])
+    mockClosePlan
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({
+        ok: true,
+        data: { verdict: { kind: 'BACK', netChange: -120 }, achieved: false, defaultCurrency: 'GEL' },
+      })
+
+    const count = await autoCloseElapsedMonths(NOW)
+    expect(count).toBe(1)
+    expect(mockNotifyClosed).toHaveBeenCalledTimes(1)
   })
 })

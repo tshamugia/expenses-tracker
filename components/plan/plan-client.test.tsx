@@ -9,7 +9,6 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 vi.mock('@/lib/actions/plan-actions', () => ({
   generateMonthlyPlan: vi.fn(),
-  applyWindfall: vi.fn(),
   closeMonth: vi.fn(),
   getClosePreview: vi.fn(),
 }))
@@ -124,5 +123,17 @@ describe('PlanClient (goal-driven)', () => {
   it('offers the close-month action on an active plan', () => {
     renderPlan(makePlan())
     expect(screen.getByRole('button', { name: 'Close month' })).toBeInTheDocument()
+  })
+
+  it('shows the windfall recommendation as read-only advice with deep-link CTAs', () => {
+    const plan = makePlan({
+      windfall: { excess: 300, toDebt: 150, toGoals: 90, toFree: 60 },
+    })
+    renderPlan(plan)
+    expect(screen.getByText(/Extra income/i)).toBeInTheDocument()
+    // read-only: it links to act, it does not "apply" the split
+    expect(screen.getByRole('link', { name: /Pay down debt/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Add to a goal/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Apply$/i })).not.toBeInTheDocument()
   })
 })

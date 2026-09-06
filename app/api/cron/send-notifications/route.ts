@@ -6,6 +6,7 @@ import {
 } from '@/lib/services/notification-service'
 import { recalcAllReserveTargets } from '@/lib/services/reserve-target-service'
 import {
+  autoCloseElapsedMonths,
   generateMonthlyPlansForAllUsers,
   sendMonthCloseReminders,
 } from '@/lib/services/plan-cron'
@@ -60,12 +61,21 @@ export async function GET(request: NextRequest) {
     // affected users on a >±10% move; failures must not block the emails above.
     let reserveRecalcCount = 0
     let plansGenerated = 0
+    let monthsAutoClosed = 0
     if (new Date().getDate() === 1) {
       try {
         reserveRecalcCount = await recalcAllReserveTargets()
         console.log(`Recomputed ${reserveRecalcCount} reserve targets`)
       } catch (error) {
         console.error('Error recomputing reserve targets:', error)
+      }
+      // Auto-close the elapsed month (verdict + achievement + summary digest)
+      // before generating the new month's plan (Phase 4b / ს4).
+      try {
+        monthsAutoClosed = await autoCloseElapsedMonths()
+        if (monthsAutoClosed > 0) console.log(`Auto-closed ${monthsAutoClosed} elapsed months`)
+      } catch (error) {
+        console.error('Error auto-closing elapsed months:', error)
       }
       // Monthly plan generation + "plan ready" digest (Phase 4, §7 / ს1)
       try {
@@ -101,6 +111,7 @@ export async function GET(request: NextRequest) {
       sentCount,
       reserveRecalcCount,
       plansGenerated,
+      monthsAutoClosed,
       closeReminders,
       errorCount: errors.length,
       errors,
