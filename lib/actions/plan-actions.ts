@@ -24,12 +24,21 @@ import prisma from '@/lib/db/prisma'
 import { roundMoney } from '@/lib/services/amortization'
 import type { DeficitInfo } from '@/lib/services/plan-engine'
 import { generatePlanForUser } from '@/lib/services/plan-generation'
+import { closePlanForUser } from '@/lib/services/plan-close'
 import { calcVerdict } from '@/lib/services/verdict'
 import {
   computeCompletionPct,
-  deltaPct,
   proposeConclusions,
 } from '@/lib/services/month-close'
+import {
+  actualForAllocation,
+  buildCloseLines,
+  buildSetAside,
+  computePlannedNetChange,
+  gatherMonthActuals,
+  serializeAllocation,
+  serializePlan,
+} from '@/lib/services/month-actuals'
 import {
   currentStabilityStage,
   debtFreeProjection,
@@ -37,23 +46,16 @@ import {
 } from '@/lib/services/stability'
 import { splitWindfall } from '@/lib/services/windfall'
 import { monthStartOf, toMonthKey } from '@/lib/services/plan-input'
-import {
-  getCurrencyContext,
-  type CurrencyContext,
-} from '@/lib/services/spend-status-service'
+import { getCurrencyContext } from '@/lib/services/spend-status-service'
 import { convertCurrency, type Currency } from '@/lib/utils/currency-conversion'
-import type { MonthlyPlan, PlanAllocation } from '@prisma/client'
 import type {
   ClosePreview,
   CloseDecision,
   ConfirmAdjustment,
   DashboardData,
-  PlanConclusion,
   PlanView,
   SerializedAllocation,
   SerializedPlan,
-  SetAsideLine,
-  SetAsidePlan,
   StabilityProgress,
   WindfallProposal,
 } from '@/types/plan-types'
@@ -65,204 +67,6 @@ export interface PlanActionResult<T> {
 }
 
 const TREND_MONTHS = 6
-
-// --- serialization -----------------------------------------------------------
-
-function serializePlan(plan: MonthlyPlan): SerializedPlan {
-  // Callers often fetch the plan with its relations included (`allocations`,
-  // `close`). Strip them before spreading so their raw Decimal fields never ride
-  // along into a Client Component — those relations are serialized separately.
-  const {
-    allocations: _allocations,
-    close: _close,
-    user: _user,
-    ...rest
-  } = plan as MonthlyPlan & {
-    allocations?: unknown
-    close?: unknown
-    user?: unknown
-  }
-  return {
-    ...rest,
-    forecastIncome: Number(plan.forecastIncome),
-    forecastStable: Number(plan.forecastStable),
-    forecastVariable: Number(plan.forecastVariable),
-    actualIncome: plan.actualIncome === null ? null : Number(plan.actualIncome),
-    safeToSpend: Number(plan.safeToSpend),
-  }
-}
-
-function serializeAllocation(a: PlanAllocation): SerializedAllocation {
-  return {
-    ...a,
-    planned: Number(a.planned),
-    actual: a.actual === null ? null : Number(a.actual),
-  }
-}
-
-// --- month actuals (shared by live view + close) -----------------------------
-
-interface MonthActuals {
-  incomeTotal: number
-  spendByCategory: Map<string, number>
-  spendByExpense: Map<string, number>
-  debtPaidByDebt: Map<string, number> // total paid (payment) per debt
-  debtPrincipalByDebt: Map<string, number> // principal cleared per debt
-  debtPrincipalPaidTotal: number
-  contribByGoal: Map<string, number> // net contribution per goal
-  reserveNet: number
-  goalsNet: number
-  newDebtPrincipal: number
-  discretionarySpent: number
-  categoryKind: Map<string, string>
-}
-
-/**
- * Aggregate every real money movement in [monthStart, monthEnd] from the ledger
- * and the debt/goal sub-ledgers, in the user's default currency. Discretionary
- * spend (what draws down Safe to spend) excludes fixed bills, recurring-expense
- * payments, debt payments and savings contributions.
- */
-async function gatherMonthActuals(
-  userId: string,
-  monthStart: Date,
-  monthEnd: Date,
-  context: CurrencyContext
-): Promise<MonthActuals> {
-  const toDefault = (amount: number, currency: string) =>
-    convertCurrency(
-      amount,
-      currency as Currency,
-      context.defaultCurrency,
-      context.usdRate,
-      context.eurRate
-    )
-
-  const [expenseTxs, incomeAgg, categories, goalContribs, debtItems, newDebts] =
-    await Promise.all([
-      prisma.transaction.findMany({
-        where: { userId, type: 'EXPENSE', date: { gte: monthStart, lte: monthEnd } },
-        select: { id: true, amount: true, currency: true, categoryId: true, expenseId: true },
-      }),
-      prisma.transaction.aggregate({
-        where: { userId, type: 'INCOME', date: { gte: monthStart, lte: monthEnd } },
-        _sum: { amount: true },
-        // aggregate can't convert currencies; income is summed raw then treated
-        // as default currency (matches the rest of the money model here)
-      }),
-      prisma.category.findMany({ where: { userId }, select: { id: true, kind: true } }),
-      prisma.goalContribution.findMany({
-        where: { goal: { userId }, date: { gte: monthStart, lte: monthEnd } },
-        select: { goalId: true, amount: true, transactionId: true, goal: { select: { isEmergencyFund: true, currency: true } } },
-      }),
-      prisma.debtScheduleItem.findMany({
-        where: { debt: { userId }, paid: true, paidAt: { gte: monthStart, lte: monthEnd } },
-        select: {
-          debtId: true,
-          principalPart: true,
-          payment: true,
-          paidAmount: true,
-          transactionId: true,
-          debt: { select: { currency: true } },
-        },
-      }),
-      prisma.debt.findMany({
-        where: { userId, createdAt: { gte: monthStart, lte: monthEnd } },
-        select: { principal: true, currency: true },
-      }),
-    ])
-
-  const categoryKind = new Map(categories.map((c) => [c.id, c.kind]))
-
-  // Transactions that mirror a savings/debt movement — excluded from discretionary
-  const excludedTxIds = new Set<string>()
-  for (const gc of goalContribs) if (gc.transactionId) excludedTxIds.add(gc.transactionId)
-  for (const it of debtItems) if (it.transactionId) excludedTxIds.add(it.transactionId)
-
-  const spendByCategory = new Map<string, number>()
-  const spendByExpense = new Map<string, number>()
-  let discretionarySpent = 0
-  for (const tx of expenseTxs) {
-    const amount = toDefault(Number(tx.amount), tx.currency)
-    if (tx.categoryId) {
-      spendByCategory.set(tx.categoryId, (spendByCategory.get(tx.categoryId) ?? 0) + amount)
-    }
-    if (tx.expenseId) {
-      spendByExpense.set(tx.expenseId, (spendByExpense.get(tx.expenseId) ?? 0) + amount)
-    }
-    const isFixed = tx.categoryId ? categoryKind.get(tx.categoryId) === 'FIXED' : false
-    const isRecurringBill = tx.expenseId !== null
-    const isExcluded = excludedTxIds.has(tx.id)
-    if (!isFixed && !isRecurringBill && !isExcluded) {
-      discretionarySpent += amount
-    }
-  }
-
-  const debtPaidByDebt = new Map<string, number>()
-  const debtPrincipalByDebt = new Map<string, number>()
-  let debtPrincipalPaidTotal = 0
-  for (const it of debtItems) {
-    const paid = toDefault(Number(it.paidAmount ?? it.payment), it.debt.currency)
-    const principal = toDefault(Number(it.principalPart), it.debt.currency)
-    debtPaidByDebt.set(it.debtId, (debtPaidByDebt.get(it.debtId) ?? 0) + paid)
-    debtPrincipalByDebt.set(it.debtId, (debtPrincipalByDebt.get(it.debtId) ?? 0) + principal)
-    debtPrincipalPaidTotal += principal
-  }
-
-  const contribByGoal = new Map<string, number>()
-  let reserveNet = 0
-  let goalsNet = 0
-  for (const gc of goalContribs) {
-    const amount = toDefault(Number(gc.amount), gc.goal.currency)
-    contribByGoal.set(gc.goalId, (contribByGoal.get(gc.goalId) ?? 0) + amount)
-    if (gc.goal.isEmergencyFund) reserveNet += amount
-    else goalsNet += amount
-  }
-
-  const newDebtPrincipal = newDebts.reduce(
-    (sum, d) => sum + toDefault(Number(d.principal), d.currency),
-    0
-  )
-
-  return {
-    incomeTotal: roundMoney(Number(incomeAgg._sum.amount ?? 0)),
-    spendByCategory,
-    spendByExpense,
-    debtPaidByDebt,
-    debtPrincipalByDebt,
-    debtPrincipalPaidTotal: roundMoney(debtPrincipalPaidTotal),
-    contribByGoal,
-    reserveNet: roundMoney(reserveNet),
-    goalsNet: roundMoney(goalsNet),
-    newDebtPrincipal: roundMoney(newDebtPrincipal),
-    discretionarySpent: roundMoney(discretionarySpent),
-    categoryKind,
-  }
-}
-
-/** Actual money moved for one allocation this month (by kind + refId). */
-function actualForAllocation(a: SerializedAllocation, actuals: MonthActuals): number {
-  switch (a.kind) {
-    case 'DEBT':
-      return roundMoney(a.refId ? actuals.debtPaidByDebt.get(a.refId) ?? 0 : 0)
-    case 'RESERVE':
-    case 'GOAL':
-      return roundMoney(a.refId ? actuals.contribByGoal.get(a.refId) ?? 0 : 0)
-    case 'VARIABLE':
-      return roundMoney(a.refId ? actuals.spendByCategory.get(a.refId) ?? 0 : 0)
-    case 'MANDATORY':
-      // refId is either a FIXED category or a recurring-expense id
-      if (!a.refId) return 0
-      return roundMoney(
-        (actuals.spendByCategory.get(a.refId) ?? 0) +
-          (actuals.spendByExpense.get(a.refId) ?? 0)
-      )
-    case 'FREE':
-      return actuals.discretionarySpent
-    default:
-      return 0
-  }
-}
 
 // --- generate / confirm ------------------------------------------------------
 
@@ -481,53 +285,6 @@ async function buildPlanView(
   }
 }
 
-/**
- * The goal-driven set-aside summary (Phase 4b): X (reserve + goals) vs what was
- * actually set aside this month, plus per-goal lines and feasibility against the
- * money left after obligations.
- */
-function buildSetAside(
-  allocations: SerializedAllocation[],
-  plan: SerializedPlan,
-  actuals: MonthActuals
-): SetAsidePlan {
-  const setAsideAllocs = allocations.filter(
-    (a) => a.kind === 'RESERVE' || a.kind === 'GOAL'
-  )
-  const requiredSetAside = roundMoney(
-    setAsideAllocs.reduce((s, a) => s + a.planned, 0)
-  )
-  const actualSetAside = roundMoney(actuals.reserveNet + actuals.goalsNet)
-  const obligations = roundMoney(
-    allocations
-      .filter((a) => a.kind === 'MANDATORY' || a.kind === 'DEBT')
-      .reduce((s, a) => s + a.planned, 0)
-  )
-  const availableForGoals = roundMoney(plan.forecastIncome - obligations)
-  const shortfall = Math.max(0, roundMoney(requiredSetAside - availableForGoals))
-  const lines: SetAsideLine[] = setAsideAllocs.map((a) => {
-    const saved = roundMoney(a.refId ? actuals.contribByGoal.get(a.refId) ?? 0 : 0)
-    return {
-      refId: a.refId,
-      label: a.label,
-      kind: a.kind as 'RESERVE' | 'GOAL',
-      required: a.planned,
-      saved,
-      achieved: saved + 1e-6 >= a.planned,
-    }
-  })
-  return {
-    requiredSetAside,
-    actualSetAside,
-    achieved: actualSetAside + 1e-6 >= requiredSetAside,
-    obligations,
-    availableForGoals,
-    feasible: requiredSetAside <= availableForGoals + 1e-9,
-    shortfall,
-    lines,
-  }
-}
-
 /** The active (current-month) plan with live facts, or null if none exists. */
 export async function getActivePlan(
   month?: string
@@ -581,98 +338,7 @@ async function computeWindfallProposal(
   return { excess, toDebt: split.toDebt, toGoals: split.toGoals, toFree: split.toFree }
 }
 
-/**
- * Apply a windfall split (ს2): bump FREE by toFree, the first debt allocation by
- * toDebt and the reserve/first goal by toGoals. actualIncome is snapshotted.
- */
-export async function applyWindfall(
-  planId: string,
-  split: { toDebt: number; toGoals: number; toFree: number }
-): Promise<PlanActionResult<PlanView>> {
-  try {
-    const session = await auth()
-    if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
-    const userId = session.user.id
-
-    const plan = await prisma.monthlyPlan.findFirst({
-      where: { id: planId, userId },
-      include: { allocations: true },
-    })
-    if (!plan) return { success: false, error: 'Plan not found or access denied' }
-    if (plan.status !== 'CONFIRMED') {
-      return { success: false, error: 'Only a confirmed plan can take a windfall' }
-    }
-
-    const toDebt = roundMoney(Math.max(0, split.toDebt))
-    const toGoals = roundMoney(Math.max(0, split.toGoals))
-    const toFree = roundMoney(Math.max(0, split.toFree))
-
-    const firstDebt = plan.allocations.find((a) => a.kind === 'DEBT')
-    const reserveOrGoal =
-      plan.allocations.find((a) => a.kind === 'RESERVE') ??
-      plan.allocations.find((a) => a.kind === 'GOAL')
-    const free = plan.allocations.find((a) => a.kind === 'FREE')
-
-    const context = await getCurrencyContext(userId)
-    const monthStart = monthStartOf(plan.month)
-    const actuals = await gatherMonthActuals(userId, monthStart, endOfMonth(monthStart), context)
-
-    await prisma.$transaction(async (tx) => {
-      if (toDebt > 0 && firstDebt) {
-        await tx.planAllocation.update({
-          where: { id: firstDebt.id },
-          data: { planned: roundMoney(Number(firstDebt.planned) + toDebt) },
-        })
-      }
-      if (toGoals > 0 && reserveOrGoal) {
-        await tx.planAllocation.update({
-          where: { id: reserveOrGoal.id },
-          data: { planned: roundMoney(Number(reserveOrGoal.planned) + toGoals) },
-        })
-      }
-      if (free) {
-        await tx.planAllocation.update({
-          where: { id: free.id },
-          data: { planned: roundMoney(Number(free.planned) + toFree) },
-        })
-      }
-      await tx.monthlyPlan.update({
-        where: { id: planId },
-        data: {
-          actualIncome: actuals.incomeTotal,
-          safeToSpend: roundMoney(Number(plan.safeToSpend) + toFree),
-        },
-      })
-    })
-
-    revalidatePath('/plan')
-    revalidatePath('/dashboard')
-
-    return { success: true, data: await buildPlanView(userId, planId, new Date()) }
-  } catch (error) {
-    console.error('Error in applyWindfall:', error)
-    return { success: false, error: error instanceof Error ? error.message : 'Failed to apply windfall' }
-  }
-}
-
 // --- month close -------------------------------------------------------------
-
-function buildCloseLines(
-  allocations: SerializedAllocation[],
-  actuals: MonthActuals
-) {
-  return allocations.map((a) => {
-    const actual = actualForAllocation(a, actuals)
-    return {
-      kind: a.kind,
-      label: a.label,
-      refId: a.refId,
-      planned: a.planned,
-      actual,
-      deltaPct: deltaPct(a.planned, actual),
-    }
-  })
-}
 
 /** Close preview: plan vs actual, proposed conclusions, verdict — no writes. */
 export async function getClosePreview(
@@ -732,15 +398,6 @@ export async function getClosePreview(
   }
 }
 
-/** What the plan intended to move the net position by (debt+reserve+goal plans). */
-function computePlannedNetChange(allocations: SerializedAllocation[]): number {
-  return roundMoney(
-    allocations
-      .filter((a) => a.kind === 'DEBT' || a.kind === 'RESERVE' || a.kind === 'GOAL')
-      .reduce((s, a) => s + a.planned, 0)
-  )
-}
-
 /**
  * Close the month (ს4): compute actuals from the ledger, the completion %, the
  * honest verdict and net change, persist MonthClose + allocation actuals + set
@@ -753,88 +410,14 @@ export async function closeMonth(
   try {
     const session = await auth()
     if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
-    const userId = session.user.id
 
-    const plan = await prisma.monthlyPlan.findFirst({
-      where: { id: planId, userId },
-      include: { allocations: true, close: true },
-    })
-    if (!plan) return { success: false, error: 'Plan not found or access denied' }
-    if (plan.status === 'CLOSED' || plan.close) {
-      return { success: false, error: 'This month is already closed' }
-    }
-
-    const serPlan = serializePlan(plan)
-    const allocations = plan.allocations.map(serializeAllocation)
-    const monthStart = monthStartOf(plan.month)
-    const context = await getCurrencyContext(userId)
-    const actuals = await gatherMonthActuals(userId, monthStart, endOfMonth(monthStart), context)
-
-    const lines = buildCloseLines(allocations, actuals)
-    const completionPct = computeCompletionPct(
-      lines.map((l) => ({ kind: l.kind, refId: l.refId, label: l.label, planned: l.planned, actual: l.actual }))
-    )
-    const verdict = calcVerdict({
-      debtPrincipalPaid: actuals.debtPrincipalPaidTotal,
-      reserveNet: actuals.reserveNet,
-      goalsNet: actuals.goalsNet,
-      newDebtPrincipal: actuals.newDebtPrincipal,
-    })
-    const plannedNetChange = computePlannedNetChange(allocations)
-    const withdrawals = roundMoney(
-      Math.min(0, actuals.reserveNet) + Math.min(0, actuals.goalsNet)
-    )
-    const setAside = buildSetAside(allocations, serPlan, actuals)
-
-    const acceptedConclusions: PlanConclusion[] = decision.conclusions ?? []
-
-    await prisma.$transaction(async (tx) => {
-      for (const a of plan.allocations) {
-        const actual = actualForAllocation(serializeAllocation(a), actuals)
-        await tx.planAllocation.update({ where: { id: a.id }, data: { actual } })
-      }
-      await tx.monthClose.create({
-        data: {
-          planId,
-          completionPct,
-          verdict: verdict.verdict,
-          netChange: verdict.netChange,
-          plannedNetChange,
-          debtPrincipalDelta: actuals.debtPrincipalPaidTotal,
-          reserveDelta: actuals.reserveNet,
-          goalsDelta: actuals.goalsNet,
-          newDebt: actuals.newDebtPrincipal,
-          withdrawals,
-          requiredSetAside: setAside.requiredSetAside,
-          actualSetAside: setAside.actualSetAside,
-          achieved: setAside.achieved,
-          conclusions: acceptedConclusions as unknown as object,
-        },
-      })
-      await tx.monthlyPlan.update({
-        where: { id: planId },
-        data: { status: 'CLOSED', actualIncome: actuals.incomeTotal },
-      })
-    })
+    const result = await closePlanForUser(session.user.id, planId, decision)
+    if (!result.ok) return { success: false, error: result.error }
 
     revalidatePath('/plan')
     revalidatePath('/dashboard')
 
-    return {
-      success: true,
-      data: {
-        plan: serializePlan(plan),
-        lines,
-        proposedConclusions: acceptedConclusions,
-        verdict: { kind: verdict.verdict, netChange: verdict.netChange, components: verdict.components },
-        plannedNetChange,
-        completionPct,
-        requiredSetAside: setAside.requiredSetAside,
-        actualSetAside: setAside.actualSetAside,
-        achieved: setAside.achieved,
-        defaultCurrency: context.defaultCurrency,
-      },
-    }
+    return { success: true, data: result.data }
   } catch (error) {
     console.error('Error in closeMonth:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Failed to close month' }
@@ -1058,6 +641,7 @@ export async function getDashboardData(): Promise<PlanActionResult<DashboardData
         feasible: planView?.setAside.feasible ?? true,
         shortfall: planView?.setAside.shortfall ?? 0,
         liveVerdict,
+        windfall: planView?.windfall ?? null,
         stability,
         debts: {
           totalRemainingPrincipal: roundMoney(

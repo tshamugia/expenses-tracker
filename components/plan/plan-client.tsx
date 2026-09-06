@@ -26,7 +26,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/utils/currency-helpers'
 import {
-  applyWindfall,
   closeMonth,
   generateMonthlyPlan,
   getClosePreview,
@@ -262,17 +261,14 @@ export function PlanClient({ initialPlan }: PlanClientProps) {
         </CardContent>
       </Card>
 
-      {/* windfall banner (income above forecast) */}
+      {/* windfall recommendation (income above forecast) — read-only advice */}
       {status === 'CONFIRMED' && plan.windfall && (
         <WindfallBanner
-          planId={plan.plan.id}
           excess={plan.windfall.excess}
           toDebt={plan.windfall.toDebt}
           toGoals={plan.windfall.toGoals}
           toFree={plan.windfall.toFree}
           currency={cur}
-          isPending={isPending}
-          onDone={() => router.refresh()}
         />
       )}
 
@@ -328,42 +324,29 @@ function GoalLine({
   )
 }
 
-// --- windfall banner ---------------------------------------------------------
+// --- windfall recommendation -------------------------------------------------
 
+/**
+ * Read-only windfall recommendation (Phase 4b): when income beats the forecast,
+ * the plan surfaces a suggested split automatically. It never mutates the plan —
+ * the plan is auto-derived from goals — so acting on it means making a real debt
+ * payment or goal contribution, which then re-derives the plan on its own. The
+ * CTAs deep-link to those pages.
+ */
 function WindfallBanner({
-  planId,
   excess,
   toDebt,
   toGoals,
   toFree,
   currency,
-  isPending,
-  onDone,
 }: {
-  planId: string
   excess: number
   toDebt: number
   toGoals: number
   toFree: number
   currency: string
-  isPending: boolean
-  onDone: () => void
 }) {
   const t = useTranslations('Plan')
-  const [busy, setBusy] = useState(false)
-
-  const apply = () => {
-    setBusy(true)
-    void applyWindfall(planId, { toDebt, toGoals, toFree }).then((r) => {
-      setBusy(false)
-      if (r.success) {
-        toast.success(t('windfallApplied'))
-        onDone()
-      } else {
-        toast.error(t('windfallFailed'), { description: r.error })
-      }
-    })
-  }
 
   return (
     <Card className="border-emerald-300 dark:border-emerald-900">
@@ -378,9 +361,14 @@ function WindfallBanner({
           <li>{t('windfallToGoals', { amount: formatCurrency(toGoals, currency) })}</li>
           <li>{t('windfallToFree', { amount: formatCurrency(toFree, currency) })}</li>
         </ul>
-        <Button size="sm" onClick={apply} disabled={busy || isPending}>
-          {t('windfallApply')}
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild size="sm" variant="outline">
+            <Link href="/debts">{t('windfallGoToDebts')}</Link>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/goals">{t('windfallGoToGoals')}</Link>
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

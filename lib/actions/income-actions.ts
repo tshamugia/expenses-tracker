@@ -14,6 +14,7 @@ import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
 import { accrueStableIncomeForUser } from '@/lib/services/income-accrual'
 import { computeIncomeForecastForUser } from '@/lib/services/income-forecast-service'
+import { regenerateCurrentPlan } from '@/lib/services/plan-generation'
 import {
   getCurrencyContext,
   type CurrencyContext,
@@ -109,7 +110,13 @@ export async function createIncomeSource(
       },
     })
 
+    // A new source shifts the income forecast → re-derive the current plan
+    // and Safe-to-Spend (Phase 4b event-driven refresh).
+    await regenerateCurrentPlan(session.user.id)
+
     revalidatePath('/income')
+    revalidatePath('/plan')
+    revalidatePath('/dashboard')
 
     return { success: true, data: serializeSource(source) }
   } catch (error) {
@@ -166,7 +173,13 @@ export async function updateIncomeSource(
       },
     })
 
+    // A changed expected amount / active flag shifts the income forecast →
+    // re-derive the current plan and Safe-to-Spend.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/income')
+    revalidatePath('/plan')
+    revalidatePath('/dashboard')
 
     return { success: true, data: serializeSource(source) }
   } catch (error) {

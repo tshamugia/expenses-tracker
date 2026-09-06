@@ -34,7 +34,7 @@ import {
   notifyReserveWithdrawal,
 } from '@/lib/services/notification-service'
 import { gatherPlanInput, toMonthKey } from '@/lib/services/plan-input'
-import { generatePlanForUser } from '@/lib/services/plan-generation'
+import { regenerateCurrentPlan } from '@/lib/services/plan-generation'
 import { computeGoalWhatIf } from '@/lib/services/goal-plan-impact'
 import type {
   ContributeInput,
@@ -296,16 +296,10 @@ export async function approveGoal(
       data: { status: 'ACTIVE' },
     })
 
-    // Recompute the current month's draft plan so Safe-to-Spend reflects the
-    // newly-active goal. Skipped (never throws the action) for a confirmed/
-    // closed month or on any generation error.
-    let planRefreshed = false
-    try {
-      const gen = await generatePlanForUser(userId, toMonthKey(new Date()))
-      planRefreshed = !gen.skipped
-    } catch (error) {
-      console.error('Error refreshing plan after approveGoal:', error)
-    }
+    // Recompute the current month's plan so Safe-to-Spend reflects the newly-
+    // active goal. Skipped (never throws the action) for a closed month or on
+    // any generation error.
+    const planRefreshed = await regenerateCurrentPlan(userId)
 
     revalidatePath('/goals')
     revalidatePath('/plan')
@@ -383,7 +377,12 @@ export async function updateGoal(
       },
     })
 
+    // A changed target/date/contribution changes this goal's required set-aside
+    // → re-derive the current month's plan (Phase 4b event-driven refresh).
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/goals')
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
 
     return { success: true, data: serializeGoal(goal) }
@@ -418,7 +417,11 @@ export async function archiveGoal(id: string): Promise<GoalActionResult<void>> {
 
     await prisma.goal.update({ where: { id }, data: { status: 'ARCHIVED' } })
 
+    // Removing an active goal frees up its set-aside → re-derive the plan.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/goals')
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
 
     return { success: true }
@@ -688,7 +691,12 @@ export async function contributeToGoal(
       }
     }
 
+    // A contribution lowers the goal's remaining balance → its required
+    // set-aside for the rest of the month shrinks. Re-derive the plan.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/goals')
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
     revalidatePath('/expenses')
 
@@ -777,7 +785,12 @@ export async function withdrawFromGoal(
       console.error('Error notifying withdrawal:', error)
     }
 
+    // A withdrawal raises the goal's remaining balance → its required set-aside
+    // grows again. Re-derive the plan.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/goals')
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
     revalidatePath('/income')
 
@@ -857,7 +870,11 @@ export async function advanceReserveStage(
       data: { reserveStage: 3, targetAmount: newTarget, status: 'ACTIVE' },
     })
 
+    // A larger reserve target raises the reserve's required set-aside → re-derive.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/goals')
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
 
     return { success: true, data: serializeGoal(updated) }

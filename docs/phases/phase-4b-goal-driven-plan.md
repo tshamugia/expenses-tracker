@@ -82,14 +82,33 @@ contribution. Goals still display their required amounts.
 - Cron: generate the current month + auto-close the previous month (verdict + achieved).
 
 ## Notes / deferred
-- **Windfall** (excess-income split) is left untouched this phase; later it becomes an
-  automatic recommendation instead of a manual apply.
-- **Within-month refresh:** the plan auto-generates on the first visit of a new month
-  and can be recomputed with the "Recalculate" button on `/plan`. Event-driven
-  regeneration (auto-recompute the moment a goal is created/edited) is a deferred
-  follow-up — it would call `generatePlanForUser` from the goal mutation actions.
-- **Auto-close:** month close still runs through the `/plan` ritual (now recording
-  `achieved` in `MonthClose`). A cron auto-close of the elapsed month is a follow-up.
+
+### Follow-ups implemented 2026-09-07
+- **Event-driven regeneration** — the current month's plan now auto-recomputes the
+  moment a goal, income source or debt changes. A shared, non-fatal
+  `regenerateCurrentPlan(userId)` (`lib/services/plan-generation.ts`) is called from
+  the goal (`update`/`archive`/`approve`/`contribute`/`withdraw`/`advanceReserveStage`),
+  income-source (`create`/`update`/`archive`) and debt (`create`/`update`/`archive`/
+  `applyPrepayment`) mutation actions. It swallows errors and skips a CLOSED month,
+  so a refresh failure never fails the mutation. "Recalculate" on `/plan` stays as a
+  manual affordance.
+- **Cron auto-close** — the daily cron (on the 1st, before generating the new month)
+  now auto-closes any still-open (`CONFIRMED`) plan from an elapsed month via
+  `autoCloseElapsedMonths` (`lib/services/plan-cron.ts`), recording the verdict +
+  `achieved` and sending a summary digest (`notifyMonthClosed`). The close core was
+  extracted into a session-free `closePlanForUser` (`lib/services/plan-close.ts`);
+  the `closeMonth` Server Action and the cron both call it. The shared money-math
+  (`gatherMonthActuals`, `buildSetAside`, `buildCloseLines`, `actualForAllocation`,
+  serializers, …) moved to `lib/services/month-actuals.ts` — a `'use server'` file
+  may only export async functions, so these helpers could not live in `plan-actions`.
+- **Windfall → automatic recommendation** — the manual `applyWindfall` (which
+  mutated allocations and was inconsistent with auto-regeneration) is removed. The
+  windfall now surfaces as a read-only recommendation on `/plan` with deep-link CTAs
+  to `/debts` and `/goals`; acting on it (a real payment/contribution) re-derives the
+  plan via event-driven regeneration.
+
+### Still deferred
+- Surfacing the windfall recommendation on the dashboard (currently `/plan` only).
 - Enum note: the plan is created directly as `CONFIRMED` ("active"); the `PlanStatus`
   enum is unchanged (`DRAFT` is simply never used now), so no destructive migration.
 

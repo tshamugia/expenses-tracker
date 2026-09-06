@@ -29,6 +29,7 @@ import {
   type ScheduleRow,
 } from '@/lib/services/amortization'
 import { notifyDebtPaidOff } from '@/lib/services/notification-service'
+import { regenerateCurrentPlan } from '@/lib/services/plan-generation'
 import { getCurrencyContext } from '@/lib/services/spend-status-service'
 import { convertCurrency, type Currency } from '@/lib/utils/currency-conversion'
 import type {
@@ -242,7 +243,12 @@ export async function createDebt(
       return created
     })
 
+    // A new debt adds an installment to this month's obligations → re-derive the
+    // plan and Safe-to-Spend (Phase 4b event-driven refresh).
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/debts')
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
 
     return { success: true, data: serializeDebt(debt) }
@@ -310,8 +316,14 @@ export async function updateDebt(
       return updated
     })
 
+    // Reflowing unpaid due dates can move an installment into/out of this month
+    // → re-derive the plan's debt obligations.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/debts')
     revalidatePath(`/debts/${id}`)
+    revalidatePath('/plan')
+    revalidatePath('/dashboard')
 
     return { success: true, data: serializeDebt(debt) }
   } catch (error) {
@@ -341,8 +353,14 @@ export async function archiveDebt(id: string): Promise<DebtActionResult<void>> {
 
     await prisma.debt.update({ where: { id }, data: { status: 'ARCHIVED' } })
 
+    // Removing a debt frees its installment from this month's obligations →
+    // re-derive the plan.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/debts')
     revalidatePath(`/debts/${id}`)
+    revalidatePath('/plan')
+    revalidatePath('/dashboard')
 
     return { success: true }
   } catch (error) {
@@ -770,8 +788,13 @@ export async function applyPrepayment(
       })
     })
 
+    // Prepayment changes the monthly payment / schedule tail → the plan's debt
+    // obligation for this month may shift. Re-derive.
+    await regenerateCurrentPlan(userId)
+
     revalidatePath('/debts')
     revalidatePath(`/debts/${debtId}`)
+    revalidatePath('/plan')
     revalidatePath('/dashboard')
     if (input.type === 'lump_sum') revalidatePath('/expenses')
 

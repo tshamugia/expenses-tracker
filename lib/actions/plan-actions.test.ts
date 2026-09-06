@@ -38,7 +38,6 @@ vi.mock('@/lib/services/spend-status-service', () => ({
 }))
 
 import {
-  applyWindfall,
   closeMonth,
   confirmPlan,
   generateMonthlyPlan,
@@ -190,57 +189,66 @@ describe('confirmPlan', () => {
   })
 })
 
-describe('applyWindfall', () => {
-  it('bumps debt / goal / free allocations by the split and snapshots income', async () => {
-    const plan = {
+describe('windfall recommendation', () => {
+  it('surfaces an automatic (read-only) split when income beats the forecast', async () => {
+    mockPrisma.monthlyPlan.findUnique.mockResolvedValue({ id: 'plan-1' })
+    mockPrisma.monthlyPlan.findFirstOrThrow.mockResolvedValue({
       id: 'plan-1',
       userId: USER_ID,
       status: 'CONFIRMED',
       month: '2026-09',
-      safeToSpend: 2000,
-      allocations: [
-        { id: 'd', kind: 'DEBT', planned: 500 },
-        { id: 'g', kind: 'GOAL', planned: 200 },
-        { id: 'free', kind: 'FREE', planned: 2000 },
-      ],
-    }
-    mockPrisma.monthlyPlan.findFirst.mockResolvedValue(plan)
-    mockPrisma.monthlyPlan.findFirstOrThrow.mockResolvedValue({
-      ...plan,
       forecastIncome: 4000,
       forecastStable: 4000,
       forecastVariable: 0,
-      actualIncome: 4300,
+      actualIncome: null,
+      safeToSpend: 2000,
       currency: 'GEL',
       confirmedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
-      allocations: plan.allocations.map((a) => ({ ...a, refId: null, label: a.kind, actual: null })),
+      allocations: [
+        { id: 'free', kind: 'FREE', refId: null, label: 'Free', planned: 2000, actual: null },
+      ],
     })
+    // Actual income 4300 → 300 excess over the 4000 forecast
+    mockPrisma.transaction.aggregate.mockResolvedValue({ _sum: { amount: 4300 } })
     mockPrisma.notificationPreference.findUnique.mockResolvedValue({
       windfallDebtPct: 50,
       windfallGoalsPct: 30,
       windfallFreePct: 20,
     })
 
-    const r = await applyWindfall('plan-1', { toDebt: 150, toGoals: 90, toFree: 60 })
+    const r = await getActivePlan('2026-09')
     expect(r.success).toBe(true)
-
-    const debtUpd = mockPrisma.planAllocation.update.mock.calls.find((c) => c[0].where.id === 'd')
-    const goalUpd = mockPrisma.planAllocation.update.mock.calls.find((c) => c[0].where.id === 'g')
-    const freeUpd = mockPrisma.planAllocation.update.mock.calls.find((c) => c[0].where.id === 'free')
-    expect(debtUpd?.[0].data.planned).toBe(650)
-    expect(goalUpd?.[0].data.planned).toBe(290)
-    expect(freeUpd?.[0].data.planned).toBe(2060)
-
-    const planUpd = mockPrisma.monthlyPlan.update.mock.calls[0]
-    expect(planUpd[0].data.safeToSpend).toBe(2060)
+    // 300 @ 50/30/20 → 150 / 90 / 60
+    expect(r.data?.windfall).toEqual({ excess: 300, toDebt: 150, toGoals: 90, toFree: 60 })
   })
 
-  it('rejects a windfall on a non-confirmed plan', async () => {
-    mockPrisma.monthlyPlan.findFirst.mockResolvedValue({ id: 'plan-1', userId: USER_ID, status: 'DRAFT', allocations: [] })
-    const r = await applyWindfall('plan-1', { toDebt: 10, toGoals: 10, toFree: 10 })
-    expect(r.success).toBe(false)
+  it('offers no windfall when income does not beat the forecast', async () => {
+    mockPrisma.monthlyPlan.findUnique.mockResolvedValue({ id: 'plan-1' })
+    mockPrisma.monthlyPlan.findFirstOrThrow.mockResolvedValue({
+      id: 'plan-1',
+      userId: USER_ID,
+      status: 'CONFIRMED',
+      month: '2026-09',
+      forecastIncome: 4000,
+      forecastStable: 4000,
+      forecastVariable: 0,
+      actualIncome: null,
+      safeToSpend: 2000,
+      currency: 'GEL',
+      confirmedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      allocations: [
+        { id: 'free', kind: 'FREE', refId: null, label: 'Free', planned: 2000, actual: null },
+      ],
+    })
+    mockPrisma.transaction.aggregate.mockResolvedValue({ _sum: { amount: 3800 } })
+
+    const r = await getActivePlan('2026-09')
+    expect(r.success).toBe(true)
+    expect(r.data?.windfall).toBeNull()
   })
 })
 

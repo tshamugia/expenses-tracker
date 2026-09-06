@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockAuth, mockPrisma, mockContext, mockAccrue } = vi.hoisted(() => ({
+const { mockAuth, mockPrisma, mockContext, mockAccrue, mockRegeneratePlan } = vi.hoisted(() => ({
   mockAuth: vi.fn(),
   mockAccrue: vi.fn(),
+  mockRegeneratePlan: vi.fn(),
   mockPrisma: {
     incomeSource: {
       create: vi.fn(),
@@ -27,6 +28,9 @@ vi.mock('@/lib/services/spend-status-service', () => ({
 }))
 vi.mock('@/lib/services/income-accrual', () => ({
   accrueStableIncomeForUser: mockAccrue,
+}))
+vi.mock('@/lib/services/plan-generation', () => ({
+  regenerateCurrentPlan: mockRegeneratePlan,
 }))
 
 import {
@@ -57,6 +61,7 @@ beforeEach(() => {
   mockAuth.mockResolvedValue({ user: { id: USER_ID } })
   mockContext.mockResolvedValue({ defaultCurrency: 'GEL', usdRate: null, eurRate: null })
   mockAccrue.mockResolvedValue(0)
+  mockRegeneratePlan.mockResolvedValue(true)
 })
 
 describe('createIncomeSource', () => {
@@ -112,6 +117,8 @@ describe('createIncomeSource', () => {
         expectedAmount: 3500,
       }),
     })
+    // Phase 4b: a new source shifts the forecast → the plan is re-derived
+    expect(mockRegeneratePlan).toHaveBeenCalledWith(USER_ID)
   })
 })
 

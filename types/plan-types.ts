@@ -181,6 +181,7 @@ export interface DashboardData {
     netChange: number
     components: { debt: number; reserve: number; goals: number; newDebt: number }
   } | null
+  windfall: WindfallProposal | null // automatic excess-income recommendation (Phase 4b)
   stability: StabilityProgress
   debts: {
     totalRemainingPrincipal: number
