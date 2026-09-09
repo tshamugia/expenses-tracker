@@ -13,16 +13,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { differenceInCalendarMonths } from 'date-fns'
-import type { Goal, GoalContribution } from '@prisma/client'
 import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
-import { getServerTranslator } from '@/i18n/server-translator'
 import {
-  calcGoalProgress,
   calcReserveTarget,
   requiredMonthlyContribution,
   roundMoney,
-  type GoalProgress,
 } from '@/lib/services/goal-math'
 import {
   computeMandatoryMonthly,
@@ -33,22 +29,24 @@ import {
   notifyReserveStageReached,
   notifyReserveWithdrawal,
 } from '@/lib/services/notification-service'
-import { gatherPlanInput, toMonthKey } from '@/lib/services/plan-input'
 import { regenerateCurrentPlan } from '@/lib/services/plan-generation'
-import { computeGoalWhatIf } from '@/lib/services/goal-plan-impact'
 import type {
   ContributeInput,
   CreateGoalInput,
   GoalDetail,
-  GoalListItem,
   GoalsOverview,
-  GoalWhatIf,
-  ReserveExplanation,
-  SerializedContribution,
   SerializedGoal,
   UpdateGoalInput,
   WithdrawInput,
 } from '@/types/goal-types'
+import {
+  buildGoalsOverview,
+  computeProgress,
+  ensureReserveExists,
+  reserveExplanation,
+  serializeContribution,
+  serializeGoal,
+} from '@/lib/services/goal-overview'
 
 export interface GoalActionResult<T> {
   success: boolean
@@ -58,96 +56,6 @@ export interface GoalActionResult<T> {
 
 const SUPPORTED_CURRENCIES = ['GEL', 'USD', 'EUR']
 
-// --- serialization helpers ---------------------------------------------------
-
-function serializeGoal(goal: Goal): SerializedGoal {
-  // Strip any included relation (e.g. `contributions`) so raw Decimal amounts
-  // never ride along into the client payload via the spread below.
-  const { contributions: _contributions, ...scalars } = goal as Goal & {
-    contributions?: unknown
-  }
-  return {
-    ...scalars,
-    targetAmount: Number(goal.targetAmount),
-    monthlyContribution:
-      goal.monthlyContribution === null ? null : Number(goal.monthlyContribution),
-  }
-}
-
-function serializeContribution(c: GoalContribution): SerializedContribution {
-  return { ...c, amount: Number(c.amount) }
-}
-
-function computeProgress(
-  goal: Goal,
-  contributions: { amount: unknown }[],
-  now: Date = new Date()
-): GoalProgress {
-  return calcGoalProgress(
-    {
-      targetAmount: Number(goal.targetAmount),
-      targetDate: goal.targetDate,
-      monthlyContribution:
-        goal.monthlyContribution === null
-          ? null
-          : Number(goal.monthlyContribution),
-    },
-    contributions.map((c) => ({ amount: Number(c.amount) })),
-    now
-  )
-}
-
-/** Reserve explanation ("1 month of mandatory expense = target / stage"). */
-function reserveExplanation(goal: Goal): ReserveExplanation | undefined {
-  if (!goal.isEmergencyFund) return undefined
-  const stage = goal.reserveStage ?? 1
-  const target = Number(goal.targetAmount)
-  return {
-    stage,
-    mandatoryMonthly: stage > 0 ? roundMoney(target / stage) : 0,
-  }
-}
-
-// --- emergency fund creation (idempotent) ------------------------------------
-
-/**
- * Create the reserve goal for a user if it does not exist yet (idempotent).
- * Stage 1, priority 1, target derived from mandatory monthly expense. Plain
- * helper (not an action) so getGoals can guarantee the fund on first load.
- */
-async function ensureReserveExists(userId: string): Promise<void> {
-  const existing = await prisma.goal.findFirst({
-    where: { userId, isEmergencyFund: true },
-    select: { id: true },
-  })
-  if (existing) return
-
-  const [{ mandatoryMonthly, context }, t] = await Promise.all([
-    computeMandatoryMonthly(userId),
-    getServerTranslator('Goals'),
-  ])
-
-  // Guard against a race (two first-loads): unique-ish create, ignore dupes
-  try {
-    await prisma.goal.create({
-      data: {
-        userId,
-        name: t('reserveName'),
-        targetAmount: calcReserveTarget(mandatoryMonthly, 1),
-        currency: context.defaultCurrency,
-        priority: 1,
-        isEmergencyFund: true,
-        reserveStage: 1,
-      },
-    })
-  } catch (error) {
-    // If a concurrent request already created it, that's fine
-    const stillMissing = await prisma.goal.count({
-      where: { userId, isEmergencyFund: true },
-    })
-    if (stillMissing === 0) throw error
-  }
-}
 
 /**
  * Public action: ensure the current user's emergency fund exists.
@@ -491,73 +399,8 @@ export async function getGoals(): Promise<GoalActionResult<GoalsOverview>> {
     if (!session?.user?.id) {
       return { success: false, error: 'Unauthorized' }
     }
-    const userId = session.user.id
-
-    await ensureReserveExists(userId)
-
-    const [goals, preference] = await Promise.all([
-      prisma.goal.findMany({
-        where: { userId, status: { not: 'ARCHIVED' } },
-        include: { contributions: { select: { amount: true } } },
-        orderBy: [{ isEmergencyFund: 'desc' }, { priority: 'asc' }],
-      }),
-      prisma.notificationPreference.findUnique({
-        where: { userId },
-        select: { defaultCurrency: true },
-      }),
-    ])
-
-    const now = new Date()
-    const items: GoalListItem[] = goals.map((goal) => ({
-      goal: serializeGoal(goal),
-      progress: computeProgress(goal, goal.contributions, now),
-      reserve: reserveExplanation(goal),
-    }))
-
-    // For proposed (wishlist) goals, preview how approving each would lower this
-    // month's Safe-to-Spend. The plan input already excludes proposed goals, so
-    // appending a candidate to the waterfall gives an honest before/after. Only
-    // gather the (heavier) plan input when there is at least one proposed goal.
-    const hasProposed = goals.some(
-      (g) => g.status === 'PROPOSED' && !g.isEmergencyFund
-    )
-    if (hasProposed) {
-      try {
-        const gathered = await gatherPlanInput(userId, toMonthKey(now))
-        for (let i = 0; i < goals.length; i++) {
-          const g = goals[i]
-          if (g.status !== 'PROPOSED' || g.isEmergencyFund) continue
-          const saved = roundMoney(
-            g.contributions.reduce((s, c) => s + Number(c.amount), 0)
-          )
-          const remaining = Math.max(0, roundMoney(Number(g.targetAmount) - saved))
-          const monthlyContribution =
-            g.monthlyContribution === null ? 0 : Number(g.monthlyContribution)
-          const impact = computeGoalWhatIf(gathered.input, {
-            monthlyContribution,
-            remaining,
-            priority: g.priority,
-          })
-          const whatIf: GoalWhatIf = {
-            safeBefore: impact.safeBefore,
-            safeAfter: impact.safeAfter,
-            deltaMonthly: impact.deltaMonthly,
-          }
-          items[i].whatIf = whatIf
-        }
-      } catch (error) {
-        // What-if is a nicety — never fail the whole overview over it.
-        console.error('Error computing proposed-goal what-if:', error)
-      }
-    }
-
-    return {
-      success: true,
-      data: {
-        goals: items,
-        defaultCurrency: preference?.defaultCurrency || 'GEL',
-      },
-    }
+    const data = await buildGoalsOverview(session.user.id, new Date())
+    return { success: true, data }
   } catch (error) {
     console.error('Error in getGoals:', error)
     return {

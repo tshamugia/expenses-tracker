@@ -119,6 +119,7 @@ Set on the Railway **extracker** service (`railway variables --set '<KEY>=<VALUE
 | `RESEND_API_KEY` | optional (console-logs emails if unset) |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | optional (`npx web-push generate-vapid-keys`) |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | equals `VAPID_PUBLIC_KEY` (also a repo Variable for the build-arg) |
+| `MCP_TOKEN_PEPPER` | `openssl rand -base64 32` — hashes MCP personal access tokens (`docs/mcp-server.md`) |
 
 `SUPABASE_*` are **not** required on Railway (used only by local scripts + the test route).
 `.env` is gitignored (`.env*`); `.env.example` is the tracked template (`!.env.example`).

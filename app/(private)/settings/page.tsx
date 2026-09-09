@@ -5,7 +5,9 @@ import { ThemeSettings } from '@/components/settings/theme-settings'
 import { CurrencySettings } from '@/components/settings/currency-settings'
 import { LanguageSettings } from '@/components/settings/language-settings'
 import { SubscriptionPlans } from '@/components/settings/subscription-plans'
+import { McpTokensSettings } from '@/components/settings/mcp-tokens-settings'
 import { getUserSettings, getSubscriptionPlans } from '@/lib/actions/settings-actions'
+import { listMcpTokens } from '@/lib/actions/mcp-token-actions'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -16,10 +18,17 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic'
 
+/** Absolute MCP endpoint shown in Settings (same origin the app is served from). */
+function getMcpUrl(): string {
+  const origin = process.env.AUTH_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  return new URL('/api/mcp', origin).toString()
+}
+
 async function SettingsContent() {
-  const [settingsResult, plansResult] = await Promise.all([
+  const [settingsResult, plansResult, tokensResult] = await Promise.all([
     getUserSettings(),
     getSubscriptionPlans(),
+    listMcpTokens(),
   ])
 
   if (!settingsResult.success) {
@@ -59,6 +68,12 @@ async function SettingsContent() {
         <CurrencySettings settings={settingsResult.data} />
         <LanguageSettings />
       </div>
+
+      {/* MCP access tokens (AI clients) */}
+      <McpTokensSettings
+        tokens={tokensResult.success ? tokensResult.data : []}
+        mcpUrl={getMcpUrl()}
+      />
 
       {/* Subscription Plans */}
       <SubscriptionPlans

@@ -90,7 +90,8 @@ User Interaction → Client Component → Server Action → Prisma/Service → P
 
 ### Key Architectural Patterns
 
-- **No REST API**: Server Actions provide type-safe, direct server-side mutations instead of REST/GraphQL endpoints (API routes exist only for auth, cron, and testing)
+- **No REST API**: Server Actions provide type-safe, direct server-side mutations instead of REST/GraphQL endpoints (API routes exist only for auth, cron, testing, and the MCP server)
+- **MCP server**: `app/api/mcp/route.ts` exposes read/write tools to AI clients (Claude Desktop/Code, Cursor) over Streamable HTTP, authenticated with hashed personal access tokens (`McpAccessToken`, Settings → MCP access). Tools never call session-bound Server Actions; they use userId-first builders in `lib/services/` (`plan-view`, `debt-overview`, `goal-overview`, `quick-add`) via `lib/services/mcp-data.ts`. Full guide: `docs/mcp-server.md`.
 - **React Server Components (RSC)**: Default for pages and layouts to reduce client bundle size
 - **Server Actions**: All CRUD operations are server actions in `lib/actions/` marked with `'use server'`
 - **Services Layer**: Complex business logic (email, notifications, currency) abstracted into `lib/services/`
@@ -143,6 +144,7 @@ User Interaction → Client Component → Server Action → Prisma/Service → P
 - `lib/services/notification-service.ts` - Notification business logic and email sending
 - `lib/services/email.ts` - Email service abstraction (Resend)
 - `lib/services/currency.ts` - Currency conversion service
+- `lib/services/mcp-auth.ts`, `mcp-tools.ts`, `mcp-data.ts` - MCP server auth, tool surface and data adapters
 - `types/expense-types.ts` - Type definitions for Expense domain
 - `prisma/schema.prisma` - Complete database schema
 
@@ -376,6 +378,9 @@ VAPID_PUBLIC_KEY=your-vapid-public-key         # Generate with: npx web-push gen
 VAPID_PRIVATE_KEY=your-vapid-private-key       # Keep secret (server-only)
 VAPID_SUBJECT=mailto:you@example.com           # Contact URI required by the Web Push spec
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your-vapid-public-key  # Same as VAPID_PUBLIC_KEY, exposed to the client for subscribe()
+
+# MCP server (app/api/mcp) — pepper for hashing personal access tokens
+MCP_TOKEN_PEPPER=your-mcp-token-pepper           # Generate with: openssl rand -base64 32
 ```
 
 If VAPID keys are not set, web push is a no-op (in-app + email notifications still work). The `PushSubscription` table is created via `npm run db:add-push` (kept separate from `prisma db push` to avoid dropping the out-of-schema `RefreshToken` table on the live DB).
