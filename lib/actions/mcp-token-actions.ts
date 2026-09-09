@@ -32,14 +32,17 @@ const listSelect = {
   createdAt: true,
 } as const
 
-/** Active (not revoked) tokens of the current user, newest first. */
+/**
+ * Active (not revoked) personal access tokens of the current user, newest
+ * first. OAuth-issued tokens (grantId set) are managed as connected apps.
+ */
 export async function listMcpTokens(): Promise<ActionResult<McpTokenListItem[]>> {
   try {
     const session = await auth()
     if (!session?.user?.id) return { success: false, error: 'Unauthorized' }
 
     const tokens = await prisma.mcpAccessToken.findMany({
-      where: { userId: session.user.id, revokedAt: null },
+      where: { userId: session.user.id, revokedAt: null, grantId: null },
       select: listSelect,
       orderBy: { createdAt: 'desc' },
     })
@@ -72,7 +75,7 @@ export async function createMcpToken(input: CreateMcpTokenInput): Promise<Action
       expiresAt = new Date(Date.now() + days * DAY_MS)
     }
 
-    const activeCount = await prisma.mcpAccessToken.count({ where: { userId, revokedAt: null } })
+    const activeCount = await prisma.mcpAccessToken.count({ where: { userId, revokedAt: null, grantId: null } })
     if (activeCount >= MAX_ACTIVE_TOKENS) {
       return { success: false, error: `You can have at most ${MAX_ACTIVE_TOKENS} active tokens` }
     }

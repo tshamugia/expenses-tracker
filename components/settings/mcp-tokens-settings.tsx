@@ -1,17 +1,18 @@
 'use client'
 
 /**
- * MCP access — personal access tokens for AI clients (Settings).
- * Lists active tokens, generates a new one (raw secret shown exactly once)
- * and revokes tokens. The list is kept in local state so the card updates
- * instantly; the page is refreshed afterwards to stay in sync with the server.
+ * MCP access (Settings): Claude.ai connections (OAuth grants) and personal
+ * access tokens for headless AI clients. Lists both, generates a new token
+ * (raw secret shown exactly once) and revokes either. Lists are kept in local
+ * state so the card updates instantly; the page is refreshed afterwards to
+ * stay in sync with the server.
  */
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
-import { Bot, Check, Copy, KeyRound, Loader2, Plus, Trash2 } from 'lucide-react'
+import { Bot, Check, Copy, KeyRound, Link2, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -33,10 +34,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { createMcpToken, revokeMcpToken } from '@/lib/actions/mcp-token-actions'
-import type { CreatedMcpToken, McpScope, McpTokenListItem } from '@/types/mcp-types'
+import { revokeConnectedApp } from '@/lib/actions/mcp-oauth-actions'
+import type { ConnectedAppItem, CreatedMcpToken, McpScope, McpTokenListItem } from '@/types/mcp-types'
 
 interface McpTokensSettingsProps {
   tokens: McpTokenListItem[]
+  /** OAuth connections (Claude.ai custom connector etc.). */
+  connectedApps: ConnectedAppItem[]
   /** Absolute URL of the MCP endpoint, e.g. https://host/api/mcp */
   mcpUrl: string
 }
@@ -71,6 +75,64 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
       {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
       <span className="ml-1.5">{copied ? copiedLabel : label}</span>
     </Button>
+  )
+}
+
+/** "Revoke → are you sure? yes/no" control shared by tokens and connected apps. */
+function RevokeControl({
+  name,
+  label,
+  onConfirm,
+}: {
+  name: string
+  label: string
+  onConfirm: () => Promise<boolean>
+}) {
+  const t = useTranslations('McpTokens')
+  const [confirming, setConfirming] = useState(false)
+  const [isPending, startTransition] = useTransition()
+
+  const handleConfirm = () => {
+    startTransition(async () => {
+      await onConfirm()
+      setConfirming(false)
+    })
+  }
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs">{t('confirmRevoke')}</span>
+        <Button type="button" size="sm" variant="destructive" disabled={isPending} onClick={handleConfirm}>
+          {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t('yes')}
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={isPending} onClick={() => setConfirming(false)}>
+          {t('no')}
+        </Button>
+      </div>
+    )
+  }
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="ghost"
+      className="text-destructive hover:text-destructive"
+      onClick={() => setConfirming(true)}
+      aria-label={`${label} ${name}`}
+    >
+      <Trash2 className="mr-1.5 h-4 w-4" />
+      {label}
+    </Button>
+  )
+}
+
+function ScopeBadge({ scopes }: { scopes: string[] }) {
+  const t = useTranslations('McpTokens')
+  return scopes.includes('write') ? (
+    <Badge variant="destructive">{t('scopeBadgeWrite')}</Badge>
+  ) : (
+    <Badge variant="secondary">{t('scopeBadgeRead')}</Badge>
   )
 }
 
@@ -216,14 +278,17 @@ function CreatedTokenView({
   )
 }
 
-export function McpTokensSettings({ tokens: initialTokens, mcpUrl }: McpTokensSettingsProps) {
+export function McpTokensSettings({
+  tokens: initialTokens,
+  connectedApps: initialApps,
+  mcpUrl,
+}: McpTokensSettingsProps) {
   const t = useTranslations('McpTokens')
   const router = useRouter()
   const [tokens, setTokens] = useState<McpTokenListItem[]>(initialTokens)
+  const [apps, setApps] = useState<ConnectedAppItem[]>(initialApps)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [created, setCreated] = useState<CreatedMcpToken | null>(null)
-  const [confirmingId, setConfirmingId] = useState<string | null>(null)
-  const [isRevoking, startRevoke] = useTransition()
 
   const handleCreated = (result: CreatedMcpToken) => {
     setCreated(result)
@@ -239,18 +304,28 @@ export function McpTokensSettings({ tokens: initialTokens, mcpUrl }: McpTokensSe
     }
   }
 
-  const handleRevoke = (id: string) => {
-    startRevoke(async () => {
-      const result = await revokeMcpToken(id)
-      if (result.success) {
-        setTokens((prev) => prev.filter((tok) => tok.id !== id))
-        toast.success(t('revoked'))
-        router.refresh()
-      } else {
-        toast.error(result.error)
-      }
-      setConfirmingId(null)
-    })
+  const handleRevokeToken = async (id: string) => {
+    const result = await revokeMcpToken(id)
+    if (result.success) {
+      setTokens((prev) => prev.filter((tok) => tok.id !== id))
+      toast.success(t('revoked'))
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
+    return result.success
+  }
+
+  const handleDisconnectApp = async (id: string) => {
+    const result = await revokeConnectedApp(id)
+    if (result.success) {
+      setApps((prev) => prev.filter((app) => app.id !== id))
+      toast.success(t('disconnected'))
+      router.refresh()
+    } else {
+      toast.error(result.error)
+    }
+    return result.success
   }
 
   const formatDate = (d: Date | string | null) => (d ? new Date(d).toLocaleDateString() : null)
@@ -273,6 +348,39 @@ export function McpTokensSettings({ tokens: initialTokens, mcpUrl }: McpTokensSe
             </code>
             <CopyButton value={mcpUrl} label={t('copy')} copiedLabel={t('copied')} />
           </div>
+          <p className="text-xs text-muted-foreground">{t('claudeAiHint')}</p>
+        </div>
+
+        <div className="space-y-3">
+          <Label>{t('connectedAppsLabel')}</Label>
+          {apps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">{t('noConnectedApps')}</p>
+          ) : (
+            <ul className="divide-y rounded-md border" data-testid="connected-apps">
+              {apps.map((app) => (
+                <li key={app.id} className="flex flex-wrap items-center gap-3 px-3 py-2.5">
+                  <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{app.clientName}</span>
+                      <ScopeBadge scopes={app.scopes} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {app.lastUsedAt
+                        ? `${t('lastUsed')}: ${formatDate(app.lastUsedAt)}`
+                        : t('neverUsed')}
+                      {` · ${t('connectedOn')}: ${formatDate(app.createdAt)}`}
+                    </p>
+                  </div>
+                  <RevokeControl
+                    name={app.clientName}
+                    label={t('disconnect')}
+                    onConfirm={() => handleDisconnectApp(app.id)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -295,11 +403,7 @@ export function McpTokensSettings({ tokens: initialTokens, mcpUrl }: McpTokensSe
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{tok.name}</span>
                       <span className="font-mono text-xs text-muted-foreground">…{tok.lastFour}</span>
-                      {tok.scopes.includes('write') ? (
-                        <Badge variant="destructive">{t('scopeBadgeWrite')}</Badge>
-                      ) : (
-                        <Badge variant="secondary">{t('scopeBadgeRead')}</Badge>
-                      )}
+                      <ScopeBadge scopes={tok.scopes} />
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {tok.lastUsedAt
@@ -308,35 +412,7 @@ export function McpTokensSettings({ tokens: initialTokens, mcpUrl }: McpTokensSe
                       {tok.expiresAt && ` · ${t('expiresOn')}: ${formatDate(tok.expiresAt)}`}
                     </p>
                   </div>
-                  {confirmingId === tok.id ? (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs">{t('confirmRevoke')}</span>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        disabled={isRevoking}
-                        onClick={() => handleRevoke(tok.id)}
-                      >
-                        {isRevoking ? <Loader2 className="h-4 w-4 animate-spin" /> : t('yes')}
-                      </Button>
-                      <Button type="button" size="sm" variant="outline" disabled={isRevoking} onClick={() => setConfirmingId(null)}>
-                        {t('no')}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setConfirmingId(tok.id)}
-                      aria-label={`${t('revoke')} ${tok.name}`}
-                    >
-                      <Trash2 className="mr-1.5 h-4 w-4" />
-                      {t('revoke')}
-                    </Button>
-                  )}
+                  <RevokeControl name={tok.name} label={t('revoke')} onConfirm={() => handleRevokeToken(tok.id)} />
                 </li>
               ))}
             </ul>

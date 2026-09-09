@@ -8,6 +8,8 @@ import { SubscriptionPlans } from '@/components/settings/subscription-plans'
 import { McpTokensSettings } from '@/components/settings/mcp-tokens-settings'
 import { getUserSettings, getSubscriptionPlans } from '@/lib/actions/settings-actions'
 import { listMcpTokens } from '@/lib/actions/mcp-token-actions'
+import { listConnectedApps } from '@/lib/actions/mcp-oauth-actions'
+import { resolveMcpResourceUrl } from '@/lib/services/mcp-oauth'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -18,17 +20,12 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic'
 
-/** Absolute MCP endpoint shown in Settings (same origin the app is served from). */
-function getMcpUrl(): string {
-  const origin = process.env.AUTH_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  return new URL('/api/mcp', origin).toString()
-}
-
 async function SettingsContent() {
-  const [settingsResult, plansResult, tokensResult] = await Promise.all([
+  const [settingsResult, plansResult, tokensResult, appsResult] = await Promise.all([
     getUserSettings(),
     getSubscriptionPlans(),
     listMcpTokens(),
+    listConnectedApps(),
   ])
 
   if (!settingsResult.success) {
@@ -69,10 +66,11 @@ async function SettingsContent() {
         <LanguageSettings />
       </div>
 
-      {/* MCP access tokens (AI clients) */}
+      {/* MCP access: Claude.ai connections + personal access tokens */}
       <McpTokensSettings
         tokens={tokensResult.success ? tokensResult.data : []}
-        mcpUrl={getMcpUrl()}
+        connectedApps={appsResult.success ? appsResult.data : []}
+        mcpUrl={resolveMcpResourceUrl()}
       />
 
       {/* Subscription Plans */}
