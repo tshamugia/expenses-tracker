@@ -14,7 +14,8 @@ It respects the project's constraints:
   Settings → *MCP access*, and — for Claude.ai custom connectors, which cannot
   send a static header — an **in-app OAuth 2.1 authorization server** (§2b).
 - **Money math is never re-implemented** — tools call the same view-model
-  builders the app's Server Actions use.
+  builders and userId-first services (`lib/services/*-service.ts`) the app's
+  Server Actions use; a Server Action is only auth → service → revalidate.
 - **Tests are mandatory** — every new module has a Vitest file next to it.
 
 ---
@@ -168,21 +169,111 @@ Design and security properties:
 
 ## 3. Tool surface
 
+48 tools — full CRUD over the app's financial data. Account settings, profile,
+password, tokens and connected apps are deliberately **not** exposed. Reads
+work with any token; writes need the `write` scope. Every write goes through
+the same userId-first service the corresponding Server Action uses
+(`lib/services/*-service.ts`), so validation, ownership checks, ledger
+mirroring and plan refresh are identical to the app.
+
+Conventions: ids are UUIDs, dates are ISO-8601 strings, currency is
+`GEL|USD|EUR`, list limits are 1–200 (default 50). In update tools only the
+given fields change; `null` clears a nullable field (limit, target date, …).
+
+### Dashboard & monthly plan
+
 | Tool | Scope | Input | Backed by |
 |---|---|---|---|
-| `get_dashboard` | read | — | `buildDashboardData` (Safe-to-Spend, plan status, live verdict, stability, debts, goals) |
-| `get_monthly_plan` | read | `month?: YYYY-MM` | `buildPlanView` — returns `plan: null` if the month has no plan (never generates one) |
-| `list_expenses` | read | `limit?` | `prisma.expense` — fixed bills with paid/overdue flags |
-| `list_transactions` | read | `type?`, `categoryId?`, `from?`, `to?`, `limit?` | `prisma.transaction` ledger, newest first |
-| `list_categories` | read | — | `prisma.category` (id, name, kind, monthly limit) |
-| `list_debts` | read | — | `buildDebtsOverview` (amortization progress, totals, avalanche/snowball) |
-| `list_goals` | read | — | `buildGoalsOverview` (reserve first, progress, what-if for proposed goals) |
-| `create_expense` | **write** | `title`, `amount`, `currency`, `category?`, `description?`, `nextDueDate?`, `isRecurring?`, `recurrenceRule?` | `createExpense` (creates the first pending Payment; overdue notification) |
-| `add_transaction` | **write** | `amount`, `currency?`, `categoryId?` or `categoryName?`, `description?`, `date?` | `addExpenseTransaction` (Quick Add; returns the category soft-limit status) |
+| `get_dashboard` | read | — | `buildDashboardData` |
+| `get_monthly_plan` | read | `month?` | `buildPlanView` — `plan: null` if the month has no plan (never generates) |
+| `get_stability_progress` | read | — | `computeStabilityProgress` (stage, net position trend, verdict history) |
+| `get_close_preview` | read | `planId?` / `month?` | `buildClosePreview` — plan vs actual, verdict, proposed conclusions, no writes |
+| `generate_monthly_plan` | **write** | `month?` | `regeneratePlanForUser` (refused for a CLOSED month) |
+| `confirm_plan` | **write** | `planId?` / `month?`, `adjustments?[]` | `confirmPlanForUser` — FREE recomputed from the forecast |
+| `reopen_plan` | **write** | `planId?` / `month?` | `reopenPlanForUser` (CONFIRMED → DRAFT) |
+| `close_month` | **write**, destructive | `planId?` / `month?`, `conclusions?[]` | `closePlanForUser` (irreversible) |
 
-All inputs are validated with zod (limits 1–200, ISO dates, `GEL|USD|EUR`).
-Results are JSON text content; amounts are numbers (never Prisma `Decimal`).
-Errors inside a tool are returned as `isError` results, not protocol errors.
+Plan tools accept `planId` or fall back to the plan of `month` (default: current).
+
+### Fixed bills (Expense)
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_expenses` | read | `limit?` | `prisma.expense` — paid/overdue flags, card link |
+| `create_expense` | **write** | `title`, `amount`, `currency`, `category?`, `description?`, `nextDueDate?`, `isRecurring?`, `recurrenceRule?`, `paymentCardId?` | `createExpense` (first pending Payment; overdue notification) |
+| `update_expense` | **write** | `expenseId` + any of the above | `updateExpense` (card ownership verified) |
+| `delete_expense` | **write**, destructive | `expenseId` | `deleteExpense` (payments cascade) |
+| `mark_expense_paid` | **write** | `expenseId` | `markExpensePaid` (ledger mirror; recurring bills roll forward) |
+
+### Ledger transactions
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_transactions` | read | `type?`, `categoryId?`, `from?`, `to?`, `limit?` | `prisma.transaction`, newest first |
+| `add_transaction` | **write** | `amount`, `currency?`, `categoryId?` or `categoryName?`, `description?`, `date?` | `addExpenseTransaction` (Quick Add; soft-limit status) |
+| `update_transaction` | **write** | `transactionId`, `amount?`, `currency?`, `date?`, `categoryId?`/`categoryName?`, `description?` | `updateTransactionForUser` |
+| `delete_transaction` | **write**, destructive | `transactionId` | `deleteTransactionForUser` |
+
+### Income — salary (STABLE) & extra income (VARIABLE)
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_income_sources` | read | — | `buildIncomeOverview` (sources, month facts + total, next-month forecast; accrues due salary) |
+| `create_income_source` | **write** | `name`, `type` (`STABLE` / `VARIABLE`), `expectedAmount?`, `currency?`, `expectedDay?` | `createIncomeSourceForUser` (STABLE requires `expectedAmount`) |
+| `update_income_source` | **write** | `sourceId` + `name?`, `type?`, `expectedAmount?`, `currency?`, `expectedDay?`, `isActive?` | `updateIncomeSourceForUser` |
+| `archive_income_source` | **write**, destructive | `sourceId` | `archiveIncomeSourceForUser` (soft delete) |
+| `record_income` | **write** | `amount`, `currency?`, `incomeSourceId?`/`incomeSourceName?`, `description?`, `date?` | `recordIncomeForUser` — STABLE sources are refused (salary accrues automatically) |
+
+### Goals & emergency fund
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_goals` | read | — | `buildGoalsOverview` |
+| `get_goal` | read | `goalId` | `getGoalDetailForUser` (contribution history + progress) |
+| `create_goal` | **write** | `name`, `targetAmount`, `currency?`, `targetDate?`, `monthlyContribution?` | `createGoalForUser` (starts PROPOSED) |
+| `approve_goal` | **write** | `goalId` | `approveGoalForUser` (PROPOSED → ACTIVE, plan refreshed) |
+| `update_goal` | **write** | `goalId` + `name?`, `targetAmount?`, `targetDate?`, `monthlyContribution?` | `updateGoalForUser` (emergency fund refused) |
+| `archive_goal` | **write**, destructive | `goalId` | `archiveGoalForUser` (emergency fund refused) |
+| `reorder_goals` | **write** | `orderedGoalIds[]` | `reorderGoalsForUser` (reserve stays #1) |
+| `contribute_to_goal` | **write** | `goalId`, `amount`, `date?` | `contributeToGoalForUser` (ledger EXPENSE mirror, ACHIEVED milestone) |
+| `withdraw_from_goal` | **write** | `goalId`, `amount`, `reason`, `date?` | `withdrawFromGoalForUser` (ledger INCOME mirror) |
+| `advance_reserve_stage` | **write** | `goalId` (the emergency fund) | `advanceReserveStageForUser` (1 → 3 months) |
+
+### Categories
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_categories` | read | — | `prisma.category` (id, name, kind, monthly limit, colour) |
+| `create_category` | **write** | `name`, `color?`, `kind?` (`FIXED` / `VARIABLE`), `monthlyLimit?` | `createCategoryForUser` (unique per user, case-insensitive) |
+| `update_category` | **write** | `categoryId` + `name?`, `color?`, `kind?`, `monthlyLimit?` (null clears) | `updateCategoryForUser` |
+| `delete_category` | **write**, destructive | `categoryId` | `deleteCategoryForUser` (refused while fixed bills use it) |
+
+### Debts
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_debts` | read | — | `buildDebtsOverview` |
+| `get_debt` | read | `debtId` | `getDebtDetailForUser` (full schedule with installment ids) |
+| `simulate_prepayment` | read | `debtId`, `type` (`extra_monthly` / `lump_sum`), `amount` | `simulatePrepaymentForUser` (no writes) |
+| `create_debt` | **write** | `name`, `principal`, `annualRatePct`, `currency?`, `firstPaymentDate`, exactly one of `termMonths` / `monthlyPayment` | `createDebtForUser` (annuity schedule generated atomically) |
+| `update_debt` | **write** | `debtId`, `name?`, `firstPaymentDate?` | `updateDebtForUser` (unpaid rows reflowed) |
+| `archive_debt` | **write**, destructive | `debtId` | `archiveDebtForUser` |
+| `record_debt_payment` | **write** | `scheduleItemId` or `debtId` (next unpaid), `amount?`, `paidAt?` | `recordDebtPaymentForUser` (ledger mirror, PAID_OFF milestone) |
+| `apply_prepayment` | **write**, destructive | `debtId`, `type`, `amount` | `applyPrepaymentForUser` (unpaid tail regenerated; lump sum books an expense) |
+
+### Payment cards
+
+| Tool | Scope | Input | Backed by |
+|---|---|---|---|
+| `list_payment_cards` | read | — | `listPaymentCardsForUser` (last four digits only + bill count) |
+| `create_payment_card` | **write** | `cardholderName`, `cardNumber` (validated, only last 4 stored), `expiryMonth`, `expiryYear`, `nickname?`, `color?` | `createPaymentCardForUser` |
+| `update_payment_card` | **write** | `cardId` + `cardholderName?`, `expiryMonth?`, `expiryYear?`, `nickname?`, `color?` | `updatePaymentCardForUser` |
+| `delete_payment_card` | **write**, destructive | `cardId` | `deletePaymentCardForUser` (bills are unlinked, not deleted) |
+
+All inputs are validated with zod. Results are JSON text content; amounts are
+numbers (never Prisma `Decimal`). Errors inside a tool are returned as
+`isError` results, not protocol errors. Tools carrying `destructiveHint` are
+listed in `DESTRUCTIVE_TOOLS` (`lib/services/mcp-tools.ts`).
 
 ---
 
@@ -258,8 +349,9 @@ curl -s -X POST https://<host>/api/mcp -H "Authorization: Bearer ext_mcp_…" \
 | File | Covers |
 |---|---|
 | `lib/services/mcp-auth.test.ts` | hash determinism/pepper, token format, issue stores hash only, verify: unknown/revoked/expired/missing pepper, lastUsedAt bump |
-| `lib/services/mcp-data.test.ts` | userId scoping of every query, limit clamping, Decimal → number, category-by-name resolution, write delegation |
-| `lib/services/mcp-tools.test.ts` | tool surface + annotations, principal from token only, write-scope gate, error → isError, zod schemas |
+| `lib/services/mcp-data.test.ts` | userId scoping of every query, limit clamping, Decimal → number, category / income-source / plan / next-installment resolution, card ownership, write delegation and JSON-safe result shapes |
+| `lib/services/mcp-tools.test.ts` | the 48-tool surface + read-only/destructive annotations, no settings/profile tools, principal from token only, write-scope gate on every write tool, error → isError, id/date argument mapping, zod schemas |
+| `lib/services/category-service.test.ts`, `payment-card-service.test.ts`, `plan-service.test.ts`, `transaction-service.test.ts` | the userId-first services shared by Server Actions and MCP tools: validation, ownership, atomic writes |
 | `lib/services/rate-limit.test.ts` | window/threshold/expiry/prune, client key extraction |
 | `lib/actions/mcp-token-actions.test.ts` | auth rejection, name/expiry validation, active-token cap, revoke ownership + idempotency |
 | `lib/services/mcp-oauth.test.ts` | metadata, redirect-URI rules (https/loopback, exact vs port-agnostic), scope parsing, PKCE, DCR validation, authorize validation (display vs redirect errors, state), code issue/exchange (single use, expiry, binding, race), refresh rotation + reuse detection + down-scoping, revocation |
@@ -269,7 +361,7 @@ curl -s -X POST https://<host>/api/mcp -H "Authorization: Bearer ext_mcp_…" \
 | `components/oauth/consent-form.test.tsx` | client/host/permissions rendering, loopback warning, approve with/without write, deny, error state |
 | `lib/utils/safe-redirect.test.ts` | callbackUrl open-redirect guard |
 | `components/settings/mcp-tokens-settings.test.tsx` | list rendering, create flow (secret shown once), validation, revoke confirm/cancel |
-| existing `plan-/debt-/goal-/transaction-actions.test.ts` | still cover the extracted builders through the actions |
+| existing `income-/goal-/debt-/plan-/transaction-actions.test.ts` | cover `income-service`, `goal-service`, `debt-service`, `plan-service` through the actions that delegate to them |
 
 `npm run test` and `npm run build` must be green before a PR.
 
@@ -284,7 +376,7 @@ Checklist:
 
 - [x] `McpAccessToken` model + additive migration committed.
 - [x] `MCP_TOKEN_PEPPER` set on the Railway `extracker` service.
-- [x] After deploy: `POST /api/mcp` without a token returns 401; with a token, `tools/list` returns the 9 tools.
+- [x] After deploy: `POST /api/mcp` without a token returns 401; with a token, `tools/list` returns the tools (9 at first ship, 48 since the full-CRUD release).
 - [x] OAuth models + additive migration `20260909180403_add_mcp_oauth` committed; `AUTH_URL` on Railway already equals the public URL (the OAuth issuer).
 - [ ] After deploy: `GET /.well-known/oauth-authorization-server` returns the issuer `https://extracker-production.up.railway.app`; add the custom connector in Claude.ai and complete the consent flow.
 
