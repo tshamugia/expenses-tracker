@@ -11,9 +11,7 @@
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
-import type { CategorySpendStatus } from '@/lib/services/category-spend'
-import { notifyCategoryLimitThreshold } from '@/lib/services/notification-service'
-import { computeSingleCategoryStatus } from '@/lib/services/spend-status-service'
+import { addExpenseTransaction, type QuickAddResult } from '@/lib/services/quick-add'
 import type {
   QuickAddExpenseInput,
   SerializedTransaction,
@@ -41,12 +39,6 @@ function serializeTransaction(transaction: {
   } as SerializedTransaction
 }
 
-export interface QuickAddResult {
-  transaction: SerializedTransaction
-  categoryStatus: (CategorySpendStatus & { categoryName: string }) | null
-  defaultCurrency: string
-}
-
 /**
  * Quick-add a variable expense: amount + category (+ optional description/date).
  * Returns the updated category spend status so the UI can warn immediately.
@@ -59,64 +51,16 @@ export async function quickAddExpense(
     if (!session?.user?.id) {
       return { success: false, error: 'Unauthorized' }
     }
-    const userId = session.user.id
 
-    if (!Number.isFinite(input.amount) || input.amount <= 0) {
-      return { success: false, error: 'Amount must be greater than zero' }
-    }
-
-    const currency = input.currency || 'GEL'
-    if (!SUPPORTED_CURRENCIES.includes(currency)) {
-      return { success: false, error: 'Unsupported currency' }
-    }
-
-    // SECURITY: category must belong to the user
-    const category = await prisma.category.findFirst({
-      where: { id: input.categoryId, userId },
-    })
-    if (!category) {
-      return { success: false, error: 'Category not found or access denied' }
-    }
-
-    const transaction = await prisma.transaction.create({
-      data: {
-        userId,
-        type: 'EXPENSE',
-        amount: input.amount,
-        currency,
-        date: input.date ?? new Date(),
-        categoryId: category.id,
-        description: input.description?.trim() || null,
-        entrySource: 'MANUAL',
-      },
-    })
-
-    // Fresh status for this category so the UI can show the warning in the toast
-    const { status, context } = await computeSingleCategoryStatus(userId, category.id)
-
-    // 80%/100% warning — deduped per month inside the service; never blocks the write
-    if (status && status.limit !== null && status.ratio !== null) {
-      await notifyCategoryLimitThreshold(
-        userId,
-        { id: category.id, name: category.categoryName },
-        { spent: status.spent, limit: status.limit, ratio: status.ratio },
-        context.defaultCurrency
-      )
+    const result = await addExpenseTransaction(session.user.id, input)
+    if (!result.ok) {
+      return { success: false, error: result.error }
     }
 
     revalidatePath('/expenses')
     revalidatePath('/dashboard')
 
-    return {
-      success: true,
-      data: {
-        transaction: serializeTransaction(transaction),
-        categoryStatus: status
-          ? { ...status, categoryName: category.categoryName }
-          : null,
-        defaultCurrency: context.defaultCurrency,
-      },
-    }
+    return { success: true, data: result.data }
   } catch (error) {
     console.error('Error in quickAddExpense:', error)
     return {

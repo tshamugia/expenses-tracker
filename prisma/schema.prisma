@@ -36,6 +36,7 @@ model User {
   goals          Goal[]
   monthlyPlans   MonthlyPlan[]
   refreshTokens  RefreshToken[]
+  mcpAccessTokens McpAccessToken[]
 }
 
 // Legacy table from an earlier auth implementation; still present on the live
@@ -52,6 +53,25 @@ model RefreshToken {
 
   @@index([userId])
   @@index([token])
+}
+
+// Personal access tokens for the MCP server (app/api/mcp). Only a peppered
+// SHA-256 hash of the token is stored; the raw token is shown once at creation.
+model McpAccessToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @db.Uuid
+  name       String
+  tokenHash  String    @unique
+  lastFour   String
+  scopes     String[]  @default(["read"])
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Unified ledger (Phase 1): every money movement is a Transaction.
