@@ -43,12 +43,22 @@ export interface IssuedToken {
   lastFour: string
 }
 
-/** Generate + persist a new PAT for `userId`. Returns the raw token ONCE. */
+export interface IssueTokenOptions {
+  /** OAuth grant this access token belongs to (null/undefined for PATs). */
+  grantId?: string | null
+}
+
+/**
+ * Generate + persist a new access token for `userId`. Returns the raw token
+ * ONCE. Used for personal access tokens (Settings) and for OAuth access
+ * tokens (mcp-oauth.ts, with `grantId`).
+ */
 export async function issueToken(
   userId: string,
   name: string,
   scopes: readonly string[] = ['read'],
-  expiresAt: Date | null = null
+  expiresAt: Date | null = null,
+  options: IssueTokenOptions = {}
 ): Promise<IssuedToken> {
   const raw = generateRawToken()
   const record = await prisma.mcpAccessToken.create({
@@ -59,6 +69,7 @@ export async function issueToken(
       lastFour: raw.slice(-4),
       scopes: normalizeScopes(scopes),
       expiresAt,
+      grantId: options.grantId ?? null,
     },
   })
   return { raw, id: record.id, lastFour: record.lastFour }

@@ -37,6 +37,8 @@ model User {
   monthlyPlans   MonthlyPlan[]
   refreshTokens  RefreshToken[]
   mcpAccessTokens McpAccessToken[]
+  mcpOAuthGrants  McpOAuthGrant[]
+  mcpOAuthAuthorizationCodes McpOAuthAuthorizationCode[]
 }
 
 // Legacy table from an earlier auth implementation; still present on the live
@@ -68,8 +70,70 @@ model McpAccessToken {
   expiresAt  DateTime?
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
+  // Set when the token was issued by the OAuth flow (Claude.ai connector);
+  // null for personal access tokens created in Settings.
+  grantId    String?   @db.Uuid
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  grant McpOAuthGrant? @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([grantId])
+}
+
+// OAuth 2.1 authorization server for the MCP endpoint (Claude.ai custom
+// connectors). Clients register dynamically (RFC 7591); every secret
+// (authorization code, refresh token) is stored as a peppered SHA-256 hash.
+
+model McpOAuthClient {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  redirectUris String[]
+  createdAt    DateTime @default(now())
+
+  authorizationCodes McpOAuthAuthorizationCode[]
+  grants             McpOAuthGrant[]
+}
+
+// Single-use, short-lived code bound to client, redirect URI and PKCE challenge.
+model McpOAuthAuthorizationCode {
+  id            String    @id @default(uuid()) @db.Uuid
+  codeHash      String    @unique
+  clientId      String    @db.Uuid
+  userId        String    @db.Uuid
+  redirectUri   String
+  scopes        String[]
+  codeChallenge String
+  resource      String?
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  client McpOAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// A user's consent for one client ("connected app"). Holds the rotating
+// refresh token; access tokens hang off it and die with it.
+model McpOAuthGrant {
+  id                       String    @id @default(uuid()) @db.Uuid
+  clientId                 String    @db.Uuid
+  userId                   String    @db.Uuid
+  scopes                   String[]
+  refreshTokenHash         String    @unique
+  // Previous hash kept to detect refresh-token reuse after rotation (OAuth 2.1).
+  previousRefreshTokenHash String?   @unique
+  refreshExpiresAt         DateTime
+  lastUsedAt               DateTime?
+  revokedAt                DateTime?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  client       McpOAuthClient   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessTokens McpAccessToken[]
 
   @@index([userId])
 }

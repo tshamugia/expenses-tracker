@@ -13,6 +13,7 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import type { AuthInfo } from '@modelcontextprotocol/server'
 import { verifyToken } from '@/lib/services/mcp-auth'
+import { OAUTH_PATHS, resolveIssuer } from '@/lib/services/mcp-oauth'
 import { MCP_SERVER_INFO, registerExtrackerTools } from '@/lib/services/mcp-tools'
 import { clientKeyFromRequest, createRateLimiter } from '@/lib/services/rate-limit'
 
@@ -43,7 +44,12 @@ async function verifyBearer(_req: Request, bearerToken?: string): Promise<AuthIn
   }
 }
 
-const authHandler = withMcpAuth(mcpHandler, verifyBearer, { required: true })
+const authHandler = withMcpAuth(mcpHandler, verifyBearer, {
+  required: true,
+  // Challenge URL is built from the configured issuer, not from request headers.
+  resourceUrl: resolveIssuer(),
+  resourceMetadataPath: OAUTH_PATHS.protectedResourceMetadata,
+})
 
 async function handle(req: Request): Promise<Response> {
   const key = clientKeyFromRequest(req)

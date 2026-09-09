@@ -91,7 +91,7 @@ User Interaction → Client Component → Server Action → Prisma/Service → P
 ### Key Architectural Patterns
 
 - **No REST API**: Server Actions provide type-safe, direct server-side mutations instead of REST/GraphQL endpoints (API routes exist only for auth, cron, testing, and the MCP server)
-- **MCP server**: `app/api/mcp/route.ts` exposes read/write tools to AI clients (Claude Desktop/Code, Cursor) over Streamable HTTP, authenticated with hashed personal access tokens (`McpAccessToken`, Settings → MCP access). Tools never call session-bound Server Actions; they use userId-first builders in `lib/services/` (`plan-view`, `debt-overview`, `goal-overview`, `quick-add`) via `lib/services/mcp-data.ts`. Full guide: `docs/mcp-server.md`.
+- **MCP server**: `app/api/mcp/route.ts` exposes read/write tools to AI clients (Claude.ai, Claude Desktop/Code, Cursor) over Streamable HTTP, authenticated with hashed access tokens (`McpAccessToken`). Two ways to get one: personal access tokens (Settings → MCP access) and the in-app **OAuth 2.1 authorization server** used by Claude.ai custom connectors (`lib/services/mcp-oauth.ts`, `/.well-known/*`, `/api/oauth/*`, consent at `/oauth/authorize`). Tools never call session-bound Server Actions; they use userId-first builders in `lib/services/` (`plan-view`, `debt-overview`, `goal-overview`, `quick-add`) via `lib/services/mcp-data.ts`. Full guide: `docs/mcp-server.md`.
 - **React Server Components (RSC)**: Default for pages and layouts to reduce client bundle size
 - **Server Actions**: All CRUD operations are server actions in `lib/actions/` marked with `'use server'`
 - **Services Layer**: Complex business logic (email, notifications, currency) abstracted into `lib/services/`
@@ -144,7 +144,7 @@ User Interaction → Client Component → Server Action → Prisma/Service → P
 - `lib/services/notification-service.ts` - Notification business logic and email sending
 - `lib/services/email.ts` - Email service abstraction (Resend)
 - `lib/services/currency.ts` - Currency conversion service
-- `lib/services/mcp-auth.ts`, `mcp-tools.ts`, `mcp-data.ts` - MCP server auth, tool surface and data adapters
+- `lib/services/mcp-auth.ts`, `mcp-oauth.ts`, `mcp-tools.ts`, `mcp-data.ts` - MCP server token auth, OAuth 2.1 authorization server, tool surface and data adapters
 - `types/expense-types.ts` - Type definitions for Expense domain
 - `prisma/schema.prisma` - Complete database schema
 

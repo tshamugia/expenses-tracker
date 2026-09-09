@@ -54,7 +54,7 @@ describe('listMcpTokens', () => {
 
     expect(r).toEqual({ success: true, data: [ITEM] })
     const call = mockPrisma.mcpAccessToken.findMany.mock.calls[0][0]
-    expect(call.where).toEqual({ userId: USER_ID, revokedAt: null })
+    expect(call.where).toEqual({ userId: USER_ID, revokedAt: null, grantId: null })
     expect(call.select).not.toHaveProperty('tokenHash')
   })
 })

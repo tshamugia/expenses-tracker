@@ -12,6 +12,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { signUpWithCredentials, signInWithCredentials } from '@/lib/actions/auth-actions'
 import { validatePassword } from '@/lib/utils/password-validation'
+import { safeInternalPath } from '@/lib/utils/safe-redirect'
 
 export function LoginForm() {
   const router = useRouter()
@@ -22,6 +23,8 @@ export function LoginForm() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+  // Where to go after sign-in (e.g. back to an OAuth consent screen); same-origin paths only.
+  const callbackUrl = safeInternalPath(searchParams.get('callbackUrl'))
 
   // Check URL parameter to determine if we should show sign-up form
   useEffect(() => {
@@ -38,7 +41,7 @@ export function LoginForm() {
   const handleGoogleSignIn = async () => {
     setLoadingProvider('google')
     try {
-      await signIn('google', { callbackUrl: '/dashboard' })
+      await signIn('google', { callbackUrl })
     } catch (error) {
       console.error('Sign in error:', error)
       toast.error('Failed to sign in with Google')
@@ -85,7 +88,7 @@ export function LoginForm() {
 
         if (result.success) {
           toast.success('Signed in successfully!')
-          router.push('/dashboard')
+          router.push(callbackUrl)
         } else if (result.code === 'EMAIL_NOT_VERIFIED') {
           toast.error(result.error, {
             description: 'We\'ll take you to the verification page.',

@@ -87,6 +87,15 @@ describe('issueToken', () => {
     expect(data.tokenHash).toBe(hashToken(issued.raw))
     expect(data.tokenHash).not.toContain(issued.raw)
     expect(JSON.stringify(data)).not.toContain(issued.raw)
+    expect(data.grantId).toBeNull()
+  })
+
+  it('links the token to an OAuth grant when asked', async () => {
+    mockPrisma.mcpAccessToken.create.mockImplementation(async ({ data }) => ({ id: 'tok-2', ...data }))
+
+    await issueToken('user-1', 'Claude', ['read'], null, { grantId: 'grant-1' })
+
+    expect(mockPrisma.mcpAccessToken.create.mock.calls[0][0].data.grantId).toBe('grant-1')
   })
 })
 

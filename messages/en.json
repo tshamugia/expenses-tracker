@@ -584,6 +584,28 @@
     "scopeBadgeRead": "read",
     "scopeBadgeWrite": "write",
     "created": "Token created",
-    "revoked": "Token revoked"
+    "revoked": "Token revoked",
+    "claudeAiHint": "Claude.ai / Claude Desktop: Settings → Connectors → Add custom connector, paste this URL and approve access when asked — no token needed. Tokens below are for clients that only take a static header (Claude Code, Cursor).",
+    "connectedAppsLabel": "Connected apps",
+    "noConnectedApps": "No apps connected yet. Add this server as a custom connector in Claude.ai to connect.",
+    "connectedOn": "Connected",
+    "disconnect": "Disconnect",
+    "disconnected": "App disconnected"
+  },
+  "OAuthConsent": {
+    "title": "{client} wants to access your ExtraTracker data",
+    "signedInAs": "Signed in as {email}",
+    "redirectsTo": "After approval you will be sent back to",
+    "loopbackWarning": "This is a local address on your computer. Only approve if you started this connection yourself.",
+    "permissionsTitle": "This app will be able to:",
+    "readTitle": "Read your finances",
+    "readDescription": "Dashboard, monthly plan, expenses, transactions, categories, debts and goals.",
+    "writeTitle": "Add expenses and transactions",
+    "writeDescription": "Create new expenses and ledger entries on your behalf. Turn off to keep the connection read-only.",
+    "revokeHint": "You can disconnect the app at any time in Settings → MCP access.",
+    "deny": "Deny",
+    "approve": "Approve",
+    "invalidTitle": "Invalid authorization request",
+    "invalidDescription": "The app that sent you here is not registered or used a redirect address it did not register. Nothing was shared."
   }
 }

@@ -4,7 +4,8 @@ import { NextIntlClientProvider } from 'next-intl'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import en from '@/messages/en.json'
 import { createMcpToken, revokeMcpToken } from '@/lib/actions/mcp-token-actions'
-import type { McpTokenListItem } from '@/types/mcp-types'
+import { revokeConnectedApp } from '@/lib/actions/mcp-oauth-actions'
+import type { ConnectedAppItem, McpTokenListItem } from '@/types/mcp-types'
 import { McpTokensSettings } from './mcp-tokens-settings'
 
 const refresh = vi.fn()
@@ -15,6 +16,10 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/actions/mcp-token-actions', () => ({
   createMcpToken: vi.fn(),
   revokeMcpToken: vi.fn(),
+}))
+
+vi.mock('@/lib/actions/mcp-oauth-actions', () => ({
+  revokeConnectedApp: vi.fn(),
 }))
 
 const MCP_URL = 'https://app.example.com/api/mcp'
@@ -39,10 +44,21 @@ const writeToken: McpTokenListItem = {
   createdAt: new Date('2026-08-02T00:00:00Z'),
 }
 
-function renderComponent(tokens: McpTokenListItem[] = [readToken, writeToken]) {
+const claudeApp: ConnectedAppItem = {
+  id: 'grant-1',
+  clientName: 'Claude',
+  scopes: ['read', 'write'],
+  lastUsedAt: new Date('2026-09-05T00:00:00Z'),
+  createdAt: new Date('2026-09-01T00:00:00Z'),
+}
+
+function renderComponent(
+  tokens: McpTokenListItem[] = [readToken, writeToken],
+  connectedApps: ConnectedAppItem[] = []
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <McpTokensSettings tokens={tokens} mcpUrl={MCP_URL} />
+      <McpTokensSettings tokens={tokens} connectedApps={connectedApps} mcpUrl={MCP_URL} />
     </NextIntlClientProvider>
   )
 }
@@ -65,7 +81,26 @@ describe('McpTokensSettings', () => {
 
     renderComponent([])
     expect(screen.getByText(/No tokens yet/)).toBeInTheDocument()
+    expect(screen.getAllByText(/No apps connected yet/).length).toBeGreaterThan(0)
   })
+
+  it('lists connected apps and disconnects one after confirmation', async () => {
+    const user = userEvent.setup()
+    vi.mocked(revokeConnectedApp).mockResolvedValue({ success: true, data: undefined })
+    renderComponent([], [claudeApp])
+
+    const list = within(screen.getByTestId('connected-apps'))
+    expect(list.getByText('Claude')).toBeInTheDocument()
+    expect(list.getByText('write')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Disconnect Claude' }))
+    expect(revokeConnectedApp).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Yes' }))
+
+    await waitFor(() => expect(revokeConnectedApp).toHaveBeenCalledWith('grant-1'))
+    await waitFor(() => expect(screen.queryByTestId('connected-apps')).not.toBeInTheDocument())
+    expect(refresh).toHaveBeenCalled()
+  }, 15_000)
 
   it('creates a token and shows the raw secret once', async () => {
     const user = userEvent.setup()

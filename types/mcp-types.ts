@@ -37,3 +37,12 @@ export interface CreatedMcpToken {
   token: string
   item: McpTokenListItem
 }
+
+/** An OAuth connection ("connected app", e.g. Claude.ai) shown in Settings. */
+export interface ConnectedAppItem {
+  id: string
+  clientName: string
+  scopes: string[]
+  lastUsedAt: Date | null
+  createdAt: Date
+}
