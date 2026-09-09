@@ -28,17 +28,24 @@ export interface CategoryListItem {
   createdAt: Date
 }
 
+// FIXED = mandatory line in the monthly plan, VARIABLE = variable target
+export type CategoryKind = 'FIXED' | 'VARIABLE'
+
 // Input for creating a category
 export interface CreateCategoryInput {
   userId: string
   categoryName: string
   color?: string
+  kind?: CategoryKind
+  monthlyLimit?: number | null
 }
 
-// Input for updating a category
+// Input for updating a category (null monthlyLimit clears the limit)
 export interface UpdateCategoryInput {
   categoryName?: string
   color?: string
+  kind?: CategoryKind
+  monthlyLimit?: number | null
 }
 
 // Action result wrapper

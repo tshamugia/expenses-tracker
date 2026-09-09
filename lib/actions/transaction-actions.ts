@@ -2,16 +2,21 @@
 
 /**
  * Server Actions for Transactions (Phase 1 — unified ledger)
- * BUSINESS LOGIC LAYER
- * - Quick-add for variable expenses (10-second flow)
+ * BUSINESS LOGIC LAYER — orchestration only (auth → service → revalidate).
+ * - Quick-add for variable expenses (10-second flow) → lib/services/quick-add
  * - Ledger queries with filters and pagination
- * - Category soft-limit status returned with every quick-add
+ * - Update/delete → lib/services/transaction-service (shared with MCP tools)
  */
 
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
+import { toActionResult } from '@/lib/services/outcome'
 import { addExpenseTransaction, type QuickAddResult } from '@/lib/services/quick-add'
+import {
+  deleteTransactionForUser,
+  updateTransactionForUser,
+} from '@/lib/services/transaction-service'
 import type {
   QuickAddExpenseInput,
   SerializedTransaction,
@@ -25,18 +30,6 @@ export interface TransactionActionResult<T> {
   success: boolean
   data?: T
   error?: string
-}
-
-const SUPPORTED_CURRENCIES = ['GEL', 'USD', 'EUR']
-
-function serializeTransaction(transaction: {
-  amount: unknown
-  [key: string]: unknown
-}): SerializedTransaction {
-  return {
-    ...transaction,
-    amount: Number(transaction.amount),
-  } as SerializedTransaction
 }
 
 /**
@@ -138,6 +131,12 @@ export async function getTransactions(
   }
 }
 
+function revalidateLedgerPages(): void {
+  revalidatePath('/expenses')
+  revalidatePath('/dashboard')
+  revalidatePath('/income')
+}
+
 /**
  * Update a transaction (amount, date, category, description).
  */
@@ -150,49 +149,10 @@ export async function updateTransaction(
     if (!session?.user?.id) {
       return { success: false, error: 'Unauthorized' }
     }
-    const userId = session.user.id
 
-    // SECURITY: verify ownership
-    const existing = await prisma.transaction.findFirst({
-      where: { id, userId },
-    })
-    if (!existing) {
-      return { success: false, error: 'Transaction not found or access denied' }
-    }
-
-    if (input.amount !== undefined && (!Number.isFinite(input.amount) || input.amount <= 0)) {
-      return { success: false, error: 'Amount must be greater than zero' }
-    }
-
-    if (input.currency !== undefined && !SUPPORTED_CURRENCIES.includes(input.currency)) {
-      return { success: false, error: 'Unsupported currency' }
-    }
-
-    if (input.categoryId) {
-      const category = await prisma.category.findFirst({
-        where: { id: input.categoryId, userId },
-      })
-      if (!category) {
-        return { success: false, error: 'Category not found or access denied' }
-      }
-    }
-
-    const transaction = await prisma.transaction.update({
-      where: { id },
-      data: {
-        amount: input.amount,
-        currency: input.currency,
-        date: input.date,
-        categoryId: input.categoryId,
-        description: input.description,
-      },
-    })
-
-    revalidatePath('/expenses')
-    revalidatePath('/dashboard')
-    revalidatePath('/income')
-
-    return { success: true, data: serializeTransaction(transaction) }
+    const outcome = await updateTransactionForUser(session.user.id, id, input)
+    if (outcome.ok) revalidateLedgerPages()
+    return toActionResult(outcome)
   } catch (error) {
     console.error('Error in updateTransaction:', error)
     return {
@@ -213,23 +173,10 @@ export async function deleteTransaction(
     if (!session?.user?.id) {
       return { success: false, error: 'Unauthorized' }
     }
-    const userId = session.user.id
 
-    // SECURITY: verify ownership
-    const existing = await prisma.transaction.findFirst({
-      where: { id, userId },
-    })
-    if (!existing) {
-      return { success: false, error: 'Transaction not found or access denied' }
-    }
-
-    await prisma.transaction.delete({ where: { id } })
-
-    revalidatePath('/expenses')
-    revalidatePath('/dashboard')
-    revalidatePath('/income')
-
-    return { success: true }
+    const outcome = await deleteTransactionForUser(session.user.id, id)
+    if (outcome.ok) revalidateLedgerPages()
+    return toActionResult(outcome)
   } catch (error) {
     console.error('Error in deleteTransaction:', error)
     return {

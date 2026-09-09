@@ -2,19 +2,24 @@
 
 /**
  * Server Actions for Payment Cards
- * BUSINESS LOGIC LAYER
- * - Handle CRUD operations for payment cards
- * - Validate card data
- * - Transform data for UI consumption
+ * BUSINESS LOGIC LAYER — orchestration only (auth → service → revalidate).
+ * The user is ALWAYS resolved from the session, never from the arguments:
+ * Server Actions are callable from any client, so a caller-supplied userId
+ * or an unchecked card id would let one user read or edit another's cards.
+ * The userId-first logic lives in lib/services/payment-card-service.ts and
+ * is shared with the MCP tools.
  */
 
 import { revalidatePath } from 'next/cache'
+import { auth } from '@/auth'
 import prisma from '@/lib/db/prisma'
+import { toActionResult } from '@/lib/services/outcome'
 import {
-  validateCardNumber,
-  getLastFourDigits,
-  validateExpiryDate,
-} from '@/lib/utils/card-validation'
+  createPaymentCardForUser,
+  deletePaymentCardForUser,
+  listPaymentCardsForUser,
+  updatePaymentCardForUser,
+} from '@/lib/services/payment-card-service'
 import type {
   SerializedPaymentCard,
   CreatePaymentCardInput,
@@ -23,19 +28,32 @@ import type {
   PaymentCardListItem,
 } from '@/types/payment-card-types'
 
+async function sessionUserId(): Promise<string | null> {
+  const session = await auth()
+  return session?.user?.id ?? null
+}
+
+function revalidateCardPages(): void {
+  revalidatePath('/payments')
+  revalidatePath('/expenses')
+  revalidatePath('/dashboard')
+}
+
 /**
- * Get all payment cards for a user
+ * Get all payment cards of the signed-in user. The `_userId` argument is kept
+ * for call-site compatibility but is ignored — the session decides.
  */
 export async function getUserPaymentCards(
-  userId: string
+  _userId?: string
 ): Promise<SerializedPaymentCard[]> {
+  void _userId
   try {
-    const cards = await prisma.paymentCard.findMany({
+    const userId = await sessionUserId()
+    if (!userId) return []
+    return await prisma.paymentCard.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     })
-
-    return cards
   } catch (error) {
     console.error('Error fetching payment cards:', error)
     return []
@@ -43,33 +61,17 @@ export async function getUserPaymentCards(
 }
 
 /**
- * Get all payment cards with expense count for a user
+ * Get all payment cards with expense count for the signed-in user.
+ * The `_userId` argument is ignored — the session decides.
  */
 export async function getUserPaymentCardsWithStats(
-  userId: string
+  _userId?: string
 ): Promise<PaymentCardListItem[]> {
+  void _userId
   try {
-    const cards = await prisma.paymentCard.findMany({
-      where: { userId },
-      include: {
-        _count: {
-          select: { expenses: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    })
-
-    return cards.map((card) => ({
-      id: card.id,
-      cardholderName: card.cardholderName,
-      lastFourDigits: card.lastFourDigits,
-      expiryMonth: card.expiryMonth,
-      expiryYear: card.expiryYear,
-      cardBrand: card.cardBrand,
-      nickname: card.nickname,
-      color: card.color,
-      expenseCount: card._count.expenses,
-    }))
+    const userId = await sessionUserId()
+    if (!userId) return []
+    return await listPaymentCardsForUser(userId)
   } catch (error) {
     console.error('Error fetching payment cards with stats:', error)
     return []
@@ -77,17 +79,15 @@ export async function getUserPaymentCardsWithStats(
 }
 
 /**
- * Get a single payment card by ID
+ * Get a single payment card by ID — only if it belongs to the signed-in user.
  */
 export async function getPaymentCardById(
   id: string
 ): Promise<SerializedPaymentCard | null> {
   try {
-    const card = await prisma.paymentCard.findUnique({
-      where: { id },
-    })
-
-    return card
+    const userId = await sessionUserId()
+    if (!userId) return null
+    return await prisma.paymentCard.findFirst({ where: { id, userId } })
   } catch (error) {
     console.error('Error fetching payment card:', error)
     return null
@@ -95,67 +95,20 @@ export async function getPaymentCardById(
 }
 
 /**
- * Create a new payment card
+ * Create a new payment card for the signed-in user. `input.userId` is ignored.
  */
 export async function createPaymentCard(
   input: CreatePaymentCardInput
 ): Promise<ActionResult<SerializedPaymentCard>> {
   try {
-    // Validate card number
-    const validation = validateCardNumber(input.cardNumber)
-    if (!validation.isValid) {
-      return {
-        success: false,
-        error: validation.error || 'Invalid card number',
-      }
-    }
+    const userId = await sessionUserId()
+    if (!userId) return { success: false, error: 'Unauthorized' }
 
-    // Validate expiry date
-    if (!validateExpiryDate(input.expiryMonth, input.expiryYear)) {
-      return {
-        success: false,
-        error: 'Invalid or expired date',
-      }
-    }
-
-    // Validate cardholder name
-    if (!input.cardholderName.trim()) {
-      return {
-        success: false,
-        error: 'Cardholder name is required',
-      }
-    }
-
-    if (input.cardholderName.length < 2 || input.cardholderName.length > 50) {
-      return {
-        success: false,
-        error: 'Cardholder name must be 2-50 characters',
-      }
-    }
-
-    // Extract last 4 digits
-    const lastFourDigits = getLastFourDigits(input.cardNumber)
-
-    // Create payment card
-    const card = await prisma.paymentCard.create({
-      data: {
-        userId: input.userId,
-        cardholderName: input.cardholderName,
-        lastFourDigits,
-        expiryMonth: input.expiryMonth,
-        expiryYear: input.expiryYear,
-        cardBrand: validation.brand,
-        nickname: input.nickname || null,
-        color: input.color || '#1e40af',
-      },
-    })
-
-    // Revalidate pages
-    revalidatePath('/payments')
-    revalidatePath('/expenses')
-    revalidatePath('/dashboard')
-
-    return { success: true, data: card }
+    const { userId: _ignored, ...rest } = input
+    void _ignored
+    const outcome = await createPaymentCardForUser(userId, rest)
+    if (outcome.ok) revalidateCardPages()
+    return toActionResult(outcome)
   } catch (error) {
     console.error('Error creating payment card:', error)
     return {
@@ -166,58 +119,19 @@ export async function createPaymentCard(
 }
 
 /**
- * Update an existing payment card
+ * Update a payment card — only if it belongs to the signed-in user.
  */
 export async function updatePaymentCard(
   id: string,
   input: UpdatePaymentCardInput
 ): Promise<ActionResult<SerializedPaymentCard>> {
   try {
-    // Validate expiry date if provided
-    if (input.expiryMonth !== undefined && input.expiryYear !== undefined) {
-      if (!validateExpiryDate(input.expiryMonth, input.expiryYear)) {
-        return {
-          success: false,
-          error: 'Invalid or expired date',
-        }
-      }
-    }
+    const userId = await sessionUserId()
+    if (!userId) return { success: false, error: 'Unauthorized' }
 
-    // Validate cardholder name if provided
-    if (input.cardholderName !== undefined) {
-      if (!input.cardholderName.trim()) {
-        return {
-          success: false,
-          error: 'Cardholder name is required',
-        }
-      }
-
-      if (input.cardholderName.length < 2 || input.cardholderName.length > 50) {
-        return {
-          success: false,
-          error: 'Cardholder name must be 2-50 characters',
-        }
-      }
-    }
-
-    // Update payment card
-    const card = await prisma.paymentCard.update({
-      where: { id },
-      data: {
-        cardholderName: input.cardholderName,
-        expiryMonth: input.expiryMonth,
-        expiryYear: input.expiryYear,
-        nickname: input.nickname,
-        color: input.color,
-      },
-    })
-
-    // Revalidate pages
-    revalidatePath('/payments')
-    revalidatePath('/expenses')
-    revalidatePath('/dashboard')
-
-    return { success: true, data: card }
+    const outcome = await updatePaymentCardForUser(userId, id, input)
+    if (outcome.ok) revalidateCardPages()
+    return toActionResult(outcome)
   } catch (error) {
     console.error('Error updating payment card:', error)
     return {
@@ -228,24 +142,19 @@ export async function updatePaymentCard(
 }
 
 /**
- * Delete a payment card
+ * Delete a payment card — only if it belongs to the signed-in user.
+ * Related expenses keep existing (paymentCardId → null).
  */
 export async function deletePaymentCard(
   id: string
 ): Promise<ActionResult<void>> {
   try {
-    // Delete payment card
-    // Note: Related expenses will have paymentCardId set to null (onDelete: SetNull)
-    await prisma.paymentCard.delete({
-      where: { id },
-    })
+    const userId = await sessionUserId()
+    if (!userId) return { success: false, error: 'Unauthorized' }
 
-    // Revalidate pages
-    revalidatePath('/payments')
-    revalidatePath('/expenses')
-    revalidatePath('/dashboard')
-
-    return { success: true }
+    const outcome = await deletePaymentCardForUser(userId, id)
+    if (outcome.ok) revalidateCardPages()
+    return toActionResult(outcome)
   } catch (error) {
     console.error('Error deleting payment card:', error)
     return {
